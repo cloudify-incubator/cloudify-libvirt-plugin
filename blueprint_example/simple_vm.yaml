@@ -1,0 +1,10 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/3.4/types.yaml
+  - https://raw.githubusercontent.com/unofficial-cloudify-cosmo/cloudify-libvirt-plugin/master/plugin.yaml
+
+node_templates:
+
+  ios_impl:
+    type: cloudify.libvirt.raw

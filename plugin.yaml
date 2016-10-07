@@ -1,0 +1,29 @@
+plugins:
+  netconf:
+    executor: central_deployment_agent
+    source: https://github.com/unofficial-cloudify-cosmo/cloudify-libvirt-plugin/archive/master.zip
+    package_name: cloudify-libvirt-plugin
+    package_version: '0.1'
+
+node_types:
+
+  cloudify.libvirt.raw:
+    derived_from: cloudify.nodes.Root
+
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: netconf.cloudify_libvirt.raw_tasks.create
+          inputs: {}
+        configure:
+          implementation: netconf.cloudify_libvirt.raw_tasks.configure
+          inputs: {}
+        start:
+          implementation: netconf.cloudify_libvirt.raw_tasks.start
+          inputs: {}
+        stop:
+          implementation: netconf.cloudify_libvirt.raw_tasks.stop
+          inputs: {}
+        delete:
+          implementation: netconf.cloudify_libvirt.raw_tasks.delete
+          inputs: {}
