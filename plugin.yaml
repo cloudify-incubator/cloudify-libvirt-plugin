@@ -9,6 +9,9 @@ node_types:
 
   cloudify.libvirt.raw:
     derived_from: cloudify.nodes.Root
+    properties:
+      default:
+        libvirt_auth: {}
 
     interfaces:
       cloudify.interfaces.lifecycle:

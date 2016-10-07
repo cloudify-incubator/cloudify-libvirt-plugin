@@ -8,3 +8,6 @@ node_templates:
 
   ios_impl:
     type: cloudify.libvirt.raw
+#    properties:
+#      libvirt_auth:
+#        url: 'qemu:///system'
