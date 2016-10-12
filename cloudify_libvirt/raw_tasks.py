@@ -19,6 +19,7 @@ import time
 
 from cloudify import ctx
 from cloudify.decorators import operation
+from cloudify import exceptions as cfy_exc
 
 
 @operation
@@ -28,8 +29,14 @@ def create(**kwargs):
         print 'Failed to open connection to the hypervisor'
         sys.exit(1)
 
+    server = {
+        'name': ctx.instance.id,
+    }
+    server.update(ctx.node.properties.get('server', {}))
+    server.update(kwargs.get('server', {}))
+
     xmlconfig="""<domain type='qemu'>
-      <name>ubuntu-server</name>
+      <name>""" + server['name'] + """</name>
       <uuid>8dcd1143-bafc-dc37-2fbd-27e6a1e3ca5c</uuid>
       <memory unit='KiB'>65536</memory>
       <currentMemory unit='KiB'>65536</currentMemory>
@@ -111,16 +118,20 @@ def create(**kwargs):
 
     dom = conn.defineXML(xmlconfig)
     if dom == None:
-        print 'Failed to define a domain from an XML definition.'
-        exit(1)
+        raise cfy_exc.NonRecoverableError(
+            'Failed to define a domain from an XML definition.'
+        )
+
+    ctx.instance.runtime_properties['resource_id'] = dom.name()
 
     if dom.create() < 0:
-        print 'Can not boot guest domain.'
-        exit(1)
+        raise cfy_exc.NonRecoverableError(
+            'Can not boot guest domain.'
+        )
 
-    print 'Guest '+dom.name()+' has booted'
-
-    ctx.logger.info("create")
+    ctx.logger.info('Guest ' + dom.name() +' has booted')
+    ctx.instance.runtime_properties['resource_id'] = dom.name()
+    conn.close()
 
 
 @operation
@@ -135,37 +146,74 @@ def start(**kwargs):
 
 @operation
 def stop(**kwargs):
+
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+
+    if not resource_id:
+        ctx.logger.info("No servers for delete")
+        return
+
     conn = libvirt.open('qemu:///system')
     if conn == None:
-        print 'Failed to open connection to the hypervisor'
-        sys.exit(1)
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
 
-    dom = conn.lookupByName('ubuntu-server')
+    dom = conn.lookupByName(resource_id)
     if dom == None:
-        print 'Failed to find the domain'
-        exit(1)
+        raise cfy_exc.NonRecoverableError(
+            'Failed to find the domain'
+        )
+
+    for i in xrange(10):
+        ctx.logger.info("Tring to stop vm")
+        if dom.shutdown() < 0:
+            raise cfy_exc.NonRecoverableError(
+                'Can not shutdown guest domain.'
+            )
+        time.sleep(30)
+
+        state, reason = dom.state()
+
+        if state == libvirt.VIR_DOMAIN_SHUTOFF:
+            ctx.logger.info("Looks as stoped Tring to stop vm")
+            return
+
+    conn.close()
 
 
-    if dom.shutdown() < 0:
-        print 'Can not shutdown guest domain.'
+@operation
+def delete(**kwargs):
 
-    time.sleep(10)
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+
+    if not resource_id:
+        ctx.logger.info("No servers for delete")
+        return
+
+    conn = libvirt.open('qemu:///system')
+    if conn == None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    dom = conn.lookupByName(resource_id)
+    if dom == None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to find the domain'
+        )
 
     state, reason = dom.state()
 
     if state != libvirt.VIR_DOMAIN_SHUTOFF:
         if dom.destroy() < 0:
-            print 'Can not destroy guest domain.'
-            exit(1)
+            raise cfy_exc.NonRecoverableError(
+                'Can not destroy guest domain.'
+            )
 
     if dom.undefine() < 0:
-        print 'Can not undefine guest domain.'
-        exit(1)
+        raise cfy_exc.NonRecoverableError(
+            'Can not undefine guest domain.'
+        )
 
     conn.close()
-    ctx.logger.info("stop")
-
-
-@operation
-def delete(**kwargs):
-    ctx.logger.info("delete")
