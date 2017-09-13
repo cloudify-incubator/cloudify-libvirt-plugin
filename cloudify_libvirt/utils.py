@@ -15,7 +15,6 @@
 # Code based on https://github.com/cloudify-cosmo/cloudify-netconf-plugin
 from cloudify import exceptions as cfy_exc
 from lxml import etree
-from lxml import isoschematron
 
 
 LIBVIRT_NAMESPACE = ""

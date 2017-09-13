@@ -14,9 +14,7 @@
 #    * limitations under the License.
 
 import libvirt
-import sys
 import time
-import yaml
 from lxml import etree
 
 from cloudify import ctx
@@ -24,12 +22,14 @@ from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 import utils
 
+
 @operation
 def create(**kwargs):
     conn = libvirt.open('qemu:///system')
-    if conn == None:
-        print 'Failed to open connection to the hypervisor'
-        sys.exit(1)
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
 
     server = {
         'name': ctx.instance.id,
@@ -37,7 +37,6 @@ def create(**kwargs):
     server.update(ctx.node.properties.get('server', {}))
     server.update(kwargs.get('server', {}))
 
-    print ctx.node.properties
     xmlns = ctx.node.properties.get('metadata', {}).get('xmlns', {})
 
     for name in kwargs['payload']:
@@ -52,10 +51,10 @@ def create(**kwargs):
             encoding='UTF-8'
         )
 
-        print xmlconfig
+        ctx.logger.info(xmlconfig)
 
         dom = conn.defineXML(xmlconfig)
-        if dom == None:
+        if dom is None:
             raise cfy_exc.NonRecoverableError(
                 'Failed to define a domain from an XML definition.'
             )
@@ -67,7 +66,7 @@ def create(**kwargs):
                 'Can not boot guest domain.'
             )
 
-        ctx.logger.info('Guest ' + dom.name() +' has booted')
+        ctx.logger.info('Guest ' + dom.name() + ' has booted')
         ctx.instance.runtime_properties['resource_id'] = dom.name()
         conn.close()
 
@@ -92,13 +91,13 @@ def stop(**kwargs):
         return
 
     conn = libvirt.open('qemu:///system')
-    if conn == None:
+    if conn is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'
         )
 
     dom = conn.lookupByName(resource_id)
-    if dom == None:
+    if dom is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to find the domain'
         )
@@ -131,13 +130,13 @@ def delete(**kwargs):
         return
 
     conn = libvirt.open('qemu:///system')
-    if conn == None:
+    if conn is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'
         )
 
     dom = conn.lookupByName(resource_id)
-    if dom == None:
+    if dom is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to find the domain'
         )

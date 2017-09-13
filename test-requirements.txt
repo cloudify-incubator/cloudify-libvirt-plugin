@@ -1,0 +1,9 @@
+mock>=1.0
+nose>=1.3
+coverage
+testtools>=0.9.36,!=1.2.0
+tox
+nose-cov
+flake8
+# for blueprints validate
+cloudify>=3.4.1
