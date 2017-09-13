@@ -9,7 +9,10 @@ node_types:
 
   cloudify.libvirt.raw:
     derived_from: cloudify.nodes.Root
-
+    properties:
+      libvirt_auth:
+        default:
+          url: 'qemu:///system'
     interfaces:
       cloudify.interfaces.lifecycle:
         create:

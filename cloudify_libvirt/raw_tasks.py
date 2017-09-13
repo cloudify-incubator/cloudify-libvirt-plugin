@@ -39,5 +39,5 @@ def stop(**kwargs):
 
 
 @operation
-def delete(some_property, **kwargs):
+def delete(**kwargs):
     ctx.logger.info("delete")

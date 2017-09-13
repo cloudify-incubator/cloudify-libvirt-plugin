@@ -6,5 +6,5 @@ imports:
 
 node_templates:
 
-  ios_impl:
+  vm_impl:
     type: cloudify.libvirt.raw
