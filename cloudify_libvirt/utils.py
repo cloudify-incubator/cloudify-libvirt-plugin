@@ -1,4 +1,4 @@
-# Copyright (c) 2015 GigaSpaces Technologies Ltd. All rights reserved
+# Copyright (c) 2015-2017 GigaSpaces Technologies Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,16 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# Code based on https://github.com/cloudify-cosmo/cloudify-netconf-plugin
 from cloudify import exceptions as cfy_exc
 from lxml import etree
 from lxml import isoschematron
 
 
-NETCONF_NAMESPACE = "urn:ietf:params:xml:ns:netconf:base:1.0"
-RELAXNG_NAMESPACE = 'http://relaxng.org/ns/structure/1.0'
+LIBVIRT_NAMESPACE = ""
 
 # default netconf namespace short name
-DEFAULT_NCNS = "rfc6020"
+DEFAULT_NCNS = "libvirt"
 
 
 def _node_name(name, namespace, xmlns):
@@ -61,6 +62,10 @@ def _general_node(parent, node_name, value, xmlns, namespace, nsmap):
     if node_name == "_@@":
         parent.text = str(value)
         return
+    # special case for raw nodes
+    if node_name == "_!_":
+        parent.append(etree.XML(value))
+        return
     # general logic
     attribute, tag_namespace, tag_name = _node_name(
         node_name, namespace, xmlns
@@ -99,25 +104,25 @@ def _gen_xml(parent, properties, xmlns, namespace, nsmap):
 
 
 def update_xmlns(xmlns):
-    netconf_namespace = DEFAULT_NCNS
+    libvirt_namespace = DEFAULT_NCNS
     for k in xmlns:
-        if xmlns[k] == NETCONF_NAMESPACE:
-            netconf_namespace = k
+        if xmlns[k] == LIBVIRT_NAMESPACE:
+            libvirt_namespace = k
             break
-    if netconf_namespace not in xmlns:
-        xmlns[netconf_namespace] = NETCONF_NAMESPACE
-    return netconf_namespace, xmlns
+    if libvirt_namespace not in xmlns:
+        xmlns[libvirt_namespace] = LIBVIRT_NAMESPACE
+    return libvirt_namespace, xmlns
 
 
 def create_nsmap(xmlns):
-    netconf_namespace, xmlns = update_xmlns(xmlns)
+    libvirt_namespace, xmlns = update_xmlns(xmlns)
     nsmap = {}
     for k in xmlns:
         if k != "_":
             nsmap[k] = xmlns[k]
         else:
             nsmap[None] = xmlns[k]
-    return nsmap, netconf_namespace, xmlns
+    return nsmap, libvirt_namespace, xmlns
 
 
 def generate_xml_node(model, xmlns, parent_tag):
@@ -125,31 +130,15 @@ def generate_xml_node(model, xmlns, parent_tag):
         raise cfy_exc.NonRecoverableError(
             "node doesn't have any namespaces"
         )
-    nsmap, netconf_namespace, xmlns = create_nsmap(xmlns)
+    nsmap, libvirt_namespace, xmlns = create_nsmap(xmlns)
     # we does not support attibutes on top level,
     # so for now ignore attibute flag
-    _, _, tag_name = _node_name(parent_tag, netconf_namespace, xmlns)
+    _, _, tag_name = _node_name(parent_tag, libvirt_namespace, xmlns)
     parent = etree.Element(
         tag_name, nsmap=nsmap
     )
     _gen_xml(parent, model, xmlns, '_', nsmap)
     return parent
-
-
-def rpc_gen(message_id, operation, netconf_namespace, data, xmlns):
-    if "@" in operation:
-        action_name = operation
-    else:
-        action_name = netconf_namespace + "@" + operation
-    new_node = {
-        action_name: data,
-        "_@" + netconf_namespace + "@message-id": message_id
-    }
-    return generate_xml_node(
-        new_node,
-        xmlns,
-        'rpc'
-    )
 
 
 def _get_free_ns(xmlns, namespace, prefered_ns=None):
@@ -192,6 +181,9 @@ def _short_names(name, xmlns, nsmap=None):
 
 
 def _node_to_dict(parent, xml_node, xmlns):
+    if isinstance(xml_node, etree._Comment):
+        return
+
     name = _short_names(xml_node.tag, xmlns, xml_node.nsmap)
     if not xml_node.getchildren() and not xml_node.attrib:
         # we dont support text inside of node
@@ -223,118 +215,12 @@ def _node_to_dict(parent, xml_node, xmlns):
 
 
 def generate_dict_node(parent, xml_node, nslist):
-    netconf_namespace, xmlns = update_xmlns(nslist)
+    libvirt_namespace, xmlns = update_xmlns(nslist)
     _node_to_dict(parent, xml_node, xmlns)
-
-
-def xml_repack_node(xml_node):
-    # we have some issues with relaxng top node validation
-    # so we try to repack xml node
-    node_text = etree.tostring(
-        xml_node, pretty_print=False
-    )
-    return etree.XML(node_text)
-
-
-# def xml_repack_text(node_text):
-#    # we have some issues with relaxng top node validation
-#    # so we try to repack xml node
-#    xml_node = etree.XML(node_text)
-#    return etree.tostring(
-#        xml_node, pretty_print=False
-#    )
-
-
-def _xml_validate_node(node, relaxng, schematron):
-    if relaxng:
-        if not relaxng.validate(xml_repack_node(node)):
-            raise cfy_exc.NonRecoverableError(
-                "Not valid xml by rng\n reason:" + str(
-                    relaxng.error_log.last_error
-                )
-            )
-    if schematron:
-        if not schematron.validate(node):
-            raise cfy_exc.NonRecoverableError(
-                "Not valid xml by Schematron"
-            )
-
-
-def xml_validate(parent, xmlns, xpath=None, rng=None, sch=None):
-    """Validate xml by rng and sch"""
-
-    if xpath:
-
-        # rng rules
-        relaxng = None
-        if rng:
-            rng_node = etree.XML(rng)
-            relaxng = etree.RelaxNG(rng_node)
-
-        # schematron rules
-        schematron = None
-        if sch:
-            sch_node = etree.XML(sch)
-            schematron = isoschematron.Schematron(sch_node)
-
-        # run validation selected by xpath nodes
-        for node in parent.xpath(xpath, namespaces=xmlns):
-            _xml_validate_node(node, relaxng, schematron)
-
-
-# relaxng specific parts
-def load_xml(path):
-    """load xml file, without any checks for errors"""
-    rng_rpc = open(path, 'rb')
-    with rng_rpc:
-        return etree.XML(rng_rpc.read())
 
 
 def default_xmlns():
     """default namespace list for relaxng"""
     return {
-        '_': NETCONF_NAMESPACE,
-        'relaxng': RELAXNG_NAMESPACE
+        '_': LIBVIRT_NAMESPACE
     }
-
-
-def _make_node_copy(xml_orig, nsmap):
-    """copy nodes with namespaces from parent"""
-    clone_nsmap = {}
-    for ns in nsmap:
-        clone_nsmap[ns] = nsmap[ns]
-    for ns in xml_orig.nsmap:
-        clone_nsmap[ns] = xml_orig.nsmap[ns]
-    clone = etree.Element(
-        xml_orig.tag, nsmap=clone_nsmap
-    )
-    for tag in xml_orig.attrib:
-        clone.attrib[tag] = xml_orig.attrib[tag]
-    for node in xml_orig.getchildren():
-        clone.append(_make_node_copy(node, clone_nsmap))
-    clone.text = xml_orig.text
-    return clone
-
-
-def load_relaxng_includes(xml_node, xmlns, replaces_files=None):
-    """will replace all includes by real content"""
-    if not replaces_files:
-        replaces_files = {}
-    nodes = xml_node.xpath('.//relaxng:include', namespaces=xmlns)
-    grammar_name = "{" + RELAXNG_NAMESPACE + "}grammar"
-    while len(nodes):
-        for node in nodes:
-            parent = node.getparent()
-            if parent is not None:
-                parent.remove(node)
-                if 'href' in node.attrib:
-                    if node.attrib['href'] in replaces_files:
-                        subnodes = replaces_files[node.attrib['href']]
-                    else:
-                        subnodes = load_xml(node.attrib['href'])
-                    if subnodes.tag == grammar_name:
-                        for subnode in subnodes.getchildren():
-                            parent.append(
-                                _make_node_copy(subnode, subnodes.nsmap)
-                            )
-        nodes = xml_node.xpath('.//relaxng:include', namespaces=xmlns)

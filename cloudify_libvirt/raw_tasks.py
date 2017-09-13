@@ -16,11 +16,13 @@
 import libvirt
 import sys
 import time
+import yaml
+from lxml import etree
 
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
-
+import utils
 
 @operation
 def create(**kwargs):
@@ -35,103 +37,39 @@ def create(**kwargs):
     server.update(ctx.node.properties.get('server', {}))
     server.update(kwargs.get('server', {}))
 
-    xmlconfig="""<domain type='qemu'>
-      <name>""" + server['name'] + """</name>
-      <uuid>8dcd1143-bafc-dc37-2fbd-27e6a1e3ca5c</uuid>
-      <memory unit='KiB'>65536</memory>
-      <currentMemory unit='KiB'>65536</currentMemory>
-      <vcpu placement='static'>1</vcpu>
-      <resource>
-        <partition>/machine</partition>
-      </resource>
-      <os>
-        <type arch='x86_64' machine='pc-i440fx-trusty'>hvm</type>
-        <boot dev='hd'/>
-      </os>
-      <features>
-        <acpi/>
-        <apic/>
-        <pae/>
-      </features>
-      <clock offset='utc'/>
-      <on_poweroff>destroy</on_poweroff>
-      <on_reboot>restart</on_reboot>
-      <on_crash>restart</on_crash>
-      <devices>
-        <emulator>/usr/bin/qemu-system-x86_64</emulator>
-        <disk type='file' device='disk'>
-          <driver name='qemu' type='qcow2'/>
-          <source file='/home/clouduser/Downloads/debian_wheezy_amd64_standard.qcow2'/>
-          <target dev='hda' bus='ide'/>
-          <alias name='ide0-0-0'/>
-          <address type='drive' controller='0' bus='0' target='0' unit='0'/>
-        </disk>
-        <controller type='usb' index='0'>
-          <alias name='usb0'/>
-          <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
-        </controller>
-        <controller type='pci' index='0' model='pci-root'>
-          <alias name='pci.0'/>
-        </controller>
-        <controller type='ide' index='0'>
-          <alias name='ide0'/>
-          <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
-        </controller>
-        <interface type='network'>
-          <mac address='52:54:00:23:fe:37'/>
-          <source network='default'/>
-          <target dev='vnet0'/>
-          <model type='rtl8139'/>
-          <alias name='net0'/>
-          <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
-        </interface>
-        <serial type='pty'>
-          <source path='/dev/pts/1'/>
-          <target port='0'/>
-          <alias name='serial0'/>
-        </serial>
-        <console type='pty' tty='/dev/pts/1'>
-          <source path='/dev/pts/1'/>
-          <target type='serial' port='0'/>
-          <alias name='serial0'/>
-        </console>
-        <input type='mouse' bus='ps2'/>
-        <input type='keyboard' bus='ps2'/>
-        <graphics type='vnc' port='5900' autoport='yes' listen='127.0.0.1'>
-          <listen type='address' address='127.0.0.1'/>
-        </graphics>
-        <video>
-          <model type='cirrus' vram='9216' heads='1'/>
-          <alias name='video0'/>
-          <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
-        </video>
-        <memballoon model='virtio'>
-          <alias name='balloon0'/>
-          <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
-        </memballoon>
-      </devices>
-      <seclabel type='dynamic' model='apparmor' relabel='yes'>
-        <label>libvirt-8dcd1143-bafc-dc37-2fbd-27e6a1e3ca5c</label>
-        <imagelabel>libvirt-8dcd1143-bafc-dc37-2fbd-27e6a1e3ca5c</imagelabel>
-      </seclabel>
-    </domain>"""
+    print ctx.node.properties
+    xmlns = ctx.node.properties.get('metadata', {}).get('xmlns', {})
 
-    dom = conn.defineXML(xmlconfig)
-    if dom == None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to define a domain from an XML definition.'
+    for name in kwargs['payload']:
+        node = utils.generate_xml_node(
+            kwargs['payload'][name],
+            xmlns,
+            name
         )
 
-    ctx.instance.runtime_properties['resource_id'] = dom.name()
-
-    if dom.create() < 0:
-        raise cfy_exc.NonRecoverableError(
-            'Can not boot guest domain.'
+        xmlconfig = etree.tostring(
+            node, pretty_print=True, xml_declaration=True,
+            encoding='UTF-8'
         )
 
-    ctx.logger.info('Guest ' + dom.name() +' has booted')
-    ctx.instance.runtime_properties['resource_id'] = dom.name()
-    conn.close()
+        print xmlconfig
+
+        dom = conn.defineXML(xmlconfig)
+        if dom == None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to define a domain from an XML definition.'
+            )
+
+        ctx.instance.runtime_properties['resource_id'] = dom.name()
+
+        if dom.create() < 0:
+            raise cfy_exc.NonRecoverableError(
+                'Can not boot guest domain.'
+            )
+
+        ctx.logger.info('Guest ' + dom.name() +' has booted')
+        ctx.instance.runtime_properties['resource_id'] = dom.name()
+        conn.close()
 
 
 @operation

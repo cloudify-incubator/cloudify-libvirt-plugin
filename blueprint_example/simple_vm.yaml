@@ -16,6 +16,94 @@ node_templates:
 
   vm_impl:
     type: cloudify.libvirt.raw
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            payload:
+              domain:
+                _@@type: qemu
+                clock: {_@@offset: utc}
+                currentMemory: {_@@: '65536', _@@unit: KiB}
+                devices:
+                  console:
+                    _@@tty: /dev/pts/1
+                    _@@type: pty
+                    alias: {_@@name: serial0}
+                    source: {_@@path: /dev/pts/1}
+                    target: {_@@port: '0', _@@type: serial}
+                  controller:
+                  - _@@index: '0'
+                    _@@type: usb
+                    address: {_@@bus: '0x00', _@@domain: '0x0000', _@@function: '0x2', _@@slot: '0x01',
+                      _@@type: pci}
+                    alias: {_@@name: usb0}
+                  - _@@index: '0'
+                    _@@model: pci-root
+                    _@@type: pci
+                    alias: {_@@name: pci.0}
+                  - _@@index: '0'
+                    _@@type: ide
+                    address: {_@@bus: '0x00', _@@domain: '0x0000', _@@function: '0x1', _@@slot: '0x01',
+                      _@@type: pci}
+                    alias: {_@@name: ide0}
+                  disk:
+                    _@@device: disk
+                    _@@type: file
+                    address: {_@@bus: '0', _@@controller: '0', _@@target: '0', _@@type: drive,
+                      _@@unit: '0'}
+                    alias: {_@@name: ide0-0-0}
+                    driver: {_@@name: qemu, _@@type: qcow2}
+                    source:
+                        _@@file: { get_attribute: [vm_prepere, vm_image] }
+                    target: {_@@bus: ide, _@@dev: hda}
+                  emulator: /usr/bin/qemu-system-x86_64
+                  graphics:
+                    _@@autoport: 'yes'
+                    _@@listen: 127.0.0.1
+                    _@@port: '5900'
+                    _@@type: vnc
+                    listen: {_@@address: 127.0.0.1, _@@type: address}
+                  input:
+                  - {_@@bus: ps2, _@@type: mouse}
+                  - {_@@bus: ps2, _@@type: keyboard}
+                  interface:
+                    _@@type: network
+                    address: {_@@bus: '0x00', _@@domain: '0x0000', _@@function: '0x0', _@@slot: '0x03',
+                      _@@type: pci}
+                    alias: {_@@name: net0}
+                    mac: {_@@address: '52:54:00:23:fe:37'}
+                    model: {_@@type: rtl8139}
+                    source: {_@@network: default}
+                    target: {_@@dev: vnet0}
+                  memballoon:
+                    _@@model: virtio
+                    address: {_@@bus: '0x00', _@@domain: '0x0000', _@@function: '0x0', _@@slot: '0x04',
+                      _@@type: pci}
+                    alias: {_@@name: balloon0}
+                  serial:
+                    _@@type: pty
+                    alias: {_@@name: serial0}
+                    source: {_@@path: /dev/pts/1}
+                    target: {_@@port: '0'}
+                  video:
+                    address: {_@@bus: '0x00', _@@domain: '0x0000', _@@function: '0x0', _@@slot: '0x02',
+                      _@@type: pci}
+                    alias: {_@@name: video0}
+                    model: {_@@heads: '1', _@@type: cirrus, _@@vram: '9216'}
+                features: {acpi: null, apic: null, pae: null}
+                memory: {_@@: '65536', _@@unit: KiB}
+                name: vm_impl_rwirlm
+                on_crash: restart
+                on_poweroff: destroy
+                on_reboot: restart
+                os:
+                  boot: {_@@dev: hd}
+                  type: {_@@: hvm, _@@arch: x86_64, _@@machine: pc-i440fx-trusty}
+                resource: {partition: /machine}
+                uuid: 8dcd1143-bafc-dc37-2fbd-27e6a1e3ca5c
+                vcpu: {_@@: '1', _@@placement: static}
+
     relationships:
     - target: vm_prepere
       type: cloudify.relationships.depends_on
