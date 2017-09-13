@@ -2,7 +2,7 @@ tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/4.1/types.yaml
-  - https://raw.githubusercontent.com/0lvin-cfy/cloudify-libvirt-plugin/master/plugin.yaml
+  - plugin.yaml
 
 node_templates:
 
@@ -13,7 +13,6 @@ node_templates:
         configure:
           implementation: scripts/download_vm.sh
           executor: central_deployment_agent
-
   vm_impl:
     type: cloudify.libvirt.raw
     interfaces:
@@ -93,7 +92,7 @@ node_templates:
                     model: {_@@heads: '1', _@@type: cirrus, _@@vram: '9216'}
                 features: {acpi: null, apic: null, pae: null}
                 memory: {_@@: '65536', _@@unit: KiB}
-                name: vm_impl_rwirlm
+                name: uniq_in_future
                 on_crash: restart
                 on_poweroff: destroy
                 on_reboot: restart

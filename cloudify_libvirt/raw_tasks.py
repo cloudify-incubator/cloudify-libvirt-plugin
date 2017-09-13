@@ -31,12 +31,6 @@ def create(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    server = {
-        'name': ctx.instance.id,
-    }
-    server.update(ctx.node.properties.get('server', {}))
-    server.update(kwargs.get('server', {}))
-
     xmlns = ctx.node.properties.get('metadata', {}).get('xmlns', {})
 
     for name in kwargs['payload']:
