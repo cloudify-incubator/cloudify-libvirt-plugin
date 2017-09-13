@@ -1,13 +1,24 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/3.4/types.yaml
-  - https://raw.githubusercontent.com/unofficial-cloudify-cosmo/cloudify-libvirt-plugin/master/plugin.yaml
+  - http://www.getcloudify.org/spec/cloudify/4.1/types.yaml
+  - https://raw.githubusercontent.com/0lvin-cfy/cloudify-libvirt-plugin/master/plugin.yaml
 
 node_templates:
 
+  vm_prepere:
+    type: cloudify.nodes.ApplicationServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        configure:
+          implementation: scripts/download_vm.sh
+          executor: central_deployment_agent
+
   vm_impl:
     type: cloudify.libvirt.raw
+    relationships:
+    - target: vm_prepere
+      type: cloudify.relationships.depends_on
 #    properties:
 #      libvirt_auth:
 #        url: 'qemu:///system'

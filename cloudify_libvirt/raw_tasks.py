@@ -60,8 +60,8 @@ def create(**kwargs):
       <devices>
         <emulator>/usr/bin/qemu-system-x86_64</emulator>
         <disk type='file' device='disk'>
-          <driver name='qemu' type='raw'/>
-          <source file='/home/clouduser/Downloads/linux-0.2.img'/>
+          <driver name='qemu' type='qcow2'/>
+          <source file='/home/clouduser/Downloads/debian_wheezy_amd64_standard.qcow2'/>
           <target dev='hda' bus='ide'/>
           <alias name='ide0-0-0'/>
           <address type='drive' controller='0' bus='0' target='0' unit='0'/>
