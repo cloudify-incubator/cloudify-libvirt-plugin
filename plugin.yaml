@@ -18,7 +18,8 @@ node_types:
         default:
           xmlns:
            # try to use this value of namespace as default
-           _: http://libvirt.org/schemas/domain/qemu/1.0
+           _: ""
+           qemu: http://libvirt.org/schemas/domain/qemu/1.0
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
