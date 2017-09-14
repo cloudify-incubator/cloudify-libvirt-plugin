@@ -6,13 +6,29 @@ imports:
 
 node_templates:
 
+  vm_download:
+    type: cloudify.nodes.ApplicationServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: scripts/download_vm.sh
+          executor: central_deployment_agent
+
   vm_prepere:
     type: cloudify.nodes.ApplicationServer
     interfaces:
       cloudify.interfaces.lifecycle:
-        configure:
-          implementation: scripts/download_vm.sh
+        create:
+          implementation: scripts/copy_disk.sh
           executor: central_deployment_agent
+          inputs:
+            DISK: { get_attribute: [vm_download, vm_image] }
+        delete:
+          implementation: scripts/remove_disk.sh
+          executor: central_deployment_agent
+    relationships:
+    - target: vm_download
+      type: cloudify.relationships.depends_on
 
   common_network:
     type: cloudify.libvirt.network
