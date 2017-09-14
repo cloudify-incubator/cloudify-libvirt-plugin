@@ -2,6 +2,7 @@ tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/4.1/types.yaml
+  - http://www.getcloudify.org/spec/fabric-plugin/1.4/plugin.yaml
   - plugin.yaml
 
 node_templates:
@@ -71,3 +72,20 @@ node_templates:
     - target: vm_prepere
       type: cloudify.relationships.depends_on
 
+  example_node:
+    type: cloudify.nodes.WebServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+          start:
+            implementation: fabric.fabric_plugin.tasks.run_commands
+            inputs:
+              fabric_env:
+                user: user
+                password: user
+                host_string: { get_attribute: [vm_impl, ip] }
+              commands:
+                - hostname
+                - df
+    relationships:
+    - target: vm_impl
+      type: cloudify.relationships.depends_on

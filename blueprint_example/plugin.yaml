@@ -18,12 +18,6 @@ node_types:
         create:
           implementation: libvirt.cloudify_libvirt.domain_tasks.create
           inputs: {}
-        configure:
-          implementation: libvirt.cloudify_libvirt.domain_tasks.configure
-          inputs: {}
-        start:
-          implementation: libvirt.cloudify_libvirt.domain_tasks.start
-          inputs: {}
         stop:
           implementation: libvirt.cloudify_libvirt.domain_tasks.stop
           inputs: {}
@@ -41,15 +35,6 @@ node_types:
       cloudify.interfaces.lifecycle:
         create:
           implementation: libvirt.cloudify_libvirt.network_tasks.create
-          inputs: {}
-        configure:
-          implementation: libvirt.cloudify_libvirt.network_tasks.configure
-          inputs: {}
-        start:
-          implementation: libvirt.cloudify_libvirt.network_tasks.start
-          inputs: {}
-        stop:
-          implementation: libvirt.cloudify_libvirt.network_tasks.stop
           inputs: {}
         delete:
           implementation: libvirt.cloudify_libvirt.network_tasks.delete

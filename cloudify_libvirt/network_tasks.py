@@ -83,22 +83,6 @@ def create(**kwargs):
     ctx.instance.runtime_properties['params'] = template_params
     conn.close()
 
-
-@operation
-def configure(**kwargs):
-    ctx.logger.info("configure")
-
-
-@operation
-def start(**kwargs):
-    ctx.logger.info("start")
-
-
-@operation
-def stop(**kwargs):
-    ctx.logger.info("stop")
-
-
 @operation
 def delete(**kwargs):
     ctx.logger.info("delete")
@@ -157,7 +141,7 @@ def link(**kwargs):
                 'params', {})
             for network in vm_params.get("networks", []):
                 if network.get('mac') == lease.get('mac'):
-                    ctx.target.instance.runtime_properties['ip'] = lease.get(
+                    ctx.source.instance.runtime_properties['ip'] = lease.get(
                         'ipaddr')
                     ctx.logger.info("Found: " + lease.get('ipaddr'))
                     return
@@ -177,3 +161,4 @@ def unlink(**kwargs):
     vm_id = ctx.source.instance.runtime_properties.get('resource_id')
     network_id = ctx.target.instance.runtime_properties.get('resource_id')
     ctx.logger.info('Network: ' + network_id + ' to VM: ' + vm_id + ' .')
+    ctx.target.instance.runtime_properties['ip'] = None

@@ -91,16 +91,6 @@ def create(**kwargs):
 
 
 @operation
-def configure(**kwargs):
-    ctx.logger.info("configure")
-
-
-@operation
-def start(**kwargs):
-    ctx.logger.info("start")
-
-
-@operation
 def stop(**kwargs):
     ctx.logger.info("stop")
 
