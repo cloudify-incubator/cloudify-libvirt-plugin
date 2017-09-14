@@ -24,6 +24,7 @@ setup(
     package_data={
         'cloudify_libvirt': [
             'templates/domain.xml',
+            'templates/network.xml',
         ]
     },
     install_requires=[

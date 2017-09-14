@@ -38,7 +38,7 @@
     <interface type="network">
       <target dev="vnet0"/>
       <alias name="net0"/>
-      <source network="default"/>
+      <source network="mynetwork"/>
       <mac address="52:54:00:23:fe:37"/>
       <address function="0x0" type="pci" domain="0x0000" slot="0x03" bus="0x00"/>
       <model type="rtl8139"/>

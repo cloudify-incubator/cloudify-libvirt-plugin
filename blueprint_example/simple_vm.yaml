@@ -14,6 +14,9 @@ node_templates:
           implementation: scripts/download_vm.sh
           executor: central_deployment_agent
 
+  network_impl:
+    type: cloudify.libvirt.network
+
   vm_impl:
     type: cloudify.libvirt.domain
     interfaces:
@@ -34,5 +37,7 @@ node_templates:
                     controller: 0
 
     relationships:
+    - target: network_impl
+      type: cloudify.relationships.depends_on
     - target: vm_prepere
       type: cloudify.relationships.depends_on

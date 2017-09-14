@@ -9,6 +9,10 @@ node_types:
 
   cloudify.libvirt.domain:
     derived_from: cloudify.nodes.Root
+    properties:
+      libvirt_auth:
+        default:
+          url: 'qemu:///system'
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -27,33 +31,27 @@ node_types:
           implementation: libvirt.cloudify_libvirt.domain_tasks.delete
           inputs: {}
 
-  cloudify.libvirt.raw:
+  cloudify.libvirt.network:
     derived_from: cloudify.nodes.Root
     properties:
       libvirt_auth:
         default:
           url: 'qemu:///system'
-      metadata:
-        # list of namesapaces and capabilities
-        default:
-          xmlns:
-           # try to use this value of namespace as default
-           _: ""
-           qemu: http://libvirt.org/schemas/domain/qemu/1.0
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
-          implementation: libvirt.cloudify_libvirt.raw_tasks.create
+          implementation: libvirt.cloudify_libvirt.network_tasks.create
           inputs: {}
         configure:
-          implementation: libvirt.cloudify_libvirt.raw_tasks.configure
+          implementation: libvirt.cloudify_libvirt.network_tasks.configure
           inputs: {}
         start:
-          implementation: libvirt.cloudify_libvirt.raw_tasks.start
+          implementation: libvirt.cloudify_libvirt.network_tasks.start
           inputs: {}
         stop:
-          implementation: libvirt.cloudify_libvirt.raw_tasks.stop
+          implementation: libvirt.cloudify_libvirt.network_tasks.stop
           inputs: {}
         delete:
-          implementation: libvirt.cloudify_libvirt.raw_tasks.delete
+          implementation: libvirt.cloudify_libvirt.network_tasks.delete
           inputs: {}
+
