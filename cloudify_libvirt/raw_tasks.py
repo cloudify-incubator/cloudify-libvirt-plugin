@@ -25,6 +25,8 @@ import utils
 
 @operation
 def create(**kwargs):
+    ctx.logger.info("create")
+
     conn = libvirt.open('qemu:///system')
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -77,6 +79,7 @@ def start(**kwargs):
 
 @operation
 def stop(**kwargs):
+    ctx.logger.info("stop")
 
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 

@@ -7,6 +7,26 @@ plugins:
 
 node_types:
 
+  cloudify.libvirt.domain:
+    derived_from: cloudify.nodes.Root
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.create
+          inputs: {}
+        configure:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.configure
+          inputs: {}
+        start:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.start
+          inputs: {}
+        stop:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.stop
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.delete
+          inputs: {}
+
   cloudify.libvirt.raw:
     derived_from: cloudify.nodes.Root
     properties:
