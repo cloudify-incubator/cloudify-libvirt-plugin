@@ -33,6 +33,20 @@ node_templates:
 
   common_network:
     type: cloudify.libvirt.network
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              dev: virbr1
+              forwards:
+                - mode: nat
+              ips:
+                - address: 192.168.142.1
+                  netmask: 255.255.255.0
+                  dhcp:
+                    start: 192.168.142.2
+                    end: 192.168.142.254
 
   vm_impl:
     type: cloudify.libvirt.domain

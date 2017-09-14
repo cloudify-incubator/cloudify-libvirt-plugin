@@ -1,11 +1,17 @@
 <network>
   <name>{{ resource_id }}</name>
   <uuid>{{ instance_uuid }}</uuid>
-  <bridge name="virbr1" />
-  <forward mode="nat"/>
-  <ip address="192.168.142.1" netmask="255.255.255.0">
-    <dhcp>
-      <range start="192.168.142.2" end="192.168.142.254" />
-    </dhcp>
-  </ip>
+  <bridge name="{{ dev }}" />
+  {% for forward in forwards %}
+    <forward mode="{{ forward.mode }}"/>
+  {% endfor %}
+  {% for ip in ips %}
+    <ip address="{{ ip.address }}" netmask="{{ ip.netmask }}">
+      {% if ip.dhcp is defined %}
+        <dhcp>
+          <range start="{{ ip.dhcp.start }}" end="{{ ip.dhcp.end }}" />
+        </dhcp>
+      {% endif %}
+    </ip>
+  {% endfor %}
 </network>
