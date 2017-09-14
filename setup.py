@@ -21,9 +21,14 @@ setup(
     author_email='pauk.denis@gmail.com',
     license='LICENSE',
     packages=['cloudify_libvirt'],
+    package_data={
+        'cloudify_libvirt': [
+            'templates/domain.xml',
+        ]
+    },
     install_requires=[
         'cloudify-plugins-common>=3.3',
-        'lxml',
         'libvirt-python',
+        "Jinja2>=2.7.2",  # for template support
     ],
 )
