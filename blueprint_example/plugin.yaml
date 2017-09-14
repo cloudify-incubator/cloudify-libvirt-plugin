@@ -55,3 +55,15 @@ node_types:
           implementation: libvirt.cloudify_libvirt.network_tasks.delete
           inputs: {}
 
+relationships:
+
+    cloudify.libvirt.relationships.connected_to:
+        derived_from: cloudify.relationships.connected_to
+        target_interfaces:
+            cloudify.interfaces.relationship_lifecycle:
+                establish:
+                    implementation: libvirt.cloudify_libvirt.network_tasks.link
+                    inputs: {}
+                unlink:
+                    implementation: libvirt.cloudify_libvirt.network_tasks.unlink
+                    inputs: {}

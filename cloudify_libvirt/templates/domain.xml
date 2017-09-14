@@ -37,12 +37,16 @@
     </graphics>
     {% for network in networks %}
       <interface type="network">
-        <target dev="vnet0"/>
-        <alias name="net0"/>
+        <target dev="{{ network.dev }}"/>
+        <alias name="{{ network.name }}"/>
         <source network="{{ network.network }}"/>
-        <mac address="52:54:00:23:fe:37"/>
-        <address function="0x0" type="pci" domain="0x0000" slot="0x03" bus="0x00"/>
-        <model type="rtl8139"/>
+        <mac address="{{ network.mac }}"/>
+        <address function="{{ network.address.function }}"
+                 type="{{ network.address.type }}"
+                 domain="{{ network.address.domain }}"
+                 slot="{{ network.address.slot }}"
+                 bus="{{ network.address.bus }}"/>
+        <model type="{{ network.type }}"/>
       </interface>
     {% endfor %}
     <input type="mouse" bus="ps2"/>
@@ -54,11 +58,15 @@
     </serial>
     {% for disk in disks %}
       <disk device="disk" type="file">
-        <target dev="{{ disk.name }}" bus="{{ disk.bus }}"/>
+        <target dev="{{ disk.dev }}" bus="{{ disk.bus }}"/>
         <source file="{{ disk.file }}"/>
         <driver type="{{ disk.type }}" name="qemu"/>
-        <alias name="{{ disk.bus }}-{{ disk.address.target }}-{{ disk.address.unit }}-{{ disk.address.bus }}-{{ disk.address.controller }}"/>
-        <address type="drive" target="{{ disk.address.target }}" unit="{{ disk.address.unit }}" bus="{{ disk.address.bus }}" controller="{{ disk.address.controller }}"/>
+        <alias  name="{{ disk.name }}"/>
+        <address type="drive"
+                 target="{{ disk.address.target }}"
+                 unit="{{ disk.address.unit }}"
+                 bus="{{ disk.address.bus }}"
+                 controller="{{ disk.address.controller }}"/>
       </disk>
     {% endfor %}
   </devices>

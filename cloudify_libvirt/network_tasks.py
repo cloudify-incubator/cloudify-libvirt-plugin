@@ -15,6 +15,7 @@
 
 import libvirt
 import uuid
+import time
 
 from jinja2 import Template
 from cloudify import ctx
@@ -35,7 +36,10 @@ def create(**kwargs):
 
     network_file = kwargs.get('network_file')
     network_template = kwargs.get('network_template')
-    template_params = kwargs.get('params')
+
+    template_params = ctx.node.properties.get('params', {})
+    template_params.update(ctx.instance.runtime_properties.get('params', {}))
+    template_params.update(kwargs.get('params', {}))
 
     if not network_file and not network_template:
         resource_dir = resource_filename(__name__, 'templates')
@@ -74,6 +78,9 @@ def create(**kwargs):
 
     ctx.logger.info('Network ' + network.name() + ' has created.')
     ctx.instance.runtime_properties['resource_id'] = network.name()
+    del template_params['ctx']
+    ctx.logger.info('Params: ' + repr(template_params))
+    ctx.instance.runtime_properties['params'] = template_params
     conn.close()
 
 
@@ -86,9 +93,11 @@ def configure(**kwargs):
 def start(**kwargs):
     ctx.logger.info("start")
 
+
 @operation
 def stop(**kwargs):
     ctx.logger.info("stop")
+
 
 @operation
 def delete(**kwargs):
@@ -119,3 +128,52 @@ def delete(**kwargs):
         )
 
     conn.close()
+
+
+@operation
+def link(**kwargs):
+    ctx.logger.info("link")
+    vm_id = ctx.source.instance.runtime_properties.get('resource_id')
+    resource_id = ctx.target.instance.runtime_properties.get('resource_id')
+    ctx.logger.info('Network: ' + resource_id + ' to VM: ' + vm_id + ' .')
+
+    conn = libvirt.open('qemu:///system')
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    # lookup the default network by name
+    network = conn.networkLookupByName(resource_id)
+    if network is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to find the network'
+        )
+
+    for i in xrange(10):
+        ctx.logger.info("Tring to get vm ip")
+        for lease in network.DHCPLeases():
+            vm_params = ctx.source.instance.runtime_properties.get(
+                'params', {})
+            for network in vm_params.get("networks", []):
+                if network.get('mac') == lease.get('mac'):
+                    ctx.target.instance.runtime_properties['ip'] = lease.get(
+                        'ipaddr')
+                    ctx.logger.info("Found:" + lease.get('ipaddr'))
+                    return
+            else:
+                # we don't have networks in vm?
+                return
+        time.sleep(30)
+
+    raise cfy_exc.NonRecoverableError(
+        'No ip for now, try later'
+    )
+
+
+@operation
+def unlink(**kwargs):
+    ctx.logger.info("unlink")
+    vm_id = ctx.source.instance.runtime_properties.get('resource_id')
+    network_id = ctx.target.instance.runtime_properties.get('resource_id')
+    ctx.logger.info('Network: ' + network_id + ' to VM: ' + vm_id + ' .')

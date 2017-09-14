@@ -14,7 +14,7 @@ node_templates:
           implementation: scripts/download_vm.sh
           executor: central_deployment_agent
 
-  network_impl:
+  common_network:
     type: cloudify.libvirt.network
 
   vm_impl:
@@ -26,12 +26,23 @@ node_templates:
             params:
               memmory_size: 131072
               networks:
-                - network: { get_attribute: [network_impl, resource_id] }
+                - network: { get_attribute: [common_network, resource_id] }
+                  mac: "52:54:00:23:fe:37"
+                  dev: vnet0
+                  name: net0
+                  type: rtl8139
+                  address:
+                    function: "0x0"
+                    type: pci
+                    domain: "0x0000"
+                    slot: "0x03"
+                    bus: "0x00"
               disks:
-                - name: hda
+                - dev: hda
                   bus: ide
                   file: { get_attribute: [vm_prepere, vm_image] }
                   type: qcow2
+                  name: "ide-0-0-0-0"
                   address:
                     target: 0
                     unit: 0
@@ -39,7 +50,8 @@ node_templates:
                     controller: 0
 
     relationships:
-    - target: network_impl
-      type: cloudify.relationships.depends_on
+    - target: common_network
+      type: cloudify.libvirt.relationships.connected_to
     - target: vm_prepere
       type: cloudify.relationships.depends_on
+

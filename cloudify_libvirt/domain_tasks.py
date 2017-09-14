@@ -36,7 +36,10 @@ def create(**kwargs):
 
     domain_file = kwargs.get('domain_file')
     domain_template = kwargs.get('domain_template')
-    template_params = kwargs.get('params')
+
+    template_params = ctx.node.properties.get('params', {})
+    template_params.update(ctx.instance.runtime_properties.get('params', {}))
+    template_params.update(kwargs.get('params', {}))
 
     if not domain_file and not domain_template:
         resource_dir = resource_filename(__name__, 'templates')
@@ -54,9 +57,10 @@ def create(**kwargs):
 
     if not template_params.get("resource_id"):
         template_params["resource_id"] = ctx.instance.id
-    if (not template_params.get("memmory_minsize")
-        and template_params.get('memmory_size')):
-        template_params["memmory_minsize"] = int(template_params['memmory_size']) / 2
+    if (not template_params.get("memmory_minsize") and
+            template_params.get('memmory_size')):
+        template_params["memmory_minsize"] = int(
+            template_params['memmory_size']) / 2
     if not template_params.get("instance_uuid"):
         template_params["instance_uuid"] = str(uuid.uuid4())
 
@@ -81,6 +85,8 @@ def create(**kwargs):
 
     ctx.logger.info('Guest ' + dom.name() + ' has booted')
     ctx.instance.runtime_properties['resource_id'] = dom.name()
+    del template_params['ctx']
+    ctx.instance.runtime_properties['params'] = template_params
     conn.close()
 
 
