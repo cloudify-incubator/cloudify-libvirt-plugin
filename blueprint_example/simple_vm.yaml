@@ -24,7 +24,9 @@ node_templates:
         create:
           inputs:
             params:
-              memmory_size: 65536
+              memmory_size: 131072
+              networks:
+                - network: { get_attribute: [network_impl, resource_id] }
               disks:
                 - name: hda
                   bus: ide

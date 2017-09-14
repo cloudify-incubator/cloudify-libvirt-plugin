@@ -86,11 +86,9 @@ def configure(**kwargs):
 def start(**kwargs):
     ctx.logger.info("start")
 
-
 @operation
 def stop(**kwargs):
     ctx.logger.info("stop")
-
 
 @operation
 def delete(**kwargs):
@@ -109,7 +107,7 @@ def delete(**kwargs):
         )
 
     # lookup the default network by name
-    network = conn.networkLookupByName('default')
+    network = conn.networkLookupByName(resource_id)
     if network is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to find the network'

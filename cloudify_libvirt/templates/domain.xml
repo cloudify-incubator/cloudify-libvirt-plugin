@@ -3,7 +3,7 @@
     <partition>/machine</partition>
   </resource>
   <uuid>{{ instance_uuid }}</uuid>
-  <currentMemory unit="KiB">{{ memmory_size }}</currentMemory>
+  <currentMemory unit="KiB">{{ memmory_minsize }}</currentMemory>
   <on_poweroff>destroy</on_poweroff>
   <devices>
     <console type="pty" tty="/dev/pts/1">
@@ -35,14 +35,16 @@
     <graphics autoport="yes" type="vnc" listen="127.0.0.1" port="5900">
       <listen type="address" address="127.0.0.1"/>
     </graphics>
-    <interface type="network">
-      <target dev="vnet0"/>
-      <alias name="net0"/>
-      <source network="mynetwork"/>
-      <mac address="52:54:00:23:fe:37"/>
-      <address function="0x0" type="pci" domain="0x0000" slot="0x03" bus="0x00"/>
-      <model type="rtl8139"/>
-    </interface>
+    {% for network in networks %}
+      <interface type="network">
+        <target dev="vnet0"/>
+        <alias name="net0"/>
+        <source network="{{ network.network }}"/>
+        <mac address="52:54:00:23:fe:37"/>
+        <address function="0x0" type="pci" domain="0x0000" slot="0x03" bus="0x00"/>
+        <model type="rtl8139"/>
+      </interface>
+    {% endfor %}
     <input type="mouse" bus="ps2"/>
     <input type="keyboard" bus="ps2"/>
     <serial type="pty">

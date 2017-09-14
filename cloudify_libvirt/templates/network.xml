@@ -1,5 +1,6 @@
 <network>
-  <name>mynetwork</name>
+  <name>{{ resource_id }}</name>
+  <uuid>{{ instance_uuid }}</uuid>
   <bridge name="virbr1" />
   <forward mode="nat"/>
   <ip address="192.168.142.1" netmask="255.255.255.0">

@@ -54,6 +54,9 @@ def create(**kwargs):
 
     if not template_params.get("resource_id"):
         template_params["resource_id"] = ctx.instance.id
+    if (not template_params.get("memmory_minsize")
+        and template_params.get('memmory_size')):
+        template_params["memmory_minsize"] = int(template_params['memmory_size']) / 2
     if not template_params.get("instance_uuid"):
         template_params["instance_uuid"] = str(uuid.uuid4())
 
