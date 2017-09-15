@@ -7,30 +7,6 @@ imports:
 
 node_templates:
 
-  vm_download:
-    type: cloudify.nodes.ApplicationServer
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        create:
-          implementation: scripts/download_vm.sh
-          executor: central_deployment_agent
-
-  vm_prepere:
-    type: cloudify.nodes.ApplicationServer
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        create:
-          implementation: scripts/copy_disk.sh
-          executor: central_deployment_agent
-          inputs:
-            DISK: { get_attribute: [vm_download, vm_image] }
-        delete:
-          implementation: scripts/remove_disk.sh
-          executor: central_deployment_agent
-    relationships:
-    - target: vm_download
-      type: cloudify.relationships.depends_on
-
   common_network:
     type: cloudify.libvirt.network
     interfaces:
@@ -48,8 +24,35 @@ node_templates:
                     start: 192.168.142.2
                     end: 192.168.142.254
 
-  vm_impl:
+  vm_download:
+    type: cloudify.nodes.ApplicationServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: scripts/download_vm.sh
+          executor: central_deployment_agent
+
+  disk_clone:
+    type: cloudify.nodes.ApplicationServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: scripts/copy_disk.sh
+          executor: central_deployment_agent
+          inputs:
+            DISK: { get_attribute: [vm_download, vm_image] }
+        delete:
+          implementation: scripts/remove_disk.sh
+          executor: central_deployment_agent
+    relationships:
+    - target: vm_download
+      type: cloudify.relationships.depends_on
+
+  qemu_vm:
     type: cloudify.libvirt.domain
+    properties:
+      agent_config:
+        install_method: none
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -71,7 +74,7 @@ node_templates:
               disks:
                 - dev: hda
                   bus: ide
-                  file: { get_attribute: [vm_prepere, vm_image] }
+                  file: { get_attribute: [disk_clone, vm_image] }
                   type: qcow2
                   name: "ide-0-0-0-0"
                   address:
@@ -79,12 +82,11 @@ node_templates:
                     unit: 0
                     bus: 0
                     controller: 0
-
     relationships:
-    - target: common_network
-      type: cloudify.libvirt.relationships.connected_to
-    - target: vm_prepere
-      type: cloudify.relationships.depends_on
+      - target: common_network
+        type: cloudify.libvirt.relationships.connected_to
+      - target: disk_clone
+        type: cloudify.relationships.contained_in
 
   example_node:
     type: cloudify.nodes.WebServer
@@ -96,10 +98,11 @@ node_templates:
               fabric_env:
                 user: user
                 password: user
-                host_string: { get_attribute: [vm_impl, ip] }
+                host_string: { get_attribute: [qemu_vm, ip] }
               commands:
                 - hostname
                 - df
+                - uname -a
     relationships:
-    - target: vm_impl
-      type: cloudify.relationships.depends_on
+      - target: qemu_vm
+        type: cloudify.relationships.contained_in

@@ -8,7 +8,7 @@ plugins:
 node_types:
 
   cloudify.libvirt.domain:
-    derived_from: cloudify.nodes.Root
+    derived_from: cloudify.nodes.Compute
     properties:
       libvirt_auth:
         default:
@@ -26,7 +26,7 @@ node_types:
           inputs: {}
 
   cloudify.libvirt.network:
-    derived_from: cloudify.nodes.Root
+    derived_from: cloudify.nodes.Network
     properties:
       libvirt_auth:
         default:
