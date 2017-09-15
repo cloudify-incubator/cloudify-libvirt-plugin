@@ -134,8 +134,9 @@ def link(**kwargs):
             'Failed to find the network'
         )
 
-    for i in xrange(10):
-        ctx.logger.info("Tring to get vm ip")
+    MAX_RETRY = 10
+    for i in xrange(MAX_RETRY):
+        ctx.logger.info("Tring to get vm ip {}/{}".format(i, MAX_RETRY))
         for lease in network.DHCPLeases():
             vm_params = ctx.source.instance.runtime_properties.get(
                 'params', {})
@@ -150,7 +151,7 @@ def link(**kwargs):
                 return
         time.sleep(30)
 
-    raise cfy_exc.NonRecoverableError(
+    raise cfy_exc.RecoverableError(
         'No ip for now, try later'
     )
 
