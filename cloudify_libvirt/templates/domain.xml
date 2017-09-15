@@ -80,7 +80,7 @@
   </features>
   <memory unit="KiB">{{ memmory_size }}</memory>
   <os>
-    <type machine="pc-i440fx-trusty" arch="x86_64">hvm</type>
+    <type machine="pc" arch="x86_64">hvm</type>
     <boot dev="hd"/>
   </os>
   <clock offset="utc"/>
