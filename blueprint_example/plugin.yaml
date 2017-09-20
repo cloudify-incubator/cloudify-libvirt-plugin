@@ -18,6 +18,9 @@ node_types:
         create:
           implementation: libvirt.cloudify_libvirt.domain_tasks.create
           inputs: {}
+        configure:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.configure
+          inputs: {}
         stop:
           implementation: libvirt.cloudify_libvirt.domain_tasks.stop
           inputs: {}

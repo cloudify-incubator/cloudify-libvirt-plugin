@@ -27,6 +27,15 @@ from pkg_resources import resource_filename
 @operation
 def create(**kwargs):
     ctx.logger.info("create")
+    template_params = ctx.node.properties.get('params', {})
+    template_params.update(ctx.instance.runtime_properties.get('params', {}))
+    template_params.update(kwargs.get('params', {}))
+    ctx.instance.runtime_properties['params'] = template_params
+
+
+@operation
+def configure(**kwargs):
+    ctx.logger.info("configure")
 
     conn = libvirt.open('qemu:///system')
     if conn is None:

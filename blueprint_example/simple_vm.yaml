@@ -5,6 +5,17 @@ imports:
   - http://www.getcloudify.org/spec/fabric-plugin/1.4/plugin.yaml
   - plugin.yaml
 
+relationships:
+
+  vm_connected_to_storage:
+    derived_from: cloudify.relationships.contained_in
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        preconfigure:
+          implementation: scripts/vm_preconfigure.py
+          executor: central_deployment_agent
+          inputs: {}
+
 node_templates:
 
   common_network:
@@ -85,8 +96,10 @@ node_templates:
     relationships:
       - target: common_network
         type: cloudify.libvirt.relationships.connected_to
+      #- target: disk_clone
+      #  type: cloudify.relationships.contained_in
       - target: disk_clone
-        type: cloudify.relationships.contained_in
+        type: vm_connected_to_storage
 
   example_node:
     type: cloudify.nodes.WebServer
