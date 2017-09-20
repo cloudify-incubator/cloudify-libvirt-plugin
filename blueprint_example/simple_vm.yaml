@@ -82,22 +82,9 @@ node_templates:
                     domain: "0x0000"
                     slot: "0x03"
                     bus: "0x00"
-              disks:
-                - dev: hda
-                  bus: ide
-                  file: { get_attribute: [disk_clone, vm_image] }
-                  type: qcow2
-                  name: "ide-0-0-0-0"
-                  address:
-                    target: 0
-                    unit: 0
-                    bus: 0
-                    controller: 0
     relationships:
       - target: common_network
         type: cloudify.libvirt.relationships.connected_to
-      #- target: disk_clone
-      #  type: cloudify.relationships.contained_in
       - target: disk_clone
         type: vm_connected_to_storage
 

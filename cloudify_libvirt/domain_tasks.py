@@ -46,8 +46,8 @@ def configure(**kwargs):
     domain_file = kwargs.get('domain_file')
     domain_template = kwargs.get('domain_template')
 
-    template_params = ctx.node.properties.get('params', {})
-    template_params.update(ctx.instance.runtime_properties.get('params', {}))
+    ctx.logger.info(repr(ctx.instance.runtime_properties))
+    template_params = ctx.instance.runtime_properties.get('params', {})
     template_params.update(kwargs.get('params', {}))
 
     if not domain_file and not domain_template:
@@ -121,21 +121,24 @@ def stop(**kwargs):
             'Failed to find the domain'
         )
 
-    for i in xrange(10):
-        ctx.logger.info("Tring to stop vm")
-        if dom.shutdown() < 0:
-            raise cfy_exc.NonRecoverableError(
-                'Can not shutdown guest domain.'
-            )
-        time.sleep(30)
-
+    try:
         state, reason = dom.state()
+        for i in xrange(10):
+            state, reason = dom.state()
 
-        if state == libvirt.VIR_DOMAIN_SHUTOFF:
-            ctx.logger.info("Looks as stoped Tring to stop vm")
-            return
+            if state == libvirt.VIR_DOMAIN_SHUTOFF:
+                ctx.logger.info("Looks as stoped.")
+                return
 
-    conn.close()
+            ctx.logger.info("Tring to stop vm")
+            if dom.shutdown() < 0:
+                raise cfy_exc.NonRecoverableError(
+                    'Can not shutdown guest domain.'
+                )
+            time.sleep(30)
+            state, reason = dom.state()
+    finally:
+        conn.close()
 
 
 @operation
