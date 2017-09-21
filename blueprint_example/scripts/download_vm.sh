@@ -1,3 +1,4 @@
-LANG=C wget -cv wget https://people.debian.org/~aurel32/qemu/amd64/debian_wheezy_amd64_standard.qcow2
+ctx logger info "Download base image"
+LANG=C wget -cv wget https://cloud-images.ubuntu.com/trusty/20170919/trusty-server-cloudimg-amd64-disk1.img
 
-ctx instance runtime-properties vm_image "`pwd`/debian_wheezy_amd64_standard.qcow2"
+ctx instance runtime-properties vm_image "`pwd`/trusty-server-cloudimg-amd64-disk1.img"

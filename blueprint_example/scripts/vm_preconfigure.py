@@ -29,5 +29,19 @@ if __name__ == "__main__":
         'type': 'qcow2'
     })
 
+    disks.append({
+        'name': 'ide-0-0-0-1',
+        'bus': 'ide',
+        'dev': 'hdb',
+        'file': ctx.target.instance.runtime_properties.get('vm_cloudinit'),
+        'address': {
+            'bus': 0,
+            'controller': 0,
+            'target': 0,
+            'unit': 1
+        },
+        'type': 'raw'
+    })
+
     ctx.logger.info(repr(ctx.source.instance.runtime_properties))
     ctx.source.instance.runtime_properties._set_changed()

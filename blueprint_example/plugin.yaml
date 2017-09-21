@@ -49,7 +49,7 @@ relationships:
         derived_from: cloudify.relationships.connected_to
         target_interfaces:
             cloudify.interfaces.relationship_lifecycle:
-                establish:
+                postconfigure:
                     implementation: libvirt.cloudify_libvirt.network_tasks.link
                     inputs: {}
                 unlink:

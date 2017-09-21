@@ -69,7 +69,7 @@ node_templates:
         create:
           inputs:
             params:
-              memmory_size: 131072
+              memmory_size: 524288
               networks:
                 - network: { get_attribute: [common_network, resource_id] }
                   mac: "52:54:00:23:fe:37"
@@ -93,16 +93,13 @@ node_templates:
     interfaces:
       cloudify.interfaces.lifecycle:
           start:
-            implementation: fabric.fabric_plugin.tasks.run_commands
+            implementation: fabric.fabric_plugin.tasks.run_script
             inputs:
               fabric_env:
-                user: user
-                password: user
+                user: ubuntu
+                password: passw0rd
                 host_string: { get_attribute: [qemu_vm, ip] }
-              commands:
-                - hostname
-                - df
-                - uname -a
+              script_path: scripts/vm_check.sh
     relationships:
       - target: qemu_vm
         type: cloudify.relationships.contained_in
