@@ -83,6 +83,7 @@ def create(**kwargs):
     ctx.instance.runtime_properties['params'] = template_params
     conn.close()
 
+
 @operation
 def delete(**kwargs):
     ctx.logger.info("delete")
@@ -118,8 +119,9 @@ def delete(**kwargs):
 def link(**kwargs):
     ctx.logger.info("link")
     vm_id = ctx.source.instance.runtime_properties.get('resource_id')
-    resource_id = ctx.target.instance.runtime_properties.get('resource_id')
-    ctx.logger.info('Network: ' + repr(resource_id) + ' to VM: ' + repr(vm_id) + ' .')
+    net_id = ctx.target.instance.runtime_properties.get('resource_id')
+    ctx.logger.info('Network: {} to VM: {}.'
+                    .format(repr(net_id), repr(vm_id)))
 
     conn = libvirt.open('qemu:///system')
     if conn is None:
@@ -128,7 +130,7 @@ def link(**kwargs):
         )
 
     # lookup the default network by name
-    network = conn.networkLookupByName(resource_id)
+    network = conn.networkLookupByName(net_id)
     if network is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to find the network'
@@ -160,6 +162,8 @@ def link(**kwargs):
 def unlink(**kwargs):
     ctx.logger.info("unlink")
     vm_id = ctx.source.instance.runtime_properties.get('resource_id')
-    network_id = ctx.target.instance.runtime_properties.get('resource_id')
-    ctx.logger.info('Network: ' + repr(network_id) + ' to VM: ' + repr(vm_id) + ' .')
+    net_id = ctx.target.instance.runtime_properties.get('resource_id')
+    ctx.logger.info('Network: {} to VM: {}.'
+                    .format(repr(net_id), repr(vm_id)))
+
     ctx.target.instance.runtime_properties['ip'] = None

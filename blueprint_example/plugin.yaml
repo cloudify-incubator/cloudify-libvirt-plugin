@@ -45,13 +45,17 @@ node_types:
 
 relationships:
 
-    cloudify.libvirt.relationships.connected_to:
-        derived_from: cloudify.relationships.connected_to
-        target_interfaces:
-            cloudify.interfaces.relationship_lifecycle:
-                postconfigure:
-                    implementation: libvirt.cloudify_libvirt.network_tasks.link
-                    inputs: {}
-                unlink:
-                    implementation: libvirt.cloudify_libvirt.network_tasks.unlink
-                    inputs: {}
+  cloudify.libvirt.relationships.connected_to:
+    derived_from: cloudify.relationships.connected_to
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        postconfigure:
+          implementation: libvirt.cloudify_libvirt.network_tasks.link
+          inputs: {}
+        unlink:
+          implementation: libvirt.cloudify_libvirt.network_tasks.unlink
+          inputs: {}
+
+workflows:
+  suspend: libvirt.cloudify_libvirt.workflows.suspend
+  resume: libvirt.cloudify_libvirt.workflows.resume

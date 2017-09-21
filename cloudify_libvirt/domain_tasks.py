@@ -126,14 +126,98 @@ def stop(**kwargs):
         for i in xrange(10):
             state, reason = dom.state()
 
-            if state == libvirt.VIR_DOMAIN_SHUTOFF:
-                ctx.logger.info("Looks as stoped.")
+            if state != libvirt.VIR_DOMAIN_RUNNING:
+                ctx.logger.info("Looks as not run.")
                 return
 
             ctx.logger.info("Tring to stop vm")
             if dom.shutdown() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not shutdown guest domain.'
+                )
+            time.sleep(30)
+            state, reason = dom.state()
+    finally:
+        conn.close()
+
+
+@operation
+def resume(**kwargs):
+    ctx.logger.info("resume")
+
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+
+    if not resource_id:
+        ctx.logger.info("No servers for delete")
+        return
+
+    conn = libvirt.open('qemu:///system')
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    dom = conn.lookupByName(resource_id)
+    if dom is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to find the domain'
+        )
+
+    try:
+        state, reason = dom.state()
+        for i in xrange(10):
+            state, reason = dom.state()
+
+            if state == libvirt.VIR_DOMAIN_RUNNING:
+                ctx.logger.info("Looks as running.")
+                return
+
+            ctx.logger.info("Tring to stop vm")
+            if dom.resume() < 0:
+                raise cfy_exc.NonRecoverableError(
+                    'Can not suspend guest domain.'
+                )
+            time.sleep(30)
+            state, reason = dom.state()
+    finally:
+        conn.close()
+
+
+@operation
+def suspend(**kwargs):
+    ctx.logger.info("suspend")
+
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+
+    if not resource_id:
+        ctx.logger.info("No servers for delete")
+        return
+
+    conn = libvirt.open('qemu:///system')
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    dom = conn.lookupByName(resource_id)
+    if dom is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to find the domain'
+        )
+
+    try:
+        state, reason = dom.state()
+        for i in xrange(10):
+            state, reason = dom.state()
+
+            if state != libvirt.VIR_DOMAIN_RUNNING:
+                ctx.logger.info("Looks as not run.")
+                return
+
+            ctx.logger.info("Tring to stop vm")
+            if dom.suspend() < 0:
+                raise cfy_exc.NonRecoverableError(
+                    'Can not suspend guest domain.'
                 )
             time.sleep(30)
             state, reason = dom.state()
