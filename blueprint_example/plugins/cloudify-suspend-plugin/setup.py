@@ -22,6 +22,6 @@ setup(
     license='LICENSE',
     packages=['cloudify_suspend'],
     install_requires=[
-        'cloudify-libvirt-plugin',
+        'cloudify-plugins-common>=3.3',
     ],
 )
