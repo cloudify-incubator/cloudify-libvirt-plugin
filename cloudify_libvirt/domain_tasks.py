@@ -148,7 +148,7 @@ def resume(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for delete")
+        ctx.logger.info("No servers for resume")
         return
 
     conn = libvirt.open('qemu:///system')
@@ -172,7 +172,7 @@ def resume(**kwargs):
                 ctx.logger.info("Looks as running.")
                 return
 
-            ctx.logger.info("Tring to stop vm")
+            ctx.logger.info("Tring to resume vm")
             if dom.resume() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not suspend guest domain.'
@@ -190,7 +190,7 @@ def suspend(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for delete")
+        ctx.logger.info("No servers for suspend")
         return
 
     conn = libvirt.open('qemu:///system')
@@ -214,7 +214,7 @@ def suspend(**kwargs):
                 ctx.logger.info("Looks as not run.")
                 return
 
-            ctx.logger.info("Tring to stop vm")
+            ctx.logger.info("Tring to suspend vm")
             if dom.suspend() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not suspend guest domain.'

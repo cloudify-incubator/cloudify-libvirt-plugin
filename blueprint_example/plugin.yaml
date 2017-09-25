@@ -21,6 +21,12 @@ node_types:
         configure:
           implementation: libvirt.cloudify_libvirt.domain_tasks.configure
           inputs: {}
+        suspend:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.suspend
+          inputs: {}
+        resume:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.resume
+          inputs: {}
         stop:
           implementation: libvirt.cloudify_libvirt.domain_tasks.stop
           inputs: {}

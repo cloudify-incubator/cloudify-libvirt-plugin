@@ -13,6 +13,9 @@ if __name__ == "__main__":
     if "disks" not in ctx.source.instance.runtime_properties["params"]:
         ctx.source.instance.runtime_properties["params"]['disks'] = []
 
+    # hack for cleanup if we install/uninstall several times.
+    ctx.source.instance.runtime_properties["params"]['disks'] = []
+
     disks = ctx.source.instance.runtime_properties["params"]['disks']
 
     disks.append({

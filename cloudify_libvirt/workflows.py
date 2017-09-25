@@ -17,8 +17,32 @@ from cloudify.decorators import workflow
 @workflow
 def suspend(ctx, **kwargs):
     ctx.logger.info("suspend")
+    graph = ctx.graph_mode()
+
+    for node in ctx.nodes:
+        if 'cloudify.libvirt.domain' in node.type_hierarchy:
+            for instance in node.instances:
+                sequence = graph.sequence()
+                sequence.add(
+                    instance.send_event('Starting to suspend'),
+                    instance.execute_operation('cloudify.interfaces.lifecycle.suspend'),
+                    instance.send_event('Done suspend'))
+
+    return graph.execute()
 
 
 @workflow
 def resume(ctx, **kwargs):
     ctx.logger.info("resume")
+    graph = ctx.graph_mode()
+
+    for node in ctx.nodes:
+        if 'cloudify.libvirt.domain' in node.type_hierarchy:
+            for instance in node.instances:
+                sequence = graph.sequence()
+                sequence.add(
+                    instance.send_event('Starting to resume'),
+                    instance.execute_operation('cloudify.interfaces.lifecycle.resume'),
+                    instance.send_event('Done resume'))
+
+    return graph.execute()
