@@ -5,6 +5,17 @@ imports:
   - http://www.getcloudify.org/spec/fabric-plugin/1.4/plugin.yaml
   - plugin.yaml
 
+plugins:
+  suspendwf:
+    executor: central_deployment_agent
+    source: cloudify-suspend-plugin
+    package_name: cloudify-suspend-plugin
+    package_version: '0.1'
+
+workflows:
+  suspend: suspendwf.cloudify_suspend.workflows.suspend
+  resume: suspendwf.cloudify_suspend.workflows.resume
+
 relationships:
 
   vm_connected_to_storage:

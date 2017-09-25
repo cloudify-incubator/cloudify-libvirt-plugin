@@ -61,7 +61,3 @@ relationships:
         unlink:
           implementation: libvirt.cloudify_libvirt.network_tasks.unlink
           inputs: {}
-
-workflows:
-  suspend: libvirt.cloudify_libvirt.workflows.suspend
-  resume: libvirt.cloudify_libvirt.workflows.resume
