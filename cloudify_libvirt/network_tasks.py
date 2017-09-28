@@ -117,10 +117,9 @@ def delete(**kwargs):
 
 @operation
 def link(**kwargs):
-    ctx.logger.info("link")
     vm_id = ctx.source.instance.runtime_properties.get('resource_id')
     net_id = ctx.target.instance.runtime_properties.get('resource_id')
-    ctx.logger.info('Network: {} to VM: {}.'
+    ctx.logger.info('Link network: {} to VM: {}.'
                     .format(repr(net_id), repr(vm_id)))
 
     conn = libvirt.open('qemu:///system')
@@ -160,10 +159,9 @@ def link(**kwargs):
 
 @operation
 def unlink(**kwargs):
-    ctx.logger.info("unlink")
     vm_id = ctx.source.instance.runtime_properties.get('resource_id')
     net_id = ctx.target.instance.runtime_properties.get('resource_id')
-    ctx.logger.info('Network: {} to VM: {}.'
+    ctx.logger.info('Unlink network: {} to VM: {}.'
                     .format(repr(net_id), repr(vm_id)))
 
     ctx.target.instance.runtime_properties['ip'] = None

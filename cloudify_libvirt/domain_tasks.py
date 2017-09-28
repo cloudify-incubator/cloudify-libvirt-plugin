@@ -46,7 +46,6 @@ def configure(**kwargs):
     domain_file = kwargs.get('domain_file')
     domain_template = kwargs.get('domain_template')
 
-    ctx.logger.info(repr(ctx.instance.runtime_properties))
     template_params = ctx.instance.runtime_properties.get('params', {})
     template_params.update(kwargs.get('params', {}))
 
