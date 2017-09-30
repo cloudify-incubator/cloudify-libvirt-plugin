@@ -22,13 +22,15 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 from pkg_resources import resource_filename
+from cloudify_libvirt.common import get_libvirt_params
 
 
 @operation
 def create(**kwargs):
     ctx.logger.info("create")
 
-    conn = libvirt.open('qemu:///system')
+    libvirt_auth, template_params = get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'
@@ -36,10 +38,6 @@ def create(**kwargs):
 
     network_file = kwargs.get('network_file')
     network_template = kwargs.get('network_template')
-
-    template_params = ctx.node.properties.get('params', {})
-    template_params.update(ctx.instance.runtime_properties.get('params', {}))
-    template_params.update(kwargs.get('params', {}))
 
     if not network_file and not network_template:
         resource_dir = resource_filename(__name__, 'templates')
@@ -60,9 +58,9 @@ def create(**kwargs):
     if not template_params.get("instance_uuid"):
         template_params["instance_uuid"] = str(uuid.uuid4())
 
-    # supply ctx for template for reuse runtime params
-    template_params['ctx'] = ctx
-    xmlconfig = template_engine.render(template_params)
+    params = {"ctx": ctx}
+    params.update(template_params)
+    xmlconfig = template_engine.render(params)
 
     ctx.logger.info(xmlconfig)
 
@@ -76,12 +74,12 @@ def create(**kwargs):
     else:
         ctx.logger.info('The new persistent virtual network is not active')
 
+    conn.close()
+
     ctx.logger.info('Network ' + network.name() + ' has created.')
     ctx.instance.runtime_properties['resource_id'] = network.name()
-    del template_params['ctx']
     ctx.logger.info('Params: ' + repr(template_params))
     ctx.instance.runtime_properties['params'] = template_params
-    conn.close()
 
 
 @operation
@@ -94,7 +92,8 @@ def delete(**kwargs):
         ctx.logger.info("No network for delete")
         return
 
-    conn = libvirt.open('qemu:///system')
+    libvirt_auth, _ = get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'
@@ -122,7 +121,8 @@ def link(**kwargs):
     ctx.logger.info('Link network: {} to VM: {}.'
                     .format(repr(net_id), repr(vm_id)))
 
-    conn = libvirt.open('qemu:///system')
+    libvirt_auth = ctx.target.instance.runtime_properties.get('libvirt_auth')
+    conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'

@@ -36,8 +36,6 @@ def configure(**kwargs):
     ctx.logger.info("configure")
 
     libvirt_auth, template_params = get_libvirt_params(**kwargs)
-
-    print libvirt_auth
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -70,9 +68,9 @@ def configure(**kwargs):
     if not template_params.get("instance_uuid"):
         template_params["instance_uuid"] = str(uuid.uuid4())
 
-    # supply ctx for template for reuse runtime params
-    template_params['ctx'] = ctx
-    xmlconfig = template_engine.render(template_params)
+    params = {"ctx": ctx}
+    params.update(template_params)
+    xmlconfig = template_engine.render(params)
 
     ctx.logger.info(xmlconfig)
 
@@ -88,12 +86,11 @@ def configure(**kwargs):
         raise cfy_exc.NonRecoverableError(
             'Can not boot guest domain.'
         )
+    conn.close()
 
     ctx.logger.info('Guest ' + dom.name() + ' has booted')
     ctx.instance.runtime_properties['resource_id'] = dom.name()
-    del template_params['ctx']
     ctx.instance.runtime_properties['params'] = template_params
-    conn.close()
 
 
 @operation

@@ -92,7 +92,6 @@ node_templates:
               memmory_size: 524288
               networks:
                 - network: { get_attribute: [common_network, resource_id] }
-                  mac: "52:54:00:23:fe:37"
                   dev: vnet0
                   type: rtl8139
     relationships:
