@@ -45,6 +45,9 @@ def configure(**kwargs):
     domain_file = kwargs.get('domain_file')
     domain_template = kwargs.get('domain_template')
 
+    if domain_file:
+        domain_template = ctx.get_resource(domain_file)
+
     if not domain_file and not domain_template:
         resource_dir = resource_filename(__name__, 'templates')
         domain_file = '{}/domain.xml'.format(resource_dir)
@@ -110,28 +113,29 @@ def stop(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    dom = conn.lookupByName(resource_id)
-    if dom is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to find the domain'
-        )
+    try:
+        dom = conn.lookupByName(resource_id)
+    except Exception as e:
+        dom = None
+        ctx.logger.info("Non critical error: {}".format(str(e)))
 
     try:
-        state, reason = dom.state()
-        for i in xrange(10):
+        if dom:
             state, reason = dom.state()
+            for i in xrange(10):
+                state, reason = dom.state()
 
-            if state != libvirt.VIR_DOMAIN_RUNNING:
-                ctx.logger.info("Looks as not run.")
-                return
+                if state != libvirt.VIR_DOMAIN_RUNNING:
+                    ctx.logger.info("Looks as not run.")
+                    return
 
-            ctx.logger.info("Tring to stop vm {}/10".format(i))
-            if dom.shutdown() < 0:
-                raise cfy_exc.NonRecoverableError(
-                    'Can not shutdown guest domain.'
-                )
-            time.sleep(30)
-            state, reason = dom.state()
+                ctx.logger.info("Tring to stop vm {}/10".format(i))
+                if dom.shutdown() < 0:
+                    raise cfy_exc.NonRecoverableError(
+                        'Can not shutdown guest domain.'
+                    )
+                time.sleep(30)
+                state, reason = dom.state()
     finally:
         conn.close()
 
@@ -153,28 +157,28 @@ def resume(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    dom = conn.lookupByName(resource_id)
-    if dom is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to find the domain'
-        )
-
     try:
-        state, reason = dom.state()
-        for i in xrange(10):
+        dom = conn.lookupByName(resource_id)
+    except Exception as e:
+        dom = None
+        ctx.logger.info("Non critical error: {}".format(str(e)))
+    try:
+        if dom:
             state, reason = dom.state()
+            for i in xrange(10):
+                state, reason = dom.state()
 
-            if state == libvirt.VIR_DOMAIN_RUNNING:
-                ctx.logger.info("Looks as running.")
-                return
+                if state == libvirt.VIR_DOMAIN_RUNNING:
+                    ctx.logger.info("Looks as running.")
+                    return
 
-            ctx.logger.info("Tring to resume vm {}/10".format(i))
-            if dom.resume() < 0:
-                raise cfy_exc.NonRecoverableError(
-                    'Can not suspend guest domain.'
-                )
-            time.sleep(30)
-            state, reason = dom.state()
+                ctx.logger.info("Tring to resume vm {}/10".format(i))
+                if dom.resume() < 0:
+                    raise cfy_exc.NonRecoverableError(
+                        'Can not suspend guest domain.'
+                    )
+                time.sleep(30)
+                state, reason = dom.state()
     finally:
         conn.close()
 
@@ -196,28 +200,26 @@ def suspend(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    dom = conn.lookupByName(resource_id)
-    if dom is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to find the domain'
-        )
-
     try:
-        state, reason = dom.state()
-        for i in xrange(10):
+        dom = conn.lookupByName(resource_id)
+        if dom is None:
+            ctx.logger.info("No servers for delete")
+        else:
             state, reason = dom.state()
+            for i in xrange(10):
+                state, reason = dom.state()
 
-            if state != libvirt.VIR_DOMAIN_RUNNING:
-                ctx.logger.info("Looks as not run.")
-                return
+                if state != libvirt.VIR_DOMAIN_RUNNING:
+                    ctx.logger.info("Looks as not run.")
+                    return
 
-            ctx.logger.info("Tring to suspend vm {}/10".format(i))
-            if dom.suspend() < 0:
-                raise cfy_exc.NonRecoverableError(
-                    'Can not suspend guest domain.'
-                )
-            time.sleep(30)
-            state, reason = dom.state()
+                ctx.logger.info("Tring to suspend vm {}/10".format(i))
+                if dom.suspend() < 0:
+                    raise cfy_exc.NonRecoverableError(
+                        'Can not suspend guest domain.'
+                    )
+                time.sleep(30)
+                state, reason = dom.state()
     finally:
         conn.close()
 
@@ -239,23 +241,27 @@ def delete(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    dom = conn.lookupByName(resource_id)
-    if dom is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to find the domain'
-        )
+    try:
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
+        if dom is None:
+            ctx.logger.info("No servers for delete")
+        else:
+            state, reason = dom.state()
 
-    state, reason = dom.state()
+            if state != libvirt.VIR_DOMAIN_SHUTOFF:
+                if dom.destroy() < 0:
+                    raise cfy_exc.NonRecoverableError(
+                        'Can not destroy guest domain.'
+                    )
 
-    if state != libvirt.VIR_DOMAIN_SHUTOFF:
-        if dom.destroy() < 0:
-            raise cfy_exc.NonRecoverableError(
-                'Can not destroy guest domain.'
-            )
-
-    if dom.undefine() < 0:
-        raise cfy_exc.NonRecoverableError(
-            'Can not undefine guest domain.'
-        )
-
-    conn.close()
+            dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM)
+            if dom.undefine() < 0:
+                raise cfy_exc.NonRecoverableError(
+                    'Can not undefine guest domain.'
+                )
+    finally:
+        conn.close()

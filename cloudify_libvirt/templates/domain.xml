@@ -65,7 +65,13 @@
     <acpi/>
     <apic/>
   </features>
-  <memory unit="KiB">{{ memmory_size }}</memory>
+  <memory unit="KiB">{{ memmory_size }}</memory>    {% for network in networks %}
+      <interface type="network">
+        <target dev="{{ network.dev }}"/>
+        <source network="{{ network.network }}"/>
+        <mac address="{{ network.mac }}"/>
+      </interface>
+    {% endfor %}
   <os>
     <type machine="pc" arch="x86_64">hvm</type>
     <boot dev="hd"/>
