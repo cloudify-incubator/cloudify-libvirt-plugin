@@ -11,8 +11,7 @@ node_types:
     derived_from: cloudify.nodes.Compute
     properties:
       libvirt_auth:
-        default:
-          url: 'qemu:///system'
+        default: 'qemu:///system'
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -38,8 +37,7 @@ node_types:
     derived_from: cloudify.nodes.Network
     properties:
       libvirt_auth:
-        default:
-          url: 'qemu:///system'
+        default: 'qemu:///system'
     interfaces:
       cloudify.interfaces.lifecycle:
         create:

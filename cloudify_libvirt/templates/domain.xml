@@ -38,7 +38,6 @@
     {% for network in networks %}
       <interface type="network">
         <target dev="{{ network.dev }}"/>
-        <alias name="{{ network.name }}"/>
         <source network="{{ network.network }}"/>
         <mac address="{{ network.mac }}"/>
       </interface>
@@ -55,7 +54,6 @@
         <target dev="{{ disk.dev }}" bus="{{ disk.bus }}"/>
         <source file="{{ disk.file }}"/>
         <driver type="{{ disk.type }}" name="qemu"/>
-        <alias  name="{{ disk.name }}"/>
       </disk>
     {% endfor %}
   </devices>

@@ -22,22 +22,23 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 from pkg_resources import resource_filename
+from cloudify_libvirt.common import get_libvirt_params
 
 
 @operation
 def create(**kwargs):
     ctx.logger.info("create")
-    template_params = ctx.node.properties.get('params', {})
-    template_params.update(ctx.instance.runtime_properties.get('params', {}))
-    template_params.update(kwargs.get('params', {}))
-    ctx.instance.runtime_properties['params'] = template_params
+    get_libvirt_params(**kwargs)
 
 
 @operation
 def configure(**kwargs):
     ctx.logger.info("configure")
 
-    conn = libvirt.open('qemu:///system')
+    libvirt_auth, template_params = get_libvirt_params(**kwargs)
+
+    print libvirt_auth
+    conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'
@@ -45,9 +46,6 @@ def configure(**kwargs):
 
     domain_file = kwargs.get('domain_file')
     domain_template = kwargs.get('domain_template')
-
-    template_params = ctx.instance.runtime_properties.get('params', {})
-    template_params.update(kwargs.get('params', {}))
 
     if not domain_file and not domain_template:
         resource_dir = resource_filename(__name__, 'templates')
@@ -108,7 +106,8 @@ def stop(**kwargs):
         ctx.logger.info("No servers for delete")
         return
 
-    conn = libvirt.open('qemu:///system')
+    libvirt_auth, _ = get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'
@@ -129,7 +128,7 @@ def stop(**kwargs):
                 ctx.logger.info("Looks as not run.")
                 return
 
-            ctx.logger.info("Tring to stop vm")
+            ctx.logger.info("Tring to stop vm {}/10".format(i))
             if dom.shutdown() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not shutdown guest domain.'
@@ -150,7 +149,8 @@ def resume(**kwargs):
         ctx.logger.info("No servers for resume")
         return
 
-    conn = libvirt.open('qemu:///system')
+    libvirt_auth, _ = get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'
@@ -171,7 +171,7 @@ def resume(**kwargs):
                 ctx.logger.info("Looks as running.")
                 return
 
-            ctx.logger.info("Tring to resume vm")
+            ctx.logger.info("Tring to resume vm {}/10".format(i))
             if dom.resume() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not suspend guest domain.'
@@ -192,7 +192,8 @@ def suspend(**kwargs):
         ctx.logger.info("No servers for suspend")
         return
 
-    conn = libvirt.open('qemu:///system')
+    libvirt_auth, _ = get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'
@@ -213,7 +214,7 @@ def suspend(**kwargs):
                 ctx.logger.info("Looks as not run.")
                 return
 
-            ctx.logger.info("Tring to suspend vm")
+            ctx.logger.info("Tring to suspend vm {}/10".format(i))
             if dom.suspend() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not suspend guest domain.'
@@ -234,7 +235,8 @@ def delete(**kwargs):
         ctx.logger.info("No servers for delete")
         return
 
-    conn = libvirt.open('qemu:///system')
+    libvirt_auth, _ = get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'
