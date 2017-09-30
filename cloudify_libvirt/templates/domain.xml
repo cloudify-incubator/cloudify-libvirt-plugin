@@ -41,12 +41,6 @@
         <alias name="{{ network.name }}"/>
         <source network="{{ network.network }}"/>
         <mac address="{{ network.mac }}"/>
-        <address function="{{ network.address.function }}"
-                 type="{{ network.address.type }}"
-                 domain="{{ network.address.domain }}"
-                 slot="{{ network.address.slot }}"
-                 bus="{{ network.address.bus }}"/>
-        <model type="{{ network.type }}"/>
       </interface>
     {% endfor %}
     <input type="mouse" bus="ps2"/>
@@ -62,11 +56,6 @@
         <source file="{{ disk.file }}"/>
         <driver type="{{ disk.type }}" name="qemu"/>
         <alias  name="{{ disk.name }}"/>
-        <address type="drive"
-                 target="{{ disk.address.target }}"
-                 unit="{{ disk.address.unit }}"
-                 bus="{{ disk.address.bus }}"
-                 controller="{{ disk.address.controller }}"/>
       </disk>
     {% endfor %}
   </devices>

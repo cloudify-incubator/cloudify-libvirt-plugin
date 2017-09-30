@@ -91,12 +91,6 @@ node_templates:
                   dev: vnet0
                   name: net0
                   type: rtl8139
-                  address:
-                    function: "0x0"
-                    type: pci
-                    domain: "0x0000"
-                    slot: "0x03"
-                    bus: "0x00"
     relationships:
       - target: common_network
         type: cloudify.libvirt.relationships.connected_to

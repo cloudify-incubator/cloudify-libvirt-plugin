@@ -23,12 +23,6 @@ if __name__ == "__main__":
         'bus': 'ide',
         'dev': 'hda',
         'file': ctx.target.instance.runtime_properties.get('vm_image'),
-        'address': {
-            'bus': 0,
-            'controller': 0,
-            'target': 0,
-            'unit': 0
-        },
         'type': 'qcow2'
     })
 
@@ -37,12 +31,6 @@ if __name__ == "__main__":
         'bus': 'ide',
         'dev': 'hdb',
         'file': ctx.target.instance.runtime_properties.get('vm_cloudinit'),
-        'address': {
-            'bus': 0,
-            'controller': 0,
-            'target': 0,
-            'unit': 1
-        },
         'type': 'raw'
     })
 
