@@ -114,17 +114,17 @@ def stop(**kwargs):
         )
 
     try:
-        dom = conn.lookupByName(resource_id)
-    except Exception as e:
-        dom = None
-        ctx.logger.info("Non critical error: {}".format(str(e)))
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
 
-    if dom is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to find the domain'
-        )
+        if dom is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain'
+            )
 
-    try:
         state, reason = dom.state()
         for i in xrange(10):
             state, reason = dom.state()
@@ -162,17 +162,17 @@ def resume(**kwargs):
         )
 
     try:
-        dom = conn.lookupByName(resource_id)
-    except Exception as e:
-        dom = None
-        ctx.logger.info("Non critical error: {}".format(str(e)))
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
 
-    if dom is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to find the domain'
-        )
+        if dom is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain'
+            )
 
-    try:
         state, reason = dom.state()
         for i in xrange(10):
             state, reason = dom.state()
@@ -210,17 +210,17 @@ def suspend(**kwargs):
         )
 
     try:
-        dom = conn.lookupByName(resource_id)
-    except Exception as e:
-        dom = None
-        ctx.logger.info("Non critical error: {}".format(str(e)))
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
 
-    if dom is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to find the domain'
-        )
+        if dom is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain'
+            )
 
-    try:
         state, reason = dom.state()
         for i in xrange(10):
             state, reason = dom.state()
@@ -258,28 +258,28 @@ def delete(**kwargs):
         )
 
     try:
-        dom = conn.lookupByName(resource_id)
-    except Exception as e:
-        dom = None
-        ctx.logger.info("Non critical error: {}".format(str(e)))
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
 
-    if dom is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to find the domain'
-        )
-
-    state, reason = dom.state()
-
-    if state != libvirt.VIR_DOMAIN_SHUTOFF:
-        if dom.destroy() < 0:
+        if dom is None:
             raise cfy_exc.NonRecoverableError(
-                'Can not destroy guest domain.'
+                'Failed to find the domain'
             )
 
-    #dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM)
-    if dom.undefine() < 0:
-        raise cfy_exc.NonRecoverableError(
-            'Can not undefine guest domain.'
-        )
+        state, reason = dom.state()
 
-    conn.close()
+        if state != libvirt.VIR_DOMAIN_SHUTOFF:
+            if dom.destroy() < 0:
+                raise cfy_exc.NonRecoverableError(
+                    'Can not destroy guest domain.'
+                )
+
+        if dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM) < 0:
+            raise cfy_exc.NonRecoverableError(
+                'Can not undefine guest domain.'
+            )
+    finally:
+        conn.close()
