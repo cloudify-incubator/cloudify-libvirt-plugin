@@ -45,6 +45,9 @@ def configure(**kwargs):
     domain_file = kwargs.get('domain_file')
     domain_template = kwargs.get('domain_template')
 
+    if domain_file:
+        domain_template = ctx.get_resource(domain_file)
+
     if not domain_file and not domain_template:
         resource_dir = resource_filename(__name__, 'templates')
         domain_file = '{}/domain.xml'.format(resource_dir)
@@ -110,7 +113,12 @@ def stop(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    dom = conn.lookupByName(resource_id)
+    try:
+        dom = conn.lookupByName(resource_id)
+    except Exception as e:
+        dom = None
+        ctx.logger.info("Non critical error: {}".format(str(e)))
+
     if dom is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to find the domain'
@@ -153,7 +161,12 @@ def resume(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    dom = conn.lookupByName(resource_id)
+    try:
+        dom = conn.lookupByName(resource_id)
+    except Exception as e:
+        dom = None
+        ctx.logger.info("Non critical error: {}".format(str(e)))
+
     if dom is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to find the domain'
@@ -196,7 +209,12 @@ def suspend(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    dom = conn.lookupByName(resource_id)
+    try:
+        dom = conn.lookupByName(resource_id)
+    except Exception as e:
+        dom = None
+        ctx.logger.info("Non critical error: {}".format(str(e)))
+
     if dom is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to find the domain'
@@ -239,7 +257,12 @@ def delete(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    dom = conn.lookupByName(resource_id)
+    try:
+        dom = conn.lookupByName(resource_id)
+    except Exception as e:
+        dom = None
+        ctx.logger.info("Non critical error: {}".format(str(e)))
+
     if dom is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to find the domain'
@@ -253,6 +276,7 @@ def delete(**kwargs):
                 'Can not destroy guest domain.'
             )
 
+    #dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM)
     if dom.undefine() < 0:
         raise cfy_exc.NonRecoverableError(
             'Can not undefine guest domain.'

@@ -39,6 +39,9 @@ def create(**kwargs):
     network_file = kwargs.get('network_file')
     network_template = kwargs.get('network_template')
 
+    if network_file:
+        network_template = ctx.get_resource(network_file)
+
     if not network_file and not network_template:
         resource_dir = resource_filename(__name__, 'templates')
         network_file = '{}/network.xml'.format(resource_dir)

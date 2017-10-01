@@ -56,7 +56,8 @@ node_templates:
         create:
           implementation: scripts/download_vm.sh
           executor: central_deployment_agent
-
+          inputs:
+            DISK: trusty-server-cloudimg-amd64-disk1.img
   disk_clone:
     type: cloudify.nodes.ApplicationServer
     interfaces:
@@ -109,4 +110,3 @@ node_templates:
     relationships:
       - target: qemu_vm
         type: cloudify.relationships.contained_in
-
