@@ -1,0 +1,71 @@
+<domain xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0" xmlns="" type="qemu">
+  <resource>
+    <partition>/machine</partition>
+  </resource>
+  <uuid>{{ instance_uuid }}</uuid>
+  <currentMemory unit="KiB">{{ memmory_minsize }}</currentMemory>
+  <on_poweroff>destroy</on_poweroff>
+  <devices>
+    <emulator>/usr/bin/qemu-system-aarch64</emulator>
+    <controller type='scsi' index='0' model='virtio-scsi'>
+      <alias name='scsi0'/>
+      <address type='virtio-mmio'/>
+    </controller>
+    <controller type='pci' index='0' model='pcie-root'>
+      <alias name='pcie.0'/>
+    </controller>
+    <controller type='pci' index='1' model='dmi-to-pci-bridge'>
+      <model name='i82801b11-bridge'/>
+      <alias name='pci.1'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x0'/>
+    </controller>
+    <controller type='pci' index='2' model='pci-bridge'>
+      <model name='pci-bridge'/>
+      <target chassisNr='2'/>
+      <alias name='pci.2'/>
+      <address type='pci' domain='0x0000' bus='0x01' slot='0x01' function='0x0'/>
+    </controller>
+    {% for network in networks %}
+      <interface type="network">
+        <target dev="{{ network.dev }}"/>
+        <source network="{{ network.network }}"/>
+        <mac address="{{ network.mac }}"/>
+      </interface>
+    {% endfor %}
+    <console type='pty' tty='/dev/pts/9'>
+      <source path='/dev/pts/9'/>
+      <target type='serial' port='0'/>
+      <alias name='serial0'/>
+    </console>
+    <serial type='pty'>
+      <source path='/dev/pts/9'/>
+      <target port='0'/>
+      <alias name='serial0'/>
+    </serial>
+    {% for disk in disks %}
+      <disk device="disk" type="file">
+        <target dev="{{ disk.dev }}" bus="{{ disk.bus }}"/>
+        <source file="{{ disk.file }}"/>
+        <driver type="{{ disk.type }}" name="qemu"/>
+      </disk>
+    {% endfor %}
+  </devices>
+  <on_crash>restart</on_crash>
+  <on_reboot>restart</on_reboot>
+  <vcpu placement="static">1</vcpu>
+  <features>
+    <gic version='2'/>
+  </features>
+  <memory unit="KiB">{{ memmory_size }}</memory>
+  <os>
+    <type arch='aarch64' machine='virt'>hvm</type>
+    <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
+    <nvram>{{ nvram }}</nvram>
+    <boot dev='hd'/>
+  </os>
+  <cpu mode='custom' match='exact'>
+    <model fallback='allow'>cortex-a57</model>
+  </cpu>
+  <clock offset="utc"/>
+  <name>{{ resource_id }}</name>
+</domain>

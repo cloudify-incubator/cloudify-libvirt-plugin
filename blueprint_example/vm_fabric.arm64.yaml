@@ -1,0 +1,122 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.1/types.yaml
+  - http://www.getcloudify.org/spec/fabric-plugin/1.4/plugin.yaml
+  - plugin.yaml
+
+plugins:
+
+  suspend:
+    executor: central_deployment_agent
+    package_name: cloudify-utilities-plugin
+    source: https://github.com/cloudify-incubator/cloudify-utilities-plugin/archive/suspend_workflow.zip
+    package_version: '1.3.0'
+
+workflows:
+
+  suspend:
+    mapping: suspend.cloudify_suspend.workflows.suspend
+  resume:
+    mapping: suspend.cloudify_suspend.workflows.resume
+
+node_templates:
+
+  common_network:
+    type: cloudify.libvirt.network
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              dev: virbr1
+              forwards:
+                - mode: nat
+              ips:
+                - address: 192.168.142.1
+                  netmask: 255.255.255.0
+                  dhcp:
+                    start: 192.168.142.2
+                    end: 192.168.142.254
+
+  vm_download:
+    type: cloudify.nodes.ApplicationServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: scripts/download_vm.sh
+          executor: central_deployment_agent
+          inputs:
+            DISK: trusty-server-cloudimg-arm64-uefi1.img
+  disk_clone:
+    type: cloudify.nodes.ApplicationServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: scripts/copy_disk.sh
+          executor: central_deployment_agent
+          inputs:
+            DISK: { get_attribute: [vm_download, vm_image] }
+        configure:
+          implementation: scripts/copy_disk_arm.sh
+          executor: central_deployment_agent
+        stop:
+          implementation: scripts/remove_disk_arm.sh
+          executor: central_deployment_agent
+        delete:
+          implementation: scripts/remove_disk.sh
+          executor: central_deployment_agent
+    relationships:
+    - target: vm_download
+      type: cloudify.relationships.depends_on
+
+  qemu_vm:
+    type: cloudify.libvirt.domain
+    properties:
+      agent_config:
+        install_method: none
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              memmory_size: 524288
+              nvram: { get_attribute: [disk_clone, bios_flash] }
+              disks:
+                - bus: scsi
+                  dev: sda
+                  file: { get_attribute: [disk_clone, vm_image] }
+                  type: qcow2
+                - bus: scsi
+                  dev: sdb
+                  file: { get_attribute: [disk_clone, vm_cloudinit] }
+                  type: raw
+              networks:
+                - network: { get_attribute: [common_network, resource_id] }
+                  dev: macvtap0
+                  type: direct
+                  mac: 52:54:00:c0:67:81
+        configure:
+          inputs:
+            domain_file: arm.xml
+    relationships:
+      - target: common_network
+        type: cloudify.libvirt.relationships.connected_to
+      - target: disk_clone
+        type: cloudify.relationships.contained_in
+
+  example_node:
+    type: cloudify.nodes.WebServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+          start:
+            implementation: fabric.fabric_plugin.tasks.run_script
+            inputs:
+              fabric_env:
+                user: ubuntu
+                password: passw0rd
+                host_string: { get_attribute: [qemu_vm, ip] }
+              script_path: scripts/vm_check.sh
+    relationships:
+      - target: qemu_vm
+        type: cloudify.relationships.contained_in
