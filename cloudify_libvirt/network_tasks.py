@@ -140,7 +140,7 @@ def link(**kwargs):
 
     MAX_RETRY = 10
     for i in xrange(MAX_RETRY):
-        ctx.logger.info("Tring to get vm ip {}/{}".format(i, MAX_RETRY))
+        ctx.logger.info("{}: Tring to get vm ip {}/{}".format(vm_id, i, MAX_RETRY))
         for lease in network.DHCPLeases():
             vm_params = ctx.source.instance.runtime_properties.get(
                 'params', {})
@@ -148,11 +148,8 @@ def link(**kwargs):
                 if network.get('mac') == lease.get('mac'):
                     ctx.source.instance.runtime_properties['ip'] = lease.get(
                         'ipaddr')
-                    ctx.logger.info("Found: " + lease.get('ipaddr'))
+                    ctx.logger.info("{}:Found: {}".format(vm_id, lease.get('ipaddr')))
                     return
-            else:
-                # we don't have networks in vm?
-                return
         time.sleep(30)
 
     raise cfy_exc.RecoverableError(

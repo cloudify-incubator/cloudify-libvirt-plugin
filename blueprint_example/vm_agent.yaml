@@ -60,6 +60,10 @@ node_templates:
             DISK: trusty-server-cloudimg-amd64-disk1.img
   disk_clone:
     type: cloudify.nodes.ApplicationServer
+    capabilities:
+      scalable:
+        properties:
+          default_instances: 2
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -76,11 +80,6 @@ node_templates:
 
   qemu_vm:
     type: cloudify.libvirt.domain
-    capabilities:
-      scalable:
-        properties:
-          # need separate mac for use more than 1
-          default_instances: 1
     properties:
       agent_config:
         user: ubuntu
