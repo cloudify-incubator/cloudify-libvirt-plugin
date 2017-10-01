@@ -114,28 +114,32 @@ def stop(**kwargs):
         )
 
     try:
-        dom = conn.lookupByName(resource_id)
-    except Exception as e:
-        dom = None
-        ctx.logger.info("Non critical error: {}".format(str(e)))
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
 
-    try:
-        if dom:
+        if dom is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain'
+            )
+
+        state, reason = dom.state()
+        for i in xrange(10):
             state, reason = dom.state()
-            for i in xrange(10):
-                state, reason = dom.state()
 
-                if state != libvirt.VIR_DOMAIN_RUNNING:
-                    ctx.logger.info("Looks as not run.")
-                    return
+            if state != libvirt.VIR_DOMAIN_RUNNING:
+                ctx.logger.info("Looks as not run.")
+                return
 
-                ctx.logger.info("Tring to stop vm {}/10".format(i))
-                if dom.shutdown() < 0:
-                    raise cfy_exc.NonRecoverableError(
-                        'Can not shutdown guest domain.'
-                    )
-                time.sleep(30)
-                state, reason = dom.state()
+            ctx.logger.info("Tring to stop vm {}/10".format(i))
+            if dom.shutdown() < 0:
+                raise cfy_exc.NonRecoverableError(
+                    'Can not shutdown guest domain.'
+                )
+            time.sleep(30)
+            state, reason = dom.state()
     finally:
         conn.close()
 
@@ -158,27 +162,32 @@ def resume(**kwargs):
         )
 
     try:
-        dom = conn.lookupByName(resource_id)
-    except Exception as e:
-        dom = None
-        ctx.logger.info("Non critical error: {}".format(str(e)))
-    try:
-        if dom:
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
+
+        if dom is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain'
+            )
+
+        state, reason = dom.state()
+        for i in xrange(10):
             state, reason = dom.state()
-            for i in xrange(10):
-                state, reason = dom.state()
 
-                if state == libvirt.VIR_DOMAIN_RUNNING:
-                    ctx.logger.info("Looks as running.")
-                    return
+            if state == libvirt.VIR_DOMAIN_RUNNING:
+                ctx.logger.info("Looks as running.")
+                return
 
-                ctx.logger.info("Tring to resume vm {}/10".format(i))
-                if dom.resume() < 0:
-                    raise cfy_exc.NonRecoverableError(
-                        'Can not suspend guest domain.'
-                    )
-                time.sleep(30)
-                state, reason = dom.state()
+            ctx.logger.info("Tring to resume vm {}/10".format(i))
+            if dom.resume() < 0:
+                raise cfy_exc.NonRecoverableError(
+                    'Can not suspend guest domain.'
+                )
+            time.sleep(30)
+            state, reason = dom.state()
     finally:
         conn.close()
 
@@ -201,25 +210,32 @@ def suspend(**kwargs):
         )
 
     try:
-        dom = conn.lookupByName(resource_id)
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
+
         if dom is None:
-            ctx.logger.info("No servers for delete")
-        else:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain'
+            )
+
+        state, reason = dom.state()
+        for i in xrange(10):
             state, reason = dom.state()
-            for i in xrange(10):
-                state, reason = dom.state()
 
-                if state != libvirt.VIR_DOMAIN_RUNNING:
-                    ctx.logger.info("Looks as not run.")
-                    return
+            if state != libvirt.VIR_DOMAIN_RUNNING:
+                ctx.logger.info("Looks as not run.")
+                return
 
-                ctx.logger.info("Tring to suspend vm {}/10".format(i))
-                if dom.suspend() < 0:
-                    raise cfy_exc.NonRecoverableError(
-                        'Can not suspend guest domain.'
-                    )
-                time.sleep(30)
-                state, reason = dom.state()
+            ctx.logger.info("Tring to suspend vm {}/10".format(i))
+            if dom.suspend() < 0:
+                raise cfy_exc.NonRecoverableError(
+                    'Can not suspend guest domain.'
+                )
+            time.sleep(30)
+            state, reason = dom.state()
     finally:
         conn.close()
 
@@ -247,21 +263,23 @@ def delete(**kwargs):
         except Exception as e:
             dom = None
             ctx.logger.info("Non critical error: {}".format(str(e)))
+
         if dom is None:
-            ctx.logger.info("No servers for delete")
-        else:
-            state, reason = dom.state()
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain'
+            )
 
-            if state != libvirt.VIR_DOMAIN_SHUTOFF:
-                if dom.destroy() < 0:
-                    raise cfy_exc.NonRecoverableError(
-                        'Can not destroy guest domain.'
-                    )
+        state, reason = dom.state()
 
-            dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM)
-            if dom.undefine() < 0:
+        if state != libvirt.VIR_DOMAIN_SHUTOFF:
+            if dom.destroy() < 0:
                 raise cfy_exc.NonRecoverableError(
-                    'Can not undefine guest domain.'
+                    'Can not destroy guest domain.'
                 )
+
+        if dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM) < 0:
+            raise cfy_exc.NonRecoverableError(
+                'Can not undefine guest domain.'
+            )
     finally:
         conn.close()
