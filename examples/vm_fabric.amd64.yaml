@@ -3,22 +3,19 @@ tosca_definitions_version: cloudify_dsl_1_3
 imports:
   - http://www.getcloudify.org/spec/cloudify/4.1/types.yaml
   - http://www.getcloudify.org/spec/fabric-plugin/1.4/plugin.yaml
-  - plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.3.1/plugin.yaml
+  - https://raw.githubusercontent.com/0lvin-cfy/cloudify-libvirt-plugin/master/plugin.yaml
 
-plugins:
+relationships:
 
-  suspend:
-    executor: central_deployment_agent
-    package_name: cloudify-utilities-plugin
-    source: https://github.com/cloudify-incubator/cloudify-utilities-plugin/archive/suspend_workflow.zip
-    package_version: '1.3.0'
-
-workflows:
-
-  suspend:
-    mapping: suspend.cloudify_suspend.workflows.suspend
-  resume:
-    mapping: suspend.cloudify_suspend.workflows.resume
+  vm_connected_to_storage:
+    derived_from: cloudify.relationships.contained_in
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        preconfigure:
+          implementation: scripts/vm_preconfigure.py
+          executor: central_deployment_agent
+          inputs: {}
 
 node_templates:
 
@@ -47,7 +44,7 @@ node_templates:
           implementation: scripts/download_vm.sh
           executor: central_deployment_agent
           inputs:
-            DISK: trusty-server-cloudimg-arm64-uefi1.img
+            DISK: trusty-server-cloudimg-amd64-disk1.img
   disk_clone:
     type: cloudify.nodes.ApplicationServer
     interfaces:
@@ -57,12 +54,6 @@ node_templates:
           executor: central_deployment_agent
           inputs:
             DISK: { get_attribute: [vm_download, vm_image] }
-        configure:
-          implementation: scripts/copy_disk_arm.sh
-          executor: central_deployment_agent
-        stop:
-          implementation: scripts/remove_disk_arm.sh
-          executor: central_deployment_agent
         delete:
           implementation: scripts/remove_disk.sh
           executor: central_deployment_agent
@@ -81,29 +72,15 @@ node_templates:
           inputs:
             params:
               memmory_size: 524288
-              nvram: { get_attribute: [disk_clone, bios_flash] }
-              disks:
-                - bus: scsi
-                  dev: sda
-                  file: { get_attribute: [disk_clone, vm_image] }
-                  type: qcow2
-                - bus: scsi
-                  dev: sdb
-                  file: { get_attribute: [disk_clone, vm_cloudinit] }
-                  type: raw
               networks:
                 - network: { get_attribute: [common_network, resource_id] }
-                  dev: macvtap0
-                  type: direct
-                  mac: 52:54:00:c0:67:81
-        configure:
-          inputs:
-            domain_file: arm.xml
+                  dev: vnet0
+                  type: rtl8139
     relationships:
       - target: common_network
         type: cloudify.libvirt.relationships.connected_to
       - target: disk_clone
-        type: cloudify.relationships.contained_in
+        type: vm_connected_to_storage
 
   example_node:
     type: cloudify.nodes.WebServer
