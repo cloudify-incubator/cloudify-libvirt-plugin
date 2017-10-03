@@ -27,7 +27,7 @@ from cloudify_libvirt.common import get_libvirt_params
 
 @operation
 def create(**kwargs):
-    ctx.logger.info("create")
+    ctx.logger.info("Creating new network.")
 
     libvirt_auth, template_params = get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
@@ -87,9 +87,8 @@ def create(**kwargs):
 
 @operation
 def delete(**kwargs):
-    ctx.logger.info("delete")
-
     resource_id = ctx.instance.runtime_properties.get('resource_id')
+    ctx.logger.info("Delete: {}".format(repr(resource_id)))
 
     if not resource_id:
         ctx.logger.info("No network for delete")
@@ -140,15 +139,17 @@ def link(**kwargs):
 
     MAX_RETRY = 10
     for i in xrange(MAX_RETRY):
-        ctx.logger.info("{}: Tring to get vm ip {}/{}".format(vm_id, i, MAX_RETRY))
+        ctx.logger.info("{}: Tring to get vm ip: {}/{}"
+                        .format(vm_id, i, MAX_RETRY))
         for lease in network.DHCPLeases():
             vm_params = ctx.source.instance.runtime_properties.get(
                 'params', {})
-            for network in vm_params.get("networks", []):
-                if network.get('mac') == lease.get('mac'):
+            for vm_network in vm_params.get("networks", []):
+                if vm_network.get('mac') == lease.get('mac'):
                     ctx.source.instance.runtime_properties['ip'] = lease.get(
                         'ipaddr')
-                    ctx.logger.info("{}:Found: {}".format(vm_id, lease.get('ipaddr')))
+                    ctx.logger.info("{}:Found: {}"
+                                    .format(vm_id, lease.get('ipaddr')))
                     return
         time.sleep(30)
 
