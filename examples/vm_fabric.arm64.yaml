@@ -35,6 +35,7 @@ node_templates:
           executor: central_deployment_agent
           inputs:
             DISK: trusty-server-cloudimg-arm64-uefi1.img
+
   disk_clone:
     type: cloudify.nodes.ApplicationServer
     interfaces:
@@ -81,7 +82,6 @@ node_templates:
               networks:
                 - network: { get_attribute: [common_network, resource_id] }
                   dev: macvtap0
-                  type: direct
                   mac: 52:54:00:c0:67:81
         configure:
           inputs:

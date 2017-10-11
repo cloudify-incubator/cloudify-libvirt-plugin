@@ -45,6 +45,7 @@ node_templates:
           executor: central_deployment_agent
           inputs:
             DISK: trusty-server-cloudimg-amd64-disk1.img
+
   disk_clone:
     type: cloudify.nodes.ApplicationServer
     capabilities:
@@ -80,7 +81,6 @@ node_templates:
               networks:
                 - network: { get_attribute: [common_network, resource_id] }
                   dev: vnet0
-                  type: rtl8139
     relationships:
       - target: common_network
         type: cloudify.libvirt.relationships.connected_to
