@@ -15,10 +15,6 @@
       <alias name="balloon0"/>
       <address function="0x0" type="pci" domain="0x0000" slot="0x04" bus="0x00"/>
     </memballoon>
-    <controller type="usb" index="0">
-      <alias name="usb0"/>
-      <address function="0x2" type="pci" domain="0x0000" slot="0x01" bus="0x00"/>
-    </controller>
     <controller type="pci" index="0" model="pci-root">
       <alias name="pci.0"/>
     </controller>
@@ -26,20 +22,15 @@
       <alias name="ide0"/>
       <address function="0x1" type="pci" domain="0x0000" slot="0x01" bus="0x00"/>
     </controller>
-    <video>
-      <alias name="video0"/>
-      <model heads="1" type="cirrus" vram="9216"/>
-      <address function="0x0" type="pci" domain="0x0000" slot="0x02" bus="0x00"/>
-    </video>
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
-    <graphics autoport="yes" type="vnc" listen="127.0.0.1" port="5900">
-      <listen type="address" address="127.0.0.1"/>
-    </graphics>
     {% for network in networks %}
       <interface type="network">
         <target dev="{{ network.dev }}"/>
         <source network="{{ network.network }}"/>
         <mac address="{{ network.mac }}"/>
+        {% if network.type %}
+            <model type="{{ network.type }}" />
+        {% endif %}
       </interface>
     {% endfor %}
     <input type="mouse" bus="ps2"/>

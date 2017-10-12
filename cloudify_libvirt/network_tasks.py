@@ -151,7 +151,8 @@ def link(**kwargs):
                     ctx.logger.info("{}:Found: {}"
                                     .format(vm_id, lease.get('ipaddr')))
                     return
-        time.sleep(30)
+        # we have never get ip before 60 sec, so wait 60 as minimum
+        time.sleep(60)
 
     raise cfy_exc.RecoverableError(
         'No ip for now, try later'

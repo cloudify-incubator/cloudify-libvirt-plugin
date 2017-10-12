@@ -35,6 +35,8 @@ if __name__ == "__main__":
 
     networks = ctx.source.instance.runtime_properties["params"].get('networks')
     for network in networks:
+        if not network.get('type'):
+            network['type'] = "virtio"
         if not network.get('mac'):
             octet_full = (time.time() * 1000) % (256 * 256 * 256)
             octet_low = octet_full / 256

@@ -7,6 +7,10 @@
   <on_poweroff>destroy</on_poweroff>
   <devices>
     <emulator>/usr/bin/qemu-system-aarch64</emulator>
+    <memballoon model="virtio">
+      <alias name="balloon0"/>
+      <address function="0x0" type="pci" domain="0x0000" slot="0x04" bus="0x00"/>
+    </memballoon>
     <controller type='scsi' index='0' model='virtio-scsi'>
       <alias name='scsi0'/>
       <address type='virtio-mmio'/>
@@ -30,15 +34,18 @@
         <target dev="{{ network.dev }}"/>
         <source network="{{ network.network }}"/>
         <mac address="{{ network.mac }}"/>
+        {% if network.type %}
+            <model type="{{ network.type }}" />
+        {% endif %}
       </interface>
     {% endfor %}
-    <console type='pty' tty='/dev/pts/9'>
-      <source path='/dev/pts/9'/>
+    <console type='pty' tty='/dev/pts/1'>
+      <source path='/dev/pts/1'/>
       <target type='serial' port='0'/>
       <alias name='serial0'/>
     </console>
     <serial type='pty'>
-      <source path='/dev/pts/9'/>
+      <source path='/dev/pts/1'/>
       <target port='0'/>
       <alias name='serial0'/>
     </serial>
