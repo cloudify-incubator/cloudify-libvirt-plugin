@@ -53,7 +53,7 @@
       <disk device="disk" type="file">
         <target dev="{{ disk.dev }}" bus="{{ disk.bus }}"/>
         <source file="{{ disk.file }}"/>
-        <driver type="{{ disk.type }}" name="qemu"/>
+        <driver type="{{ disk.type }}"/>
       </disk>
     {% endfor %}
   </devices>

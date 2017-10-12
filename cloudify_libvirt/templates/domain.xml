@@ -18,9 +18,9 @@
     <controller type="pci" index="0" model="pci-root">
       <alias name="pci.0"/>
     </controller>
-    <controller type="ide" index="0">
-      <alias name="ide0"/>
-      <address function="0x1" type="pci" domain="0x0000" slot="0x01" bus="0x00"/>
+    <controller type="scsi" index="0" model="virtio-scsi">
+      <alias name="scsi0"/>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x05" function="0x0"/>
     </controller>
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
     {% for network in networks %}
@@ -44,13 +44,13 @@
       <disk device="disk" type="file">
         <target dev="{{ disk.dev }}" bus="{{ disk.bus }}"/>
         <source file="{{ disk.file }}"/>
-        <driver type="{{ disk.type }}" name="qemu"/>
+        <driver type="{{ disk.type }}"/>
       </disk>
     {% endfor %}
   </devices>
   <on_crash>restart</on_crash>
   <on_reboot>restart</on_reboot>
-  <vcpu placement="static">1</vcpu>
+  <vcpu placement="static">{% if vcpu is defined %}{{ vcpu }}{% else %}1{% endif %}</vcpu>
   <features>
     <pae/>
     <acpi/>

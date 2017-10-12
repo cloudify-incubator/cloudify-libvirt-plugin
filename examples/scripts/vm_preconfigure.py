@@ -20,15 +20,15 @@ if __name__ == "__main__":
     disks = ctx.source.instance.runtime_properties["params"]['disks']
 
     disks.append({
-        'bus': 'ide',
-        'dev': 'hda',
+        'bus': 'scsi',
+        'dev': 'sda',
         'file': ctx.target.instance.runtime_properties.get('vm_image'),
         'type': 'qcow2'
     })
 
     disks.append({
-        'bus': 'ide',
-        'dev': 'hdb',
+        'bus': 'scsi',
+        'dev': 'sdb',
         'file': ctx.target.instance.runtime_properties.get('vm_cloudinit'),
         'type': 'raw'
     })
