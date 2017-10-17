@@ -15,7 +15,7 @@ from setuptools import setup
 
 setup(
     name='cloudify-libvirt-plugin',
-    version='0.2',
+    version='0.3',
     description='support libvirt',
     author='Denis Pauk',
     author_email='pauk.denis@gmail.com',

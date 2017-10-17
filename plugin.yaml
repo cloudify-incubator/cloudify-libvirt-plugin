@@ -1,9 +1,9 @@
 plugins:
   libvirt:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/v.0.2.zip
+    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/v.0.3.zip
     package_name: cloudify-libvirt-plugin
-    package_version: '0.2'
+    package_version: '0.3'
 
 node_types:
 
