@@ -1,5 +1,7 @@
 # cloudify-libvirt-plugin
-Add direct support of libvirt to cloudify/fully unsupported thing/don't use it
+Add direct support of libvirt to cloudify, use with restrinctions.
+
+Before use check that you have 64bit platform, if you want to start 64bit images.
 
 based on https://libvirt.org/docs/libvirt-appdev-guide-python/en-US/html/
 
