@@ -277,9 +277,16 @@ def delete(**kwargs):
                     'Can not destroy guest domain.'
                 )
 
-        if dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM) < 0:
-            raise cfy_exc.NonRecoverableError(
-                'Can not undefine guest domain.'
-            )
+        try:
+            if dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM) < 0:
+                raise cfy_exc.NonRecoverableError(
+                    'Can not undefine guest domain with NVRAM.'
+                )
+        except Exception as e:
+            ctx.logger.info("Non critical error: {}".format(str(e)))
+            if dom.undefine() < 0:
+                raise cfy_exc.NonRecoverableError(
+                    'Can not undefine guest domain.'
+                )
     finally:
         conn.close()
