@@ -15,7 +15,7 @@ sudo chmod 777 $CREATEPATH
 sudo chown qemu:libvirt $CREATEPATH
 virtualenv $CREATEPATH
 cd $CREATEPATH
-. bin/activate
+source bin/activate
 pip install pip --upgrade
 pip install https://github.com/cloudify-cosmo/cloudify-dsl-parser/archive/4.2.zip
 pip install https://github.com/cloudify-cosmo/cloudify-rest-client/archive/4.2.zip
@@ -25,7 +25,7 @@ pip install https://github.com/cloudify-cosmo/cloudify-cli/archive/4.2.zip
 pip install https://github.com/cloudify-cosmo/cloudify-fabric-plugin/archive/1.5.1.zip
 cfy init -r
 
-git clone https://github.com/cloudify-incubator/cloudify-libvirt-plugin.git
+git clone https://github.com/cloudify-incubator/cloudify-libvirt-plugin.git -b testing
 pip install -e cloudify-libvirt-plugin
 
 cfy install  cloudify-libvirt-plugin/examples/vm_fabric.amd64.yaml
