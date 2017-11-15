@@ -8,11 +8,13 @@ sudo usermod --append --groups libvirt `whoami`
 # cloudify part
 sudo yum install -y python-virtualenv python-pip git
 # env create
-rm -rf centos-libvirt
-mkdir  centos-libvirt
-virtualenv centos-libvirt
-chmod 777 centos-libvirt
-cd centos-libvirt
+CREATEPATH=/opt/centos-libvirt
+sudo rm -rf $CREATEPATH
+sudo mkdir $CREATEPATH
+sudo chmod 777 $CREATEPATH
+sudo chown qemu:libvirt $CREATEPATH
+virtualenv $CREATEPATH
+cd $CREATEPATH
 . bin/activate
 pip install pip --upgrade
 pip install https://github.com/cloudify-cosmo/cloudify-dsl-parser/archive/4.2.zip
