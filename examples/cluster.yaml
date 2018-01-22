@@ -1,0 +1,21 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
+  - http://www.getcloudify.org/spec/fabric-plugin/1.5.1/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/master/plugin.yaml
+
+node_templates:
+
+  libvirt_install:
+    type: cloudify.nodes.WebServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+          configure:
+            implementation: fabric.fabric_plugin.tasks.run_script
+            inputs:
+              fabric_env:
+                user: root
+                password: libvirt
+                host_string: 192.168.122.179
+              script_path: cluster/libvirt_install.sh
