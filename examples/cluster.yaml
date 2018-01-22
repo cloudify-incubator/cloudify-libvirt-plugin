@@ -19,27 +19,38 @@ inputs:
   cluster_host:
     type: string
 
+relationships:
+
+  vm_connected_to_storage:
+    derived_from: cloudify.relationships.contained_in
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        preconfigure:
+          implementation: scripts/vm_preconfigure.py
+          executor: central_deployment_agent
+          inputs: {}
+
 node_templates:
 
   libvirt_install:
     type: cloudify.nodes.WebServer
     interfaces:
       cloudify.interfaces.lifecycle:
-          create:
-            implementation: fabric.fabric_plugin.tasks.run_script
-            inputs:
-              fabric_env: &fab_env
-                user: { get_input: cluster_user }
-                key_filename: { get_input: cluster_key }
-                host_string: { get_input: cluster_host }
-              script_path: cluster/libvirt_install.sh
-          configure:
-            implementation: fabric.fabric_plugin.tasks.run_script
-            inputs:
-              fabric_env: *fab_env
-              script_path: cluster/download_vm.sh
-              CATALOG_URL: https://buildlogs.centos.org/centos/7/isos/x86_64
-              DISK: CentOS-7-x86_64-GenericCloud-ContainerHost.qcow2
+        create:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            fabric_env: &fab_env
+              user: { get_input: cluster_user }
+              key_filename: { get_input: cluster_key }
+              host_string: { get_input: cluster_host }
+            script_path: cluster/libvirt_install.sh
+        configure:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            fabric_env: *fab_env
+            script_path: cluster/download_vm.sh
+            CATALOG_URL: https://buildlogs.centos.org/centos/7/isos/x86_64
+            DISK: CentOS-7-x86_64-GenericCloud-ContainerHost.qcow2
 
   common_network:
     type: cloudify.libvirt.network
@@ -62,3 +73,44 @@ node_templates:
     relationships:
     - target: libvirt_install
       type: cloudify.relationships.depends_on
+
+  disk_clone:
+    type: cloudify.nodes.ApplicationServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            fabric_env: *fab_env
+            DISK: { get_attribute: [libvirt_install, vm_image] }
+            script_path: cluster/copy_disk.sh
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            fabric_env: *fab_env
+            script_path: scripts/remove_disk.sh
+    relationships:
+    - target: libvirt_install
+      type: cloudify.relationships.depends_on
+
+  qemu_vm:
+    type: cloudify.libvirt.domain
+    properties:
+      libvirt_auth: {concat:["qemu+ssh://", { get_input: cluster_user }, "@", { get_input: cluster_host }, "/system?sshauth=privkey&keyfile=", { get_input: cluster_key }]}
+      agent_config:
+        install_method: none
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              vcpu: 2
+              memmory_size: 524288
+              networks:
+                - network: { get_attribute: [common_network, resource_id] }
+                  dev: vnet0
+    relationships:
+      - target: common_network
+        type: cloudify.libvirt.relationships.connected_to
+      - target: disk_clone
+        type: vm_connected_to_storage
