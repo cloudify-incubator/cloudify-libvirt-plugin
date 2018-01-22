@@ -1,9 +1,23 @@
+# before use:
+# * cat examples/cluster/id_rsa.pub | ssh <cluster_user>@<cluster_host> "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >>  ~/.ssh/authorized_keys"
+# * and set cluster_key to examples/cluster/id_rsa
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
   - http://www.getcloudify.org/spec/fabric-plugin/1.5.1/plugin.yaml
   - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/master/plugin.yaml
+
+inputs:
+
+  cluster_user:
+    type: string
+
+  cluster_key:
+    type: string
+
+  cluster_host:
+    type: string
 
 node_templates:
 
@@ -15,7 +29,29 @@ node_templates:
             implementation: fabric.fabric_plugin.tasks.run_script
             inputs:
               fabric_env:
-                user: root
-                password: libvirt
-                host_string: 192.168.122.179
+                user: { get_input: cluster_user }
+                key_filename: { get_input: cluster_key }
+                host_string: { get_input: cluster_host }
               script_path: cluster/libvirt_install.sh
+
+  common_network:
+    type: cloudify.libvirt.network
+    properties:
+      libvirt_auth: {concat:["qemu+ssh://", { get_input: cluster_user }, "@", { get_input: cluster_host }, "/system?sshauth=privkey&keyfile=", { get_input: cluster_key }]}
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              dev: virbr1
+              forwards:
+                - mode: nat
+              ips:
+                - address: 192.168.142.1
+                  netmask: 255.255.255.0
+                  dhcp:
+                    start: 192.168.142.2
+                    end: 192.168.142.254
+    relationships:
+    - target: libvirt_install
+      type: cloudify.relationships.depends_on
