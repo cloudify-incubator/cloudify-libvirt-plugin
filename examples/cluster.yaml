@@ -25,14 +25,21 @@ node_templates:
     type: cloudify.nodes.WebServer
     interfaces:
       cloudify.interfaces.lifecycle:
-          configure:
+          create:
             implementation: fabric.fabric_plugin.tasks.run_script
             inputs:
-              fabric_env:
+              fabric_env: &fab_env
                 user: { get_input: cluster_user }
                 key_filename: { get_input: cluster_key }
                 host_string: { get_input: cluster_host }
               script_path: cluster/libvirt_install.sh
+          configure:
+            implementation: fabric.fabric_plugin.tasks.run_script
+            inputs:
+              fabric_env: *fab_env
+              script_path: cluster/download_vm.sh
+              CATALOG_URL: https://buildlogs.centos.org/centos/7/isos/x86_64
+              DISK: CentOS-7-x86_64-GenericCloud-ContainerHost.qcow2
 
   common_network:
     type: cloudify.libvirt.network
