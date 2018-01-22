@@ -19,6 +19,11 @@ inputs:
   cluster_host:
     type: string
 
+  external_ip:
+    type: string
+  external_dev:
+    type: string
+
 relationships:
 
   vm_connected_to_storage:
@@ -105,7 +110,7 @@ node_templates:
           inputs:
             params:
               vcpu: 2
-              memmory_size: 524288
+              memmory_size: 1048576
               networks:
                 - network: { get_attribute: [common_network, resource_id] }
                   dev: vnet0
@@ -114,3 +119,43 @@ node_templates:
         type: cloudify.libvirt.relationships.connected_to
       - target: disk_clone
         type: vm_connected_to_storage
+
+  floating_ip:
+    type: cloudify.nodes.ApplicationServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            fabric_env: *fab_env
+            EXTERNAL_INTERFACE: { get_input: external_dev }
+            EXTERNAL_IP: { get_input: external_ip }
+            INTERNAL_IP: { get_attribute: [qemu_vm, ip] }
+            script_path: cluster/floating_ip.sh
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            fabric_env: *fab_env
+            EXTERNAL_INTERFACE: { get_input: external_dev }
+            EXTERNAL_IP: { get_input: external_ip }
+            INTERNAL_IP: { get_attribute: [qemu_vm, ip] }
+            script_path: cluster/floating_ip_delete.sh
+    relationships:
+    - target: qemu_vm
+      type: cloudify.relationships.depends_on
+
+  example_node:
+    type: cloudify.nodes.WebServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        start:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            fabric_env:
+              user: centos
+              key_filename: { get_input: cluster_key }
+              host_string: { get_input: external_ip }
+            script_path: scripts/vm_check.sh
+    relationships:
+      - target: floating_ip
+        type: cloudify.relationships.contained_in
