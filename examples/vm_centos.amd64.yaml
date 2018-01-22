@@ -45,8 +45,8 @@ node_templates:
           implementation: scripts/download_vm.sh
           executor: central_deployment_agent
           inputs:
-            CATALOG_URL: https://cloud-images.ubuntu.com/trusty/current
-            DISK: trusty-server-cloudimg-amd64-disk1.img
+            CATALOG_URL: https://buildlogs.centos.org/centos/7/isos/x86_64
+            DISK: CentOS-7-x86_64-GenericCloud-ContainerHost.qcow2
 
   disk_clone:
     type: cloudify.nodes.ApplicationServer
@@ -84,19 +84,3 @@ node_templates:
         type: cloudify.libvirt.relationships.connected_to
       - target: disk_clone
         type: vm_connected_to_storage
-
-  example_node:
-    type: cloudify.nodes.WebServer
-    interfaces:
-      cloudify.interfaces.lifecycle:
-          start:
-            implementation: fabric.fabric_plugin.tasks.run_script
-            inputs:
-              fabric_env:
-                user: ubuntu
-                password: passw0rd
-                host_string: { get_attribute: [qemu_vm, ip] }
-              script_path: scripts/vm_check.sh
-    relationships:
-      - target: qemu_vm
-        type: cloudify.relationships.contained_in

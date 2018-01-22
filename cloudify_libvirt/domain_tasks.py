@@ -282,7 +282,7 @@ def delete(**kwargs):
                 raise cfy_exc.NonRecoverableError(
                     'Can not undefine guest domain with NVRAM.'
                 )
-        except Exception as e:
+        except AttributeError as e:
             ctx.logger.info("Non critical error: {}".format(str(e)))
             if dom.undefine() < 0:
                 raise cfy_exc.NonRecoverableError(
