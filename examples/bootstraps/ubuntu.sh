@@ -10,15 +10,10 @@ virtualenv centos-libvirt
 cd centos-libvirt
 source bin/activate
 pip install pip --upgrade
-pip install https://github.com/cloudify-cosmo/cloudify-dsl-parser/archive/4.2.zip
-pip install https://github.com/cloudify-cosmo/cloudify-rest-client/archive/4.2.zip
-pip install https://github.com/cloudify-cosmo/cloudify-plugins-common/archive/4.2.zip
-pip install https://github.com/cloudify-cosmo/cloudify-script-plugin/archive/1.5.1.zip
-pip install https://github.com/cloudify-cosmo/cloudify-cli/archive/4.2.zip
-pip install https://github.com/cloudify-cosmo/cloudify-fabric-plugin/archive/1.5.1.zip
-cfy init -r
+pip install cloudify
+cfy profile use local
 
 git clone https://github.com/cloudify-incubator/cloudify-libvirt-plugin.git -b testing
 pip install -e cloudify-libvirt-plugin
 
-cfy install  cloudify-libvirt-plugin/examples/vm_fabric.amd64.yaml
+cfy install  cloudify-libvirt-plugin/examples/vm_fabric.amd64.yaml --install-plugins
