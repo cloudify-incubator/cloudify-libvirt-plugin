@@ -34,6 +34,7 @@ node_templates:
           implementation: scripts/download_vm.sh
           executor: central_deployment_agent
           inputs:
+            CATALOG_URL: https://cloud-images.ubuntu.com/trusty/current
             DISK: trusty-server-cloudimg-arm64-uefi1.img
 
   disk_clone:
