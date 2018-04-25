@@ -17,8 +17,8 @@ setup(
     name='cloudify-libvirt-plugin',
     version='0.3',
     description='support libvirt',
-    author='Denis Pauk',
-    author_email='pauk.denis@gmail.com',
+    author='Cloudify',
+    author_email='hello@getcloudify.org',
     license='LICENSE',
     packages=['cloudify_libvirt'],
     package_data={
