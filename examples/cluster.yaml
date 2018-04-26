@@ -153,7 +153,7 @@ node_templates:
           inputs:
             fabric_env:
               user: centos
-              key_filename: { get_input: cluster_key }
+              password: passw0rd
               host_string: { get_input: external_ip }
             script_path: scripts/vm_check.sh
     relationships:
