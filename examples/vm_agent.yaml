@@ -77,7 +77,7 @@ node_templates:
         create:
           inputs:
             params:
-              memmory_size: 524288
+              memory_size: 524288
               networks:
                 - network: { get_attribute: [common_network, resource_id] }
                   dev: vnet0

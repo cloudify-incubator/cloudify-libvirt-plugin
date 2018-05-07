@@ -29,6 +29,8 @@ from cloudify_libvirt.common import get_libvirt_params
 def create(**kwargs):
     ctx.logger.info("create")
     get_libvirt_params(**kwargs)
+    # dont need to run anything, we attach disc's in preconfigure state
+    # so we will define domain later
 
 
 @operation
@@ -64,10 +66,13 @@ def configure(**kwargs):
 
     if not template_params.get("resource_id"):
         template_params["resource_id"] = ctx.instance.id
-    if (not template_params.get("memmory_minsize") and
-            template_params.get('memmory_size')):
-        template_params["memmory_minsize"] = int(
-            template_params['memmory_size']) / 2
+    if (not template_params.get("memory_minsize") and
+            template_params.get('memory_size')):
+        # if have no minimal memory size, set current as minimum
+        # and twised memory as maximum
+        memory_size = int(template_params['memory_size'])
+        template_params["memory_minsize"] = memory_size
+        template_params['memory_size'] = memory_size * 2
     if not template_params.get("instance_uuid"):
         template_params["instance_uuid"] = str(uuid.uuid4())
 
@@ -75,7 +80,7 @@ def configure(**kwargs):
     params.update(template_params)
     xmlconfig = template_engine.render(params)
 
-    ctx.logger.info(xmlconfig)
+    ctx.logger.info(repr(xmlconfig))
 
     dom = conn.defineXML(xmlconfig)
     if dom is None:
