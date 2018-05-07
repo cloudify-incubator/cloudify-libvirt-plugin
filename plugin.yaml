@@ -38,7 +38,7 @@ node_types:
           inputs: {}
       cloudify.interfaces.statistics:
         perfomance:
-          implementation: libvirt.cloudify_libvirt.domain_tasks.statistics
+          implementation: libvirt.cloudify_libvirt.domain_tasks.perfomance
           inputs: {}
 
   cloudify.libvirt.network:

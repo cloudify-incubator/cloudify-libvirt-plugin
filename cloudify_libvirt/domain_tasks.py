@@ -358,7 +358,7 @@ def _current_use(dom):
 
 
 @operation
-def statistics(**kwargs):
+def perfomance(**kwargs):
     ctx.logger.info("update statistics")
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
