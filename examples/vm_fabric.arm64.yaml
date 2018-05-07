@@ -68,7 +68,7 @@ node_templates:
         create:
           inputs:
             params:
-              memmory_size: 524288
+              memory_size: 524288
               nvram: { get_attribute: [disk_clone, bios_flash] }
               disks:
                 - bus: scsi

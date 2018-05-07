@@ -110,7 +110,7 @@ node_templates:
           inputs:
             params:
               vcpu: 2
-              memmory_size: 1048576
+              memory_size: 1048576
               networks:
                 - network: { get_attribute: [common_network, resource_id] }
                   dev: vnet0
