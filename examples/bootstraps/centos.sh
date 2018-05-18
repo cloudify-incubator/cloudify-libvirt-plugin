@@ -20,7 +20,7 @@ pip install pip --upgrade
 pip install cloudify
 cfy profile use local
 
-git clone https://github.com/cloudify-incubator/cloudify-libvirt-plugin.git -b testing
+git clone https://github.com/cloudify-incubator/cloudify-libvirt-plugin.git -b master
 pip install -e cloudify-libvirt-plugin
 
 cfy install  cloudify-libvirt-plugin/examples/vm_fabric.amd64.yaml --install-plugins
