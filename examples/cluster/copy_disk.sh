@@ -23,6 +23,8 @@ ssh_authorized_keys:
 EOB
 
 genisoimage  -output ../${INSTANCE_ID}-seed.iso -volid cidata -joliet -rock user-data meta-data
+qemu-img convert -f raw -O qcow2 ../${INSTANCE_ID}-seed.iso ../${INSTANCE_ID}-seed.qcow2
+rm ../${INSTANCE_ID}-seed.iso
 cd ..
-ctx instance runtime-properties vm_cloudinit "`pwd`/${INSTANCE_ID}-seed.iso"
+ctx instance runtime-properties vm_cloudinit "`pwd`/${INSTANCE_ID}-seed.qcow2"
 rm -rf "${INSTANCE_ID}_cloud"

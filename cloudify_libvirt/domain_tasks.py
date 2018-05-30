@@ -1,5 +1,5 @@
 ########
-# Copyright (c) 2016 GigaSpaces Technologies Ltd. All rights reserved
+# Copyright (c) 2016-2018 GigaSpaces Technologies Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -9,9 +9,9 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-#    * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    * See the License for the specific language governing permissions and
-#    * limitations under the License.
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import libvirt
 import time
@@ -80,25 +80,19 @@ def configure(**kwargs):
     params.update(template_params)
     xmlconfig = template_engine.render(params)
 
-    ctx.logger.info(repr(xmlconfig))
+    ctx.logger.debug(repr(xmlconfig))
 
-    dom = conn.defineXML(xmlconfig)
-    if dom is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to define a domain from an XML definition.'
-        )
+    try:
+        dom = conn.defineXML(xmlconfig)
+        if dom is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to define a domain from an XML definition.'
+            )
 
-    ctx.instance.runtime_properties['resource_id'] = dom.name()
-
-    if dom.create() < 0:
-        raise cfy_exc.NonRecoverableError(
-            'Can not boot guest domain.'
-        )
-    conn.close()
-
-    ctx.logger.info('Guest ' + dom.name() + ' has booted')
-    ctx.instance.runtime_properties['resource_id'] = dom.name()
-    ctx.instance.runtime_properties['params'] = template_params
+        ctx.instance.runtime_properties['resource_id'] = dom.name()
+        ctx.instance.runtime_properties['params'] = template_params
+    finally:
+        conn.close()
 
 
 @operation
@@ -130,10 +124,9 @@ def start(**kwargs):
                 'Failed to find the domain'
             )
 
-        state, reason = dom.state()
-        for i in xrange(10):
-            state, reason = dom.state()
+        state, _ = dom.state()
 
+        for i in xrange(10):
             if state == libvirt.VIR_DOMAIN_RUNNING:
                 ctx.logger.info("Looks as running.")
                 return
@@ -144,7 +137,7 @@ def start(**kwargs):
                     'Can not start guest domain.'
                 )
             time.sleep(30)
-            state, reason = dom.state()
+            state, _ = dom.state()
     finally:
         conn.close()
 
@@ -178,10 +171,8 @@ def stop(**kwargs):
                 'Failed to find the domain'
             )
 
-        state, reason = dom.state()
+        state, _ = dom.state()
         for i in xrange(10):
-            state, reason = dom.state()
-
             if state != libvirt.VIR_DOMAIN_RUNNING:
                 ctx.logger.info("Looks as not run.")
                 return
@@ -192,7 +183,7 @@ def stop(**kwargs):
                     'Can not shutdown guest domain.'
                 )
             time.sleep(30)
-            state, reason = dom.state()
+            state, _ = dom.state()
     finally:
         conn.close()
 
@@ -226,10 +217,8 @@ def resume(**kwargs):
                 'Failed to find the domain'
             )
 
-        state, reason = dom.state()
+        state, _ = dom.state()
         for i in xrange(10):
-            state, reason = dom.state()
-
             if state == libvirt.VIR_DOMAIN_RUNNING:
                 ctx.logger.info("Looks as running.")
                 return
@@ -240,7 +229,7 @@ def resume(**kwargs):
                     'Can not suspend guest domain.'
                 )
             time.sleep(30)
-            state, reason = dom.state()
+            state, _ = dom.state()
     finally:
         conn.close()
 
@@ -274,10 +263,8 @@ def suspend(**kwargs):
                 'Failed to find the domain'
             )
 
-        state, reason = dom.state()
+        state, _ = dom.state()
         for i in xrange(10):
-            state, reason = dom.state()
-
             if state != libvirt.VIR_DOMAIN_RUNNING:
                 ctx.logger.info("Looks as not run.")
                 return
@@ -288,9 +275,31 @@ def suspend(**kwargs):
                     'Can not suspend guest domain.'
                 )
             time.sleep(30)
-            state, reason = dom.state()
+            state, _ = dom.state()
     finally:
         conn.close()
+
+
+def _cleanup_snapshots(ctx, dom):
+    snapshots = dom.listAllSnapshots()
+    snapshots_count = len(snapshots)
+
+    for _ in xrange(snapshots_count):
+        for snapshot in snapshots:
+            # we can delete only snapshot without child
+            if not snapshot.numChildren():
+                ctx.logger.info("Remove {} snapshot."
+                                .format(snapshot.getName()))
+                snapshot.delete()
+        snapshots = dom.listAllSnapshots()
+
+    if len(snapshots):
+        subsnapshots = [
+            snap.getName() for snap in snapshots
+        ]
+        raise cfy_exc.RecoverableError(
+            "Still have several snapshots: {subsnapshots}."
+            .format(subsnapshots=repr(subsnapshots)))
 
 
 @operation
@@ -322,25 +331,203 @@ def delete(**kwargs):
                 'Failed to find the domain'
             )
 
-        state, reason = dom.state()
+        if dom.snapshotNum():
+            ctx.logger.info("Domain has {} snapshots."
+                            .format(dom.snapshotNum()))
+            _cleanup_snapshots(ctx, dom)
+
+        state, _ = dom.state()
 
         if state != libvirt.VIR_DOMAIN_SHUTOFF:
             if dom.destroy() < 0:
-                raise cfy_exc.NonRecoverableError(
+                raise cfy_exc.RecoverableError(
                     'Can not destroy guest domain.'
                 )
 
         try:
             if dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM) < 0:
-                raise cfy_exc.NonRecoverableError(
+                raise cfy_exc.RecoverableError(
                     'Can not undefine guest domain with NVRAM.'
                 )
         except AttributeError as e:
             ctx.logger.info("Non critical error: {}".format(str(e)))
             if dom.undefine() < 0:
-                raise cfy_exc.NonRecoverableError(
+                raise cfy_exc.RecoverableError(
                     'Can not undefine guest domain.'
                 )
+        ctx.instance.runtime_properties['resource_id'] = None
+    finally:
+        conn.close()
+
+
+def _get_backupname(kwargs):
+    if not kwargs.get("snapshot_name"):
+        raise cfy_exc.NonRecoverableError(
+            'Backup name must be provided.'
+        )
+    return "vm-{}".format(kwargs["snapshot_name"])
+
+
+@operation
+def snapshot_create(**kwargs):
+    ctx.logger.info("backup")
+
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+
+    if not resource_id:
+        ctx.logger.info("No servers for backup.")
+        return
+
+    snapshot_name = _get_backupname(kwargs)
+    if not kwargs.get("snapshot_incremental"):
+        ctx.logger.info("Create backup for VM is unsupported.")
+        return
+
+    libvirt_auth, template_params = get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    backup_file = kwargs.get('backup_file')
+    backup_template = kwargs.get('backup_template')
+
+    if backup_file:
+        backup_template = ctx.get_resource(backup_file)
+
+    if not backup_file and not backup_template:
+        resource_dir = resource_filename(__name__, 'templates')
+        backup_file = '{}/snapshot.xml'.format(resource_dir)
+        ctx.logger.info("Will be used internal: %s" % backup_file)
+
+    if not backup_template:
+        domain_desc = open(backup_file)
+        with domain_desc:
+            backup_template = domain_desc.read()
+
+    template_engine = Template(backup_template)
+    if not template_params:
+        template_params = {}
+
+    params = {"ctx": ctx, 'snapshot_name': snapshot_name}
+    params.update(template_params)
+    xmlconfig = template_engine.render(params)
+
+    ctx.logger.debug(repr(xmlconfig))
+
+    try:
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
+
+        if dom is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain'
+            )
+        try:
+            # will raise exception if unexist
+            snapshot = dom.snapshotLookupByName(snapshot_name)
+            raise cfy_exc.NonRecoverableError(
+                "Snapshot {snapshot_name} already exists."
+                .format(snapshot_name=snapshot.getName(),))
+        except libvirt.libvirtError:
+            pass
+        snapshot = dom.snapshotCreateXML(xmlconfig)
+        ctx.logger.info("Snapshot name: {}".format(snapshot.getName()))
+    finally:
+        conn.close()
+
+
+@operation
+def snapshot_delete(**kwargs):
+    ctx.logger.info("remove_backup")
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+
+    if not resource_id:
+        ctx.logger.info("No servers for remove_backup.")
+        return
+
+    snapshot_name = _get_backupname(kwargs)
+    if not kwargs.get("snapshot_incremental"):
+        ctx.logger.info("Delete backup for VM is unsupported.")
+        return
+
+    libvirt_auth, template_params = get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    try:
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
+
+        if dom is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain'
+            )
+
+        # raised exception if libvirt has not found any
+        snapshot = dom.snapshotLookupByName(snapshot_name)
+        if snapshot.numChildren():
+            subsnapshots = [
+                snap.getName() for snap in snapshot.listAllChildren()
+            ]
+            raise cfy_exc.NonRecoverableError(
+                "Sub snapshots {subsnapshots} found for {snapshot_name}. "
+                "You should remove subsnaphots before remove current."
+                .format(snapshot_name=snapshot_name,
+                        subsnapshots=repr(subsnapshots)))
+        snapshot.delete()
+        ctx.logger.info("Backup deleted: {}".format(snapshot_name))
+    finally:
+        conn.close()
+
+
+@operation
+def snapshot_apply(**kwargs):
+    ctx.logger.info("restore")
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+
+    if not resource_id:
+        ctx.logger.info("No servers for restore.")
+        return
+
+    snapshot_name = _get_backupname(kwargs)
+    if not kwargs.get("snapshot_incremental"):
+        ctx.logger.info("Restore from backup for VM is unsupported.")
+        return
+
+    libvirt_auth, template_params = get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    try:
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
+
+        if dom is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain'
+            )
+
+        # raised exception if libvirt has not found any
+        snapshot = dom.snapshotLookupByName(snapshot_name)
+        dom.revertToSnapshot(snapshot)
+        ctx.logger.info("Reverted to: {}".format(snapshot.getName()))
     finally:
         conn.close()
 

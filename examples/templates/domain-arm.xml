@@ -54,6 +54,9 @@
         <target dev="{{ disk.dev }}" bus="{{ disk.bus }}"/>
         <source file="{{ disk.file }}"/>
         <driver type="{{ disk.type }}"/>
+        {% if disk.readonly %}
+           <readonly/>
+        {% endif %}
       </disk>
     {% endfor %}
   </devices>

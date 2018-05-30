@@ -6,7 +6,7 @@ sudo usermod --append --groups kvm `whoami`
 sudo usermod --append --groups libvirt `whoami`
 
 # cloudify part
-sudo yum install -y python-virtualenv python-pip git
+sudo yum install -y python-virtualenv python-pip git python-netifaces
 # env create
 CREATEPATH=/opt/centos-libvirt
 sudo rm -rf $CREATEPATH

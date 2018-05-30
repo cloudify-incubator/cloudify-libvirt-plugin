@@ -1,10 +1,14 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
-  - http://www.getcloudify.org/spec/fabric-plugin/1.5.1/plugin.yaml
-  - http://www.getcloudify.org/spec/utilities-plugin/1.4.4/plugin.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/master/plugin.yaml
+  - http://www.getcloudify.org/spec/cloudify/4.3.1/types.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.7.0/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.4/plugin.yaml
+
+inputs:
+
+  agent_password:
+    default: passw0rd
 
 relationships:
 
@@ -47,19 +51,31 @@ node_templates:
             CATALOG_URL: https://buildlogs.centos.org/centos/7/isos/x86_64
             DISK: CentOS-7-x86_64-GenericCloud-ContainerHost.qcow2
 
+  cloud_init:
+    type: cloudify.nodes.CloudInit.CloudConfig
+    properties:
+      resource_config:
+        password: passw0rd
+        chpasswd:
+           expire: False
+        ssh_pwauth: True
+
   disk_clone:
     type: cloudify.nodes.ApplicationServer
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
-          implementation: scripts/copy_disk.sh
+          implementation: scripts/copy_disk.py
           executor: central_deployment_agent
           inputs:
-            DISK: { get_attribute: [vm_download, vm_image] }
+            disk_image: { get_attribute: [vm_download, vm_image] }
+            cloud_init: { get_attribute: [cloud_init, cloud_config ] }
         delete:
           implementation: scripts/remove_disk.sh
           executor: central_deployment_agent
     relationships:
+    - target: cloud_init
+      type: cloudify.relationships.depends_on
     - target: vm_download
       type: cloudify.relationships.depends_on
 

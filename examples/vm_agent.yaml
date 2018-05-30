@@ -1,9 +1,14 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
-  - http://www.getcloudify.org/spec/utilities-plugin/1.4.4/plugin.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/master/plugin.yaml
+  - http://www.getcloudify.org/spec/cloudify/4.3.1/types.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.7.0/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.4/plugin.yaml
+
+inputs:
+
+  agent_password:
+    default: passw0rd
 
 relationships:
 
@@ -46,6 +51,15 @@ node_templates:
             CATALOG_URL: https://cloud-images.ubuntu.com/trusty/current
             DISK: trusty-server-cloudimg-amd64-disk1.img
 
+  cloud_init:
+    type: cloudify.nodes.CloudInit.CloudConfig
+    properties:
+      resource_config:
+        password: passw0rd
+        chpasswd:
+           expire: False
+        ssh_pwauth: True
+
   disk_clone:
     type: cloudify.nodes.ApplicationServer
     capabilities:
@@ -55,10 +69,11 @@ node_templates:
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
-          implementation: scripts/copy_disk.sh
+          implementation: scripts/copy_disk.py
           executor: central_deployment_agent
           inputs:
-            DISK: { get_attribute: [vm_download, vm_image] }
+            disk_image: { get_attribute: [vm_download, vm_image] }
+            cloud_init: { get_attribute: [cloud_init, cloud_config ] }
         delete:
           implementation: scripts/remove_disk.sh
           executor: central_deployment_agent
@@ -92,7 +107,7 @@ node_templates:
     interfaces:
       cloudify.interfaces.lifecycle:
         configure:
-          implementation: scripts/vm_check.sh
+          implementation: scripts/vm_check.py
     relationships:
       - target: qemu_vm
         type: cloudify.relationships.contained_in
