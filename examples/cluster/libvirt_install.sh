@@ -1,5 +1,5 @@
 sudo yum install -y -q epel-release
-sudo yum install -y -q qemu-kvm libvirt wget qemu-system-x86 genisoimage deltarpm iptables
+sudo yum install -y -q qemu-kvm libvirt wget qemu-system-x86 genisoimage deltarpm iptables python-netifaces
 
 sudo service libvirtd restart
 sudo groupadd libvirt

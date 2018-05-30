@@ -1,5 +1,5 @@
 ########
-# Copyright (c) 2016 GigaSpaces Technologies Ltd. All rights reserved
+# Copyright (c) 2016-2018 GigaSpaces Technologies Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -9,9 +9,9 @@
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
-#    * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    * See the License for the specific language governing permissions and
-#    * limitations under the License.
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import libvirt
 import uuid
@@ -36,53 +36,56 @@ def create(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    network_file = kwargs.get('network_file')
-    network_template = kwargs.get('network_template')
+    try:
+        network_file = kwargs.get('network_file')
+        network_template = kwargs.get('network_template')
 
-    if network_file:
-        network_template = ctx.get_resource(network_file)
+        if network_file:
+            network_template = ctx.get_resource(network_file)
 
-    if not network_file and not network_template:
-        resource_dir = resource_filename(__name__, 'templates')
-        network_file = '{}/network.xml'.format(resource_dir)
-        ctx.logger.info("Will be used internal: %s" % network_file)
+        if not network_file and not network_template:
+            resource_dir = resource_filename(__name__, 'templates')
+            network_file = '{}/network.xml'.format(resource_dir)
+            ctx.logger.info("Will be used internal: %s" % network_file)
 
-    if not network_template:
-        domain_desc = open(network_file)
-        with domain_desc:
-            network_template = domain_desc.read()
+        if not network_template:
+            domain_desc = open(network_file)
+            with domain_desc:
+                network_template = domain_desc.read()
 
-    template_engine = Template(network_template)
-    if not template_params:
-        template_params = {}
+        template_engine = Template(network_template)
+        if not template_params:
+            template_params = {}
 
-    if not template_params.get("resource_id"):
-        template_params["resource_id"] = ctx.instance.id
-    if not template_params.get("instance_uuid"):
-        template_params["instance_uuid"] = str(uuid.uuid4())
+        if not template_params.get("resource_id"):
+            template_params["resource_id"] = ctx.instance.id
+        if not template_params.get("instance_uuid"):
+            template_params["instance_uuid"] = str(uuid.uuid4())
 
-    params = {"ctx": ctx}
-    params.update(template_params)
-    xmlconfig = template_engine.render(params)
+        params = {"ctx": ctx}
+        params.update(template_params)
+        xmlconfig = template_engine.render(params)
 
-    ctx.logger.info(xmlconfig)
+        ctx.logger.debug(repr(xmlconfig))
 
-    # create a persistent virtual network
-    network = conn.networkCreateXML(xmlconfig)
-    if network is None:
-        raise cfy_exc.NonRecoverableError('Failed to create a virtual network')
-    active = network.isActive()
-    if active == 1:
-        ctx.logger.info('The new persistent virtual network is active')
-    else:
-        ctx.logger.info('The new persistent virtual network is not active')
+        # create a persistent virtual network
+        network = conn.networkCreateXML(xmlconfig)
+        if network is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to create a virtual network')
 
-    conn.close()
+        ctx.logger.info('Network ' + network.name() + ' has created.')
+        ctx.logger.info('Params: ' + repr(template_params))
+        ctx.instance.runtime_properties['params'] = template_params
+        ctx.instance.runtime_properties['resource_id'] = network.name()
 
-    ctx.logger.info('Network ' + network.name() + ' has created.')
-    ctx.instance.runtime_properties['resource_id'] = network.name()
-    ctx.logger.info('Params: ' + repr(template_params))
-    ctx.instance.runtime_properties['params'] = template_params
+        active = network.isActive()
+        if active == 1:
+            ctx.logger.info('The new persistent virtual network is active')
+        else:
+            ctx.logger.info('The new persistent virtual network is not active')
+    finally:
+        conn.close()
 
 
 @operation
@@ -101,19 +104,22 @@ def delete(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    # lookup the default network by name
-    network = conn.networkLookupByName(resource_id)
-    if network is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to find the network'
-        )
+    try:
+        # lookup the default network by name
+        network = conn.networkLookupByName(resource_id)
+        if network is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the network'
+            )
 
-    if network.destroy() < 0:
-        raise cfy_exc.NonRecoverableError(
-            'Can not undefine network.'
-        )
+        if network.destroy() < 0:
+            raise cfy_exc.NonRecoverableError(
+                'Can not undefine network.'
+            )
 
-    conn.close()
+        ctx.instance.runtime_properties['resource_id'] = None
+    finally:
+        conn.close()
 
 
 @operation
@@ -130,33 +136,36 @@ def link(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    # lookup the default network by name
-    network = conn.networkLookupByName(net_id)
-    if network is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to find the network'
+    try:
+        # lookup the default network by name
+        network = conn.networkLookupByName(net_id)
+        if network is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the network'
+            )
+
+        MAX_RETRY = 10
+        for i in xrange(MAX_RETRY):
+            ctx.logger.info("{}: Tring to get vm ip: {}/{}"
+                            .format(vm_id, i, MAX_RETRY))
+            for lease in network.DHCPLeases():
+                source_properties = ctx.source.instance.runtime_properties
+                vm_params = source_properties.get(
+                    'params', {})
+                for vm_network in vm_params.get("networks", []):
+                    if vm_network.get('mac') == lease.get('mac'):
+                        source_properties['ip'] = lease.get('ipaddr')
+                        ctx.logger.info("{}:Found: {}"
+                                        .format(vm_id, lease.get('ipaddr')))
+                        return
+            # we have never get ip before 60 sec, so wait 60 as minimum
+            time.sleep(60)
+
+        raise cfy_exc.RecoverableError(
+            'No ip for now, try later'
         )
-
-    MAX_RETRY = 10
-    for i in xrange(MAX_RETRY):
-        ctx.logger.info("{}: Tring to get vm ip: {}/{}"
-                        .format(vm_id, i, MAX_RETRY))
-        for lease in network.DHCPLeases():
-            vm_params = ctx.source.instance.runtime_properties.get(
-                'params', {})
-            for vm_network in vm_params.get("networks", []):
-                if vm_network.get('mac') == lease.get('mac'):
-                    ctx.source.instance.runtime_properties['ip'] = lease.get(
-                        'ipaddr')
-                    ctx.logger.info("{}:Found: {}"
-                                    .format(vm_id, lease.get('ipaddr')))
-                    return
-        # we have never get ip before 60 sec, so wait 60 as minimum
-        time.sleep(60)
-
-    raise cfy_exc.RecoverableError(
-        'No ip for now, try later'
-    )
+    finally:
+        conn.close()
 
 
 @operation

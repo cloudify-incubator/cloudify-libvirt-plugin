@@ -1,9 +1,9 @@
 plugins:
   libvirt:
     executor: central_deployment_agent
-    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/v.0.3.zip
     package_name: cloudify-libvirt-plugin
-    package_version: '0.3'
+    package_version: '0.4'
+    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/0.4.zip
 
 node_types:
 
@@ -29,13 +29,26 @@ node_types:
         delete:
           implementation: libvirt.cloudify_libvirt.domain_tasks.delete
           inputs: {}
-        # suspend/resume
+      # suspend/resume
+      cloudify.interfaces.freeze:
         suspend:
           implementation: libvirt.cloudify_libvirt.domain_tasks.suspend
           inputs: {}
         resume:
           implementation: libvirt.cloudify_libvirt.domain_tasks.resume
           inputs: {}
+      # backups related section
+      cloudify.interfaces.snapshot:
+        create:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.snapshot_create
+          inputs: {}
+        apply:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.snapshot_apply
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.snapshot_delete
+          inputs: {}
+      # usage
       cloudify.interfaces.statistics:
         perfomance:
           implementation: libvirt.cloudify_libvirt.domain_tasks.perfomance
@@ -61,7 +74,7 @@ relationships:
     derived_from: cloudify.relationships.connected_to
     target_interfaces:
       cloudify.interfaces.relationship_lifecycle:
-        postconfigure:
+        establish:
           implementation: libvirt.cloudify_libvirt.network_tasks.link
           inputs: {}
         unlink:

@@ -2,7 +2,7 @@ sudo apt-get update
 sudo apt-get install -yq qemu-kvm qemu python-libvirt libvirt-dev qemu-system-arm genisoimage
 sudo usermod -a -G libvirtd `whoami`
 # cloudify part
-sudo apt-get install -yq python-virtualenv python-dev git
+sudo apt-get install -yq python-virtualenv python-dev git python-netifaces
 # env create
 rm -rf centos-libvirt
 mkdir  centos-libvirt

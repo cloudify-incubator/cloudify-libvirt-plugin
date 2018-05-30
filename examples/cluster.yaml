@@ -4,25 +4,37 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/4.2/types.yaml
+  - http://www.getcloudify.org/spec/cloudify/4.3.1/types.yaml
   - http://www.getcloudify.org/spec/fabric-plugin/1.5.1/plugin.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/master/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.7.0/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.4/plugin.yaml
 
 inputs:
 
   cluster_user:
     type: string
+    description: >
+      Cluster user name.
 
   cluster_key:
     type: string
+    description: >
+      SSH key for cluster user.
 
   cluster_host:
     type: string
+    description: >
+      LibVirt computer ip address.
 
   external_ip:
     type: string
+    description: >
+      List external ip's separated by comma.
+
   external_dev:
     type: string
+    description: >
+      Device with external access (same device as used for cluster_host ip)
 
 relationships:
 
@@ -131,15 +143,12 @@ node_templates:
             EXTERNAL_INTERFACE: { get_input: external_dev }
             EXTERNAL_IP: { get_input: external_ip }
             INTERNAL_IP: { get_attribute: [qemu_vm, ip] }
-            script_path: cluster/floating_ip.sh
+            script_path: cluster/floating_ip.py
         delete:
           implementation: fabric.fabric_plugin.tasks.run_script
           inputs:
             fabric_env: *fab_env
-            EXTERNAL_INTERFACE: { get_input: external_dev }
-            EXTERNAL_IP: { get_input: external_ip }
-            INTERNAL_IP: { get_attribute: [qemu_vm, ip] }
-            script_path: cluster/floating_ip_delete.sh
+            script_path: cluster/floating_ip_delete.py
     relationships:
     - target: qemu_vm
       type: cloudify.relationships.depends_on
@@ -148,14 +157,15 @@ node_templates:
     type: cloudify.nodes.WebServer
     interfaces:
       cloudify.interfaces.lifecycle:
-        start:
-          implementation: fabric.fabric_plugin.tasks.run_script
-          inputs:
-            fabric_env:
-              user: centos
-              password: passw0rd
-              host_string: { get_input: external_ip }
-            script_path: scripts/vm_check.sh
+          start:
+            implementation: terminal.cloudify_terminal.tasks.run
+            inputs:
+              terminal_auth:
+                user: centos
+                password: passw0rd
+                ip: { get_attribute: [floating_ip, external_ip] }
+              calls:
+              - action: uname -a
     relationships:
       - target: floating_ip
         type: cloudify.relationships.contained_in

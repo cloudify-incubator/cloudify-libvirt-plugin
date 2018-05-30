@@ -1,0 +1,13 @@
+<domainsnapshot>
+  <name>{{ snapshot_name }}</name>
+  <description>Backup created by libvirt plugin.</description>
+  {% for disk in disks %}
+    {% if disk.type == "qcow2"  %}
+      <disk name="{{ disk.dev }}">
+        <source file="{{ disk.file }}.{{ snapshot_name }}"/>
+       </disk>
+    {% else  %}
+      <disk name="{{ disk.dev }}" snapshot="no"/>
+    {% endif %}
+  {% endfor %}
+</domainsnapshot>

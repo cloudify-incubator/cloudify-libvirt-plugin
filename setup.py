@@ -15,7 +15,7 @@ from setuptools import setup
 
 setup(
     name='cloudify-libvirt-plugin',
-    version='0.3',
+    version='0.4',
     description='support libvirt',
     author='Cloudify',
     author_email='hello@getcloudify.org',
@@ -25,6 +25,7 @@ setup(
         'cloudify_libvirt': [
             'templates/domain.xml',
             'templates/network.xml',
+            'templates/snapshot.xml',
         ]
     },
     install_requires=[

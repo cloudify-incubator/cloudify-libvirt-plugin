@@ -30,7 +30,8 @@ if __name__ == "__main__":
         'bus': 'scsi',
         'dev': 'sdb',
         'file': ctx.target.instance.runtime_properties.get('vm_cloudinit'),
-        'type': 'raw'
+        'type': 'qcow2',
+        'readonly': True
     })
 
     networks = ctx.source.instance.runtime_properties["params"].get('networks')
