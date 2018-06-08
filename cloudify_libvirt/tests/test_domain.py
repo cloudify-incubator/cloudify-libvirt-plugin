@@ -359,10 +359,21 @@ class TestDomainTasks(LibVirtCommonTest):
             _ctx.instance.runtime_properties['resource_id'], 'check'
         )
 
-        # alredy have such
+        # different templates
+        _ctx.get_resource = mock.Mock(return_value=None)
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            domain_tasks.snapshot_create(ctx=_ctx,
+                                         snapshot_name='snapshot_name',
+                                         snapshot_incremental=True)
+
+        # already have such
         domain.snapshotLookupByName = mock.Mock(
             return_value=snapshot
         )
+        _ctx.get_resource = mock.Mock(return_value='<somexml/>')
         with mock.patch(
             "cloudify_libvirt.domain_tasks.libvirt.open",
             mock.Mock(return_value=connect)
@@ -375,6 +386,45 @@ class TestDomainTasks(LibVirtCommonTest):
                                              backup_file="domain_file",
                                              snapshot_name='snapshot_name',
                                              snapshot_incremental=True)
+
+        # check create snapshot
+        domain.XMLDesc = mock.Mock(return_value="<domain/>")
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with mock.patch(
+                "os.path.isdir",
+                mock.Mock(return_value=True)
+            ):
+                fake_file = mock.mock_open()
+                fake_file().read.return_value = "!!!!"
+                with mock.patch(
+                    '__builtin__.open', fake_file
+                ):
+                    # with error, already exists
+                    with mock.patch(
+                        "os.path.isfile",
+                        mock.Mock(return_value=True)
+                    ):
+                        with self.assertRaisesRegexp(
+                            NonRecoverableError,
+                            "Backup snapshot_name already exists."
+                        ):
+                            domain_tasks.snapshot_create(
+                                ctx=_ctx, backup_file="domain_file",
+                                snapshot_name='snapshot_name',
+                                snapshot_incremental=False)
+                    # without error
+                    with mock.patch(
+                        "os.path.isfile",
+                        mock.Mock(return_value=False)
+                    ):
+                        domain_tasks.snapshot_create(
+                            ctx=_ctx, backup_file="domain_file",
+                            snapshot_name='snapshot_name',
+                            snapshot_incremental=False)
+                        fake_file().write.assert_called_with("<domain/>")
 
     def test_snapshot_apply(self):
         self._test_common_backups(domain_tasks.snapshot_apply)
@@ -405,6 +455,49 @@ class TestDomainTasks(LibVirtCommonTest):
                                         snapshot_name='snapshot_name',
                                         snapshot_incremental=True)
         domain.revertToSnapshot.assert_called_with(snapshot)
+
+        # no such backups
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with mock.patch(
+                "os.path.isfile",
+                mock.Mock(return_value=False)
+            ):
+                with self.assertRaisesRegexp(
+                    NonRecoverableError,
+                    "No backups found with name: snapshot_name."
+                ):
+                    domain_tasks.snapshot_apply(ctx=_ctx,
+                                                snapshot_name='snapshot_name',
+                                                snapshot_incremental=False)
+        # have some backup
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with mock.patch(
+                "os.path.isfile",
+                mock.Mock(return_value=True)
+            ):
+                fake_file = mock.mock_open()
+                fake_file().read.return_value = "old"
+                with mock.patch(
+                    '__builtin__.open', fake_file
+                ):
+                    # have same backup
+                    domain.XMLDesc = mock.Mock(return_value="old")
+                    domain_tasks.snapshot_apply(ctx=_ctx,
+                                                snapshot_name='snapshot_name',
+                                                snapshot_incremental=False)
+                    # have different backup
+                    domain.XMLDesc = mock.Mock(return_value="new")
+                    domain_tasks.snapshot_apply(ctx=_ctx,
+                                                snapshot_name='snapshot_name',
+                                                snapshot_incremental=False)
+                fake_file.assert_called_with(
+                    './snapshot_name/resource.xml', "r")
 
     def test_snapshot_delete(self):
         self._test_common_backups(domain_tasks.snapshot_delete)
@@ -439,7 +532,7 @@ class TestDomainTasks(LibVirtCommonTest):
         ):
             with self.assertRaisesRegexp(
                 NonRecoverableError,
-                "Sub snapshots \['snapshot-'\] found for vm-snapshot_name."
+                "Sub snapshots \['snapshot-'\] found for snapshot_name."
                 " You should remove subsnaphots before remove current."
             ):
                 domain_tasks.snapshot_delete(ctx=_ctx,
@@ -457,22 +550,56 @@ class TestDomainTasks(LibVirtCommonTest):
                                          snapshot_incremental=True)
         snapshot.delete.assert_called_with()
 
-    def _test_no_snapshot_name(self, func):
-        _ctx = self._create_ctx()
-        _ctx.instance.runtime_properties['resource_id'] = 'resource'
-
-        with self.assertRaisesRegexp(
-            NonRecoverableError,
-            "Backup name must be provided."
+        # no such backups
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
         ):
-            func(ctx=_ctx)
+            with mock.patch(
+                "os.path.isfile",
+                mock.Mock(return_value=False)
+            ):
+                with self.assertRaisesRegexp(
+                    NonRecoverableError,
+                    "No backups found with name: snapshot_name."
+                ):
+                    domain_tasks.snapshot_delete(ctx=_ctx,
+                                                 snapshot_name='snapshot_name',
+                                                 snapshot_incremental=False)
+
+        # remove backup
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with mock.patch(
+                "os.path.isfile",
+                mock.Mock(return_value=True)
+            ):
+                fake_file = mock.mock_open()
+                fake_file().read.return_value = "!!!!"
+                with mock.patch(
+                    '__builtin__.open', fake_file
+                ):
+                    remove_mock = mock.Mock()
+                    with mock.patch(
+                        "os.remove",
+                        remove_mock
+                    ):
+                        domain_tasks.snapshot_delete(
+                            ctx=_ctx, snapshot_name='snapshot_name',
+                            snapshot_incremental=False)
+                    remove_mock.assert_called_with(
+                        './snapshot_name/resource.xml')
 
     def _test_snapshot_name_backup(self, func):
-        # test unsupported backup ignore code
+        # test backup code
         _ctx = self._create_ctx()
         _ctx.instance.runtime_properties['resource_id'] = 'resource'
-        func(ctx=_ctx, snapshot_name='snapshot_name',
-             snapshot_incremental=False)
+        self._check_no_such_object_domain(
+            "cloudify_libvirt.domain_tasks.libvirt.open", func, [],
+            {'ctx': _ctx, 'snapshot_name': 'snapshot_name',
+             'snapshot_incremental': False}, 'resource')
 
     def _test_check_correct_connect_backup(self, func):
         # check correct handle exception with empty connection
@@ -495,7 +622,7 @@ class TestDomainTasks(LibVirtCommonTest):
     def _test_common_backups(self, func):
         # common funcs for backups
         self._test_no_resource_id(func)
-        self._test_no_snapshot_name(func)
+        self._test_no_snapshot_name(self._create_ctx(), func)
         self._test_snapshot_name_backup(func)
         self._test_check_correct_connect_backup(func)
         self._test_check_correct_connect_backup_no_object(func)

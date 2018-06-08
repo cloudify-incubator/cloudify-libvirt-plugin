@@ -12,7 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 from cloudify import ctx
+from cloudify import exceptions as cfy_exc
 
 
 def get_libvirt_params(**kwargs):
@@ -30,3 +32,41 @@ def get_libvirt_params(**kwargs):
     template_params.update(kwargs.get('params', {}))
     ctx.instance.runtime_properties['params'] = template_params
     return libvirt_auth, template_params
+
+
+def get_backupname(kwargs):
+    if not kwargs.get("snapshot_name"):
+        raise cfy_exc.NonRecoverableError(
+            'Backup name must be provided.'
+        )
+    return kwargs["snapshot_name"]
+
+
+def get_backupdir(kwargs):
+    return "{}/{}".format(
+        ctx.node.properties.get('backup_dir', "."),
+        kwargs["snapshot_name"].replace("/", "_")
+    )
+
+
+def save_node_state(backup_dir, object_name, content):
+    # save object state as string
+    if not os.path.isdir(backup_dir):
+        os.makedirs(backup_dir)
+    with open("{}/{}.xml".format(backup_dir, object_name), 'w') as file:
+        file.write(content)
+
+
+def read_node_state(backup_dir, object_name):
+    # read object state as string
+    if not os.path.isfile("{}/{}.xml".format(backup_dir, object_name)):
+        return None
+    with open("{}/{}.xml".format(backup_dir, object_name), 'r') as file:
+        return file.read()
+
+
+def delete_node_state(backup_dir, object_name):
+    # read object state as string
+    if not os.path.isfile("{}/{}.xml".format(backup_dir, object_name)):
+        return
+    os.remove("{}/{}.xml".format(backup_dir, object_name))

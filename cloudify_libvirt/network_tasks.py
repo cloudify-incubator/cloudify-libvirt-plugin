@@ -22,14 +22,14 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 from pkg_resources import resource_filename
-from cloudify_libvirt.common import get_libvirt_params
+import cloudify_libvirt.common as common
 
 
 @operation
 def create(**kwargs):
     ctx.logger.info("Creating new network.")
 
-    libvirt_auth, template_params = get_libvirt_params(**kwargs)
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -97,7 +97,7 @@ def delete(**kwargs):
         ctx.logger.info("No network for delete")
         return
 
-    libvirt_auth, _ = get_libvirt_params(**kwargs)
+    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -118,8 +118,141 @@ def delete(**kwargs):
             )
 
         ctx.instance.runtime_properties['resource_id'] = None
+        ctx.instance.runtime_properties['backups'] = {}
     finally:
         conn.close()
+
+
+@operation
+def snapshot_create(**kwargs):
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+    ctx.logger.info("Snapshot create: {}".format(repr(resource_id)))
+
+    if not resource_id:
+        ctx.logger.info("No network for backup")
+        return
+
+    snapshot_name = common.get_backupname(kwargs)
+    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    try:
+        # lookup the default network by name
+        network = conn.networkLookupByName(resource_id)
+        if network is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the network'
+            )
+
+        net_backup = network.XMLDesc()
+        if kwargs.get("snapshot_incremental"):
+            backups = ctx.instance.runtime_properties.get("backups", {})
+            if snapshot_name in backups:
+                raise cfy_exc.NonRecoverableError(
+                    "Snapshot {snapshot_name} already exists."
+                    .format(snapshot_name=snapshot_name,))
+            backups[snapshot_name] = net_backup
+            ctx.instance.runtime_properties["backups"] = backups
+            ctx.logger.info("Snapshot {snapshot_name} is created."
+                            .format(snapshot_name=snapshot_name,))
+        else:
+            if common.read_node_state(common.get_backupdir(kwargs),
+                                      resource_id):
+                raise cfy_exc.NonRecoverableError(
+                    "Backup {snapshot_name} already exists."
+                    .format(snapshot_name=snapshot_name,))
+            common.save_node_state(common.get_backupdir(kwargs), resource_id,
+                                   net_backup)
+        ctx.logger.info("Backup {snapshot_name} is created."
+                        .format(snapshot_name=snapshot_name,))
+        ctx.logger.debug("Current config {}".format(repr(net_backup)))
+    finally:
+        conn.close()
+
+
+@operation
+def snapshot_apply(**kwargs):
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+    ctx.logger.info("Snapshot restore for: {}".format(repr(resource_id)))
+
+    if not resource_id:
+        ctx.logger.info("No network for restore")
+        return
+
+    snapshot_name = common.get_backupname(kwargs)
+
+    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    try:
+        # lookup the default network by name
+        network = conn.networkLookupByName(resource_id)
+        if network is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the network'
+            )
+
+        if kwargs.get("snapshot_incremental"):
+            backups = ctx.instance.runtime_properties.get("backups", {})
+            if snapshot_name not in backups:
+                raise cfy_exc.NonRecoverableError(
+                    "No snapshots found with name: {snapshot_name}."
+                    .format(snapshot_name=snapshot_name,))
+            net_backup = backups[snapshot_name]
+        else:
+            net_backup = common.read_node_state(common.get_backupdir(kwargs),
+                                                resource_id)
+            if not net_backup:
+                raise cfy_exc.NonRecoverableError(
+                    "No backups found with name: {snapshot_name}."
+                    .format(snapshot_name=snapshot_name,))
+
+        if net_backup.strip() != network.XMLDesc().strip():
+            ctx.logger.info("We have different configs,\n{}\nvs\n{}\n"
+                            .format(
+                                repr(net_backup.strip()),
+                                repr(network.XMLDesc().strip())))
+        else:
+            ctx.logger.info("Already used such configuration: {}"
+                            .format(snapshot_name))
+    finally:
+        conn.close()
+
+
+@operation
+def snapshot_delete(**kwargs):
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+    ctx.logger.info("Snapshot delete for: {}".format(repr(resource_id)))
+
+    if not resource_id:
+        ctx.logger.info("No network for backup delete")
+        return
+
+    snapshot_name = common.get_backupname(kwargs)
+    if kwargs.get("snapshot_incremental"):
+        backups = ctx.instance.runtime_properties.get("backups", {})
+        if snapshot_name not in backups:
+            raise cfy_exc.NonRecoverableError(
+                "No snapshots found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
+        del backups[snapshot_name]
+        ctx.instance.runtime_properties["backups"] = backups
+    else:
+        if not common.read_node_state(common.get_backupdir(kwargs),
+                                      resource_id):
+            raise cfy_exc.NonRecoverableError(
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
+        common.delete_node_state(common.get_backupdir(kwargs), resource_id)
+    ctx.logger.info("Backup deleted: {}".format(snapshot_name))
 
 
 @operation

@@ -2,7 +2,7 @@ tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/4.3.1/types.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.7.0/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.7.1/plugin.yaml
   - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.4/plugin.yaml
 
 inputs:
@@ -72,6 +72,14 @@ node_templates:
             cloud_init: { get_attribute: [cloud_init, cloud_config ] }
         delete:
           implementation: scripts/remove_disk.sh
+          executor: central_deployment_agent
+      # backups related section
+      cloudify.interfaces.snapshot:
+        create:
+          implementation: scripts/snapshot_disk_create.py
+          executor: central_deployment_agent
+        delete:
+          implementation: scripts/snapshot_disk_delete.py
           executor: central_deployment_agent
     relationships:
     - target: cloud_init

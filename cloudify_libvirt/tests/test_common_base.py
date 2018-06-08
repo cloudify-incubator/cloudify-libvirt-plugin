@@ -131,3 +131,12 @@ class LibVirtCommonTest(unittest.TestCase):
 
         # no initilized/no resource id
         func(ctx=_ctx)
+
+    def _test_no_snapshot_name(self, _ctx, func):
+        _ctx.instance.runtime_properties['resource_id'] = 'resource'
+
+        with self.assertRaisesRegexp(
+            NonRecoverableError,
+            "Backup name must be provided."
+        ):
+            func(ctx=_ctx)
