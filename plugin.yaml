@@ -2,14 +2,16 @@ plugins:
   libvirt:
     executor: central_deployment_agent
     package_name: cloudify-libvirt-plugin
-    package_version: '0.4'
-    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/0.4.zip
+    package_version: '0.4.1'
+    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/0.4.1.zip
 
 node_types:
 
   cloudify.libvirt.domain:
     derived_from: cloudify.nodes.Compute
     properties:
+      backup_dir:
+        default: './'
       libvirt_auth:
         default: 'qemu:///system'
     interfaces:
@@ -57,6 +59,8 @@ node_types:
   cloudify.libvirt.network:
     derived_from: cloudify.nodes.Network
     properties:
+      backup_dir:
+        default: './'
       libvirt_auth:
         default: 'qemu:///system'
     interfaces:
@@ -66,6 +70,17 @@ node_types:
           inputs: {}
         delete:
           implementation: libvirt.cloudify_libvirt.network_tasks.delete
+          inputs: {}
+      # backups related section
+      cloudify.interfaces.snapshot:
+        create:
+          implementation: libvirt.cloudify_libvirt.network_tasks.snapshot_create
+          inputs: {}
+        apply:
+          implementation: libvirt.cloudify_libvirt.network_tasks.snapshot_apply
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.network_tasks.snapshot_delete
           inputs: {}
 
 relationships:

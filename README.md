@@ -37,6 +37,7 @@ Description for VM
 
 **Supported properties:**
 * `libvirt_auth`: connection url, by default: `qemu:///system`
+* `backup_dir`: directory for save backups, by default: `./`
 
 **Inputs for actions:**
 * `configure`:
@@ -52,6 +53,7 @@ Description for Network
 
 **Supported properties:**
 * `libvirt_auth`: connection url, by default: `qemu:///system`
+* `backup_dir`: directory for save backups, by default: `./`
 
 **Inputs for actions:**
 * `create`:

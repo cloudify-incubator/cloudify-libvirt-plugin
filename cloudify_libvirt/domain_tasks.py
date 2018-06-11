@@ -22,13 +22,13 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 from pkg_resources import resource_filename
-from cloudify_libvirt.common import get_libvirt_params
+import cloudify_libvirt.common as common
 
 
 @operation
 def create(**kwargs):
     ctx.logger.info("create")
-    get_libvirt_params(**kwargs)
+    common.get_libvirt_params(**kwargs)
     # dont need to run anything, we attach disc's in preconfigure state
     # so we will define domain later
 
@@ -37,7 +37,7 @@ def create(**kwargs):
 def configure(**kwargs):
     ctx.logger.info("configure")
 
-    libvirt_auth, template_params = get_libvirt_params(**kwargs)
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -105,7 +105,7 @@ def start(**kwargs):
         ctx.logger.info("No servers for start")
         return
 
-    libvirt_auth, _ = get_libvirt_params(**kwargs)
+    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -152,7 +152,7 @@ def stop(**kwargs):
         ctx.logger.info("No servers for delete")
         return
 
-    libvirt_auth, _ = get_libvirt_params(**kwargs)
+    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -198,7 +198,7 @@ def resume(**kwargs):
         ctx.logger.info("No servers for resume")
         return
 
-    libvirt_auth, _ = get_libvirt_params(**kwargs)
+    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -244,7 +244,7 @@ def suspend(**kwargs):
         ctx.logger.info("No servers for suspend")
         return
 
-    libvirt_auth, _ = get_libvirt_params(**kwargs)
+    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -312,7 +312,7 @@ def delete(**kwargs):
         ctx.logger.info("No servers for delete")
         return
 
-    libvirt_auth, _ = get_libvirt_params(**kwargs)
+    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -360,14 +360,6 @@ def delete(**kwargs):
         conn.close()
 
 
-def _get_backupname(kwargs):
-    if not kwargs.get("snapshot_name"):
-        raise cfy_exc.NonRecoverableError(
-            'Backup name must be provided.'
-        )
-    return "vm-{}".format(kwargs["snapshot_name"])
-
-
 @operation
 def snapshot_create(**kwargs):
     ctx.logger.info("backup")
@@ -378,43 +370,14 @@ def snapshot_create(**kwargs):
         ctx.logger.info("No servers for backup.")
         return
 
-    snapshot_name = _get_backupname(kwargs)
-    if not kwargs.get("snapshot_incremental"):
-        ctx.logger.info("Create backup for VM is unsupported.")
-        return
+    snapshot_name = common.get_backupname(kwargs)
 
-    libvirt_auth, template_params = get_libvirt_params(**kwargs)
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'
         )
-
-    backup_file = kwargs.get('backup_file')
-    backup_template = kwargs.get('backup_template')
-
-    if backup_file:
-        backup_template = ctx.get_resource(backup_file)
-
-    if not backup_file and not backup_template:
-        resource_dir = resource_filename(__name__, 'templates')
-        backup_file = '{}/snapshot.xml'.format(resource_dir)
-        ctx.logger.info("Will be used internal: %s" % backup_file)
-
-    if not backup_template:
-        domain_desc = open(backup_file)
-        with domain_desc:
-            backup_template = domain_desc.read()
-
-    template_engine = Template(backup_template)
-    if not template_params:
-        template_params = {}
-
-    params = {"ctx": ctx, 'snapshot_name': snapshot_name}
-    params.update(template_params)
-    xmlconfig = template_engine.render(params)
-
-    ctx.logger.debug(repr(xmlconfig))
 
     try:
         try:
@@ -427,16 +390,59 @@ def snapshot_create(**kwargs):
             raise cfy_exc.NonRecoverableError(
                 'Failed to find the domain'
             )
-        try:
-            # will raise exception if unexist
-            snapshot = dom.snapshotLookupByName(snapshot_name)
-            raise cfy_exc.NonRecoverableError(
-                "Snapshot {snapshot_name} already exists."
-                .format(snapshot_name=snapshot.getName(),))
-        except libvirt.libvirtError:
-            pass
-        snapshot = dom.snapshotCreateXML(xmlconfig)
-        ctx.logger.info("Snapshot name: {}".format(snapshot.getName()))
+
+        if kwargs.get("snapshot_incremental"):
+            backup_file = kwargs.get('backup_file')
+            backup_template = kwargs.get('backup_template')
+            snapshot_type = kwargs.get('snapshot_type')
+
+            if backup_file:
+                backup_template = ctx.get_resource(backup_file)
+
+            if not backup_file and not backup_template:
+                resource_dir = resource_filename(__name__, 'templates')
+                backup_file = '{}/snapshot.xml'.format(resource_dir)
+                ctx.logger.info("Will be used internal: %s" % backup_file)
+
+            if not backup_template:
+                domain_desc = open(backup_file)
+                with domain_desc:
+                    backup_template = domain_desc.read()
+
+            template_engine = Template(backup_template)
+            if not template_params:
+                template_params = {}
+
+            params = {
+                "ctx": ctx,
+                'snapshot_name': snapshot_name,
+                'snapshot_description': snapshot_type
+            }
+            params.update(template_params)
+            xmlconfig = template_engine.render(params)
+
+            ctx.logger.debug(repr(xmlconfig))
+
+            try:
+                # will raise exception if unexist
+                snapshot = dom.snapshotLookupByName(snapshot_name)
+                raise cfy_exc.NonRecoverableError(
+                    "Snapshot {snapshot_name} already exists."
+                    .format(snapshot_name=snapshot.getName(),))
+            except libvirt.libvirtError:
+                pass
+            snapshot = dom.snapshotCreateXML(xmlconfig)
+            ctx.logger.info("Snapshot name: {}".format(snapshot.getName()))
+        else:
+            if common.read_node_state(common.get_backupdir(kwargs),
+                                      resource_id):
+                raise cfy_exc.NonRecoverableError(
+                    "Backup {snapshot_name} already exists."
+                    .format(snapshot_name=snapshot_name,))
+            common.save_node_state(common.get_backupdir(kwargs), resource_id,
+                                   dom.XMLDesc())
+            ctx.logger.info("Backup {snapshot_name} is created."
+                            .format(snapshot_name=snapshot_name,))
     finally:
         conn.close()
 
@@ -450,12 +456,9 @@ def snapshot_delete(**kwargs):
         ctx.logger.info("No servers for remove_backup.")
         return
 
-    snapshot_name = _get_backupname(kwargs)
-    if not kwargs.get("snapshot_incremental"):
-        ctx.logger.info("Delete backup for VM is unsupported.")
-        return
+    snapshot_name = common.get_backupname(kwargs)
 
-    libvirt_auth, template_params = get_libvirt_params(**kwargs)
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -474,18 +477,26 @@ def snapshot_delete(**kwargs):
                 'Failed to find the domain'
             )
 
-        # raised exception if libvirt has not found any
-        snapshot = dom.snapshotLookupByName(snapshot_name)
-        if snapshot.numChildren():
-            subsnapshots = [
-                snap.getName() for snap in snapshot.listAllChildren()
-            ]
-            raise cfy_exc.NonRecoverableError(
-                "Sub snapshots {subsnapshots} found for {snapshot_name}. "
-                "You should remove subsnaphots before remove current."
-                .format(snapshot_name=snapshot_name,
-                        subsnapshots=repr(subsnapshots)))
-        snapshot.delete()
+        if kwargs.get("snapshot_incremental"):
+            # raised exception if libvirt has not found any
+            snapshot = dom.snapshotLookupByName(snapshot_name)
+            if snapshot.numChildren():
+                subsnapshots = [
+                    snap.getName() for snap in snapshot.listAllChildren()
+                ]
+                raise cfy_exc.NonRecoverableError(
+                    "Sub snapshots {subsnapshots} found for {snapshot_name}. "
+                    "You should remove subsnaphots before remove current."
+                    .format(snapshot_name=snapshot_name,
+                            subsnapshots=repr(subsnapshots)))
+            snapshot.delete()
+        else:
+            if not common.read_node_state(common.get_backupdir(kwargs),
+                                          resource_id):
+                raise cfy_exc.NonRecoverableError(
+                    "No backups found with name: {snapshot_name}."
+                    .format(snapshot_name=snapshot_name,))
+            common.delete_node_state(common.get_backupdir(kwargs), resource_id)
         ctx.logger.info("Backup deleted: {}".format(snapshot_name))
     finally:
         conn.close()
@@ -500,12 +511,9 @@ def snapshot_apply(**kwargs):
         ctx.logger.info("No servers for restore.")
         return
 
-    snapshot_name = _get_backupname(kwargs)
-    if not kwargs.get("snapshot_incremental"):
-        ctx.logger.info("Restore from backup for VM is unsupported.")
-        return
+    snapshot_name = common.get_backupname(kwargs)
 
-    libvirt_auth, template_params = get_libvirt_params(**kwargs)
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -524,10 +532,27 @@ def snapshot_apply(**kwargs):
                 'Failed to find the domain'
             )
 
-        # raised exception if libvirt has not found any
-        snapshot = dom.snapshotLookupByName(snapshot_name)
-        dom.revertToSnapshot(snapshot)
-        ctx.logger.info("Reverted to: {}".format(snapshot.getName()))
+        if kwargs.get("snapshot_incremental"):
+            # raised exception if libvirt has not found any
+            snapshot = dom.snapshotLookupByName(snapshot_name)
+            dom.revertToSnapshot(snapshot)
+            ctx.logger.info("Reverted to: {}".format(snapshot.getName()))
+        else:
+            dom_backup = common.read_node_state(common.get_backupdir(kwargs),
+                                                resource_id)
+            if not dom_backup:
+                raise cfy_exc.NonRecoverableError(
+                    "No backups found with name: {snapshot_name}."
+                    .format(snapshot_name=snapshot_name,))
+
+            if dom_backup.strip() != dom.XMLDesc().strip():
+                ctx.logger.info("We have different configs,\n{}\nvs\n{}\n"
+                                .format(
+                                    repr(dom_backup.strip()),
+                                    repr(dom.XMLDesc().strip())))
+            else:
+                ctx.logger.info("Already used such configuration: {}"
+                                .format(snapshot_name))
     finally:
         conn.close()
 
@@ -553,7 +578,7 @@ def perfomance(**kwargs):
         ctx.logger.info("No servers for statistics.")
         return
 
-    libvirt_auth, template_params = get_libvirt_params(**kwargs)
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(

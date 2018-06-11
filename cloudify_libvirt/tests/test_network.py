@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import mock
+import unittest
 
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
@@ -141,26 +142,276 @@ class TestNetworkTasks(LibVirtCommonTest):
             "1.2.3.4"
         )
 
-    def test_delete(self):
-        self._test_no_resource_id(network_tasks.delete)
-
+    def _test_empty_connection(self, func):
         # check correct handle exception with empty connection
         _ctx = self._create_ctx()
         _ctx.instance.runtime_properties['resource_id'] = 'resource'
         self._check_correct_connect(
             "cloudify_libvirt.network_tasks.libvirt.open",
-            network_tasks.delete, [], {'ctx': _ctx})
+            func, [], {'ctx': _ctx})
 
+    def _test_empty_connection_backup(self, func):
         # check correct handle exception with empty connection
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = 'resource'
+        self._check_correct_connect(
+            "cloudify_libvirt.network_tasks.libvirt.open",
+            func, [], {'ctx': _ctx, "snapshot_name": "backup"})
+
+    def _test_empty_network(self, func):
+        # check correct handle exception with empty network
         _ctx = self._create_ctx()
         _ctx.instance.runtime_properties['resource_id'] = 'resource'
         self._check_no_such_object_network(
             "cloudify_libvirt.network_tasks.libvirt.open",
-            network_tasks.delete, [], {'ctx': _ctx}, 'resource')
+            func, [], {'ctx': _ctx}, 'resource')
+
+    def _test_empty_network_backup(self, func):
+        # check correct handle exception with empty network
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = 'resource'
+        self._check_no_such_object_network(
+            "cloudify_libvirt.network_tasks.libvirt.open",
+            func, [], {'ctx': _ctx, "snapshot_name": "backup"}, 'resource')
+
+    def _create_fake_network_backup(self):
+        network = mock.Mock()
+        network.XMLDesc = mock.Mock(return_value="<network/>")
+        network.isActive = mock.Mock(return_value=1)
+        network.name = mock.Mock(return_value="network_name")
+
+        connect = self._create_fake_connection()
+        connect.networkLookupByName = mock.Mock(return_value=network)
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = 'resource'
+        _ctx.instance.runtime_properties['params'] = {}
+        _ctx.node.properties['params'] = {}
+        _ctx.instance.runtime_properties["backups"] = {"backup": "<xml/>"}
+        return _ctx, connect, network
+
+    def test_snapshot_apply(self):
+        self._test_no_resource_id(network_tasks.snapshot_apply)
+        self._test_no_snapshot_name(self._create_ctx(),
+                                    network_tasks.snapshot_apply)
+        self._test_empty_connection_backup(network_tasks.snapshot_apply)
+        self._test_empty_network_backup(network_tasks.snapshot_apply)
+
+        # no such snapshot
+        _ctx, connect, network = self._create_fake_network_backup()
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                "No snapshots found with name: backup!."
+            ):
+                network_tasks.snapshot_apply(
+                    ctx=_ctx, snapshot_name="backup!",
+                    snapshot_incremental=True)
+
+        # we have such snapshot
+        _ctx, connect, network = self._create_fake_network_backup()
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            network_tasks.snapshot_apply(
+                ctx=_ctx, snapshot_name="backup",
+                snapshot_incremental=True)
+
+        # no such backup
+        _ctx, connect, network = self._create_fake_network_backup()
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with mock.patch(
+                "os.path.isfile",
+                mock.Mock(return_value=False)
+            ):
+                with self.assertRaisesRegexp(
+                    NonRecoverableError,
+                    "No backups found with name: backup!."
+                ):
+                    network_tasks.snapshot_apply(
+                        ctx=_ctx, snapshot_name="backup!",
+                        snapshot_incremental=False)
+
+        # have backup
+        _ctx, connect, network = self._create_fake_network_backup()
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with mock.patch(
+                "os.path.isfile",
+                mock.Mock(return_value=True)
+            ):
+                fake_file = mock.mock_open()
+                fake_file().read.return_value = "<network/>"
+                with mock.patch(
+                    '__builtin__.open', fake_file
+                ):
+                    network_tasks.snapshot_apply(
+                        ctx=_ctx, snapshot_name="backup!",
+                        snapshot_incremental=False)
+                fake_file.assert_called_with('./backup!/resource.xml', 'r')
+
+    def test_snapshot_create(self):
+        self._test_no_resource_id(network_tasks.snapshot_create)
+        self._test_no_snapshot_name(self._create_ctx(),
+                                    network_tasks.snapshot_create)
+        self._test_empty_connection_backup(network_tasks.snapshot_create)
+        self._test_empty_network_backup(network_tasks.snapshot_create)
+
+        # check create snapshot with error, already exists
+        _ctx, connect, network = self._create_fake_network_backup()
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                "Snapshot backup already exists."
+            ):
+                network_tasks.snapshot_create(ctx=_ctx, snapshot_name="backup",
+                                              snapshot_incremental=True)
+        connect.networkLookupByName.assert_called_with('resource')
+
+        # no such snapshots
+        _ctx.instance.runtime_properties["backups"] = {}
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            network_tasks.snapshot_create(ctx=_ctx, snapshot_name="backup",
+                                          snapshot_incremental=True)
+        self.assertEqual(
+            _ctx.instance.runtime_properties["backups"],
+            {"backup": "<network/>"})
+
+        # check create snapshot
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with mock.patch(
+                "os.path.isdir",
+                mock.Mock(return_value=True)
+            ):
+                fake_file = mock.mock_open()
+                fake_file().read.return_value = "!!!!"
+                with mock.patch(
+                    '__builtin__.open', fake_file
+                ):
+                    # with error, already exists
+                    with mock.patch(
+                        "os.path.isfile",
+                        mock.Mock(return_value=True)
+                    ):
+                        with self.assertRaisesRegexp(
+                            NonRecoverableError,
+                            "Backup backup already exists."
+                        ):
+                            network_tasks.snapshot_create(
+                                ctx=_ctx, snapshot_name="backup",
+                                snapshot_incremental=False)
+                    # without error
+                    with mock.patch(
+                        "os.path.isfile",
+                        mock.Mock(return_value=False)
+                    ):
+                        network_tasks.snapshot_create(
+                            ctx=_ctx, snapshot_name="backup",
+                            snapshot_incremental=False)
+                    fake_file().write.assert_called_with("<network/>")
+
+    def test_snapshot_delete(self):
+        self._test_no_resource_id(network_tasks.snapshot_delete)
+        self._test_no_snapshot_name(self._create_ctx(),
+                                    network_tasks.snapshot_delete)
+
+        # no such snapshots
+        _ctx, connect, network = self._create_fake_network_backup()
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                "No snapshots found with name: backup!."
+            ):
+                network_tasks.snapshot_delete(
+                    ctx=_ctx, snapshot_name="backup!",
+                    snapshot_incremental=True)
+        self.assertEqual(
+            _ctx.instance.runtime_properties["backups"],
+            {"backup": "<xml/>"})
+
+        # remove snapshot
+        _ctx, connect, network = self._create_fake_network_backup()
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            network_tasks.snapshot_delete(ctx=_ctx, snapshot_name="backup",
+                                          snapshot_incremental=True)
+        self.assertEqual(_ctx.instance.runtime_properties["backups"], {})
+
+        # no such backup
+        _ctx, connect, network = self._create_fake_network_backup()
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with mock.patch(
+                "os.path.isfile",
+                mock.Mock(return_value=False)
+            ):
+                with self.assertRaisesRegexp(
+                    NonRecoverableError,
+                    "No backups found with name: backup!."
+                ):
+                    network_tasks.snapshot_delete(
+                        ctx=_ctx, snapshot_name="backup!",
+                        snapshot_incremental=False)
+
+        # remove backup
+        _ctx, connect, network = self._create_fake_network_backup()
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with mock.patch(
+                "os.path.isfile",
+                mock.Mock(return_value=True)
+            ):
+                fake_file = mock.mock_open()
+                fake_file().read.return_value = "!!!!"
+                with mock.patch(
+                    '__builtin__.open', fake_file
+                ):
+                    remove_mock = mock.Mock()
+                    with mock.patch(
+                        "os.remove",
+                        remove_mock
+                    ):
+                        network_tasks.snapshot_delete(
+                            ctx=_ctx, snapshot_name="backup!",
+                            snapshot_incremental=False)
+                    remove_mock.assert_called_with('./backup!/resource.xml')
+                fake_file.assert_called_with('./backup!/resource.xml', 'r')
+
+    def test_delete(self):
+        self._test_no_resource_id(network_tasks.delete)
+        self._test_empty_connection(network_tasks.delete)
+        self._test_empty_network(network_tasks.delete)
 
         # delete with error
         _ctx = self._create_ctx()
         _ctx.instance.runtime_properties['resource_id'] = 'resource'
+        _ctx.instance.runtime_properties["backups"] = {"backup": "<xml/>"}
 
         network = mock.Mock()
         network.destroy = mock.Mock(return_value=-1)
@@ -195,6 +446,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         ):
                 network_tasks.delete(ctx=_ctx)
         self.assertFalse(_ctx.instance.runtime_properties.get('resource_id'))
+        self.assertFalse(_ctx.instance.runtime_properties.get("backup"))
 
     def _create_ctx(self):
         _ctx = MockCloudifyContext(
@@ -211,17 +463,15 @@ class TestNetworkTasks(LibVirtCommonTest):
 
     def test_create(self):
         # check correct handle exception with empty connection
-        _ctx = self._create_ctx()
         self._check_correct_connect(
             "cloudify_libvirt.network_tasks.libvirt.open",
-            network_tasks.create, [], {'ctx': _ctx})
+            network_tasks.create, [], {'ctx': self._create_ctx()})
 
         # check error with create network
-        _ctx = self._create_ctx()
         self._check_create_object(
             'Failed to create a virtual network',
             "cloudify_libvirt.network_tasks.libvirt.open",
-            network_tasks.create, [], {'ctx': _ctx})
+            network_tasks.create, [], {'ctx': self._create_ctx()})
 
         # create network
         network = mock.Mock()
@@ -262,3 +512,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         self.assertEqual(
             _ctx.instance.runtime_properties['resource_id'], "network_name"
         )
+
+
+if __name__ == '__main__':
+    unittest.main()
