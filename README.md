@@ -3,7 +3,7 @@ Add direct support of libvirt to cloudify, use with restrinctions.
 
 Before use check that you have 64bit platform, if you want to start 64bit images.
 
-based on https://libvirt.org/docs/libvirt-appdev-guide-python/en-US/html/
+Based on https://libvirt.org/docs/libvirt-appdev-guide-python/en-US/html/
 
 # Plugin Requirements
 
@@ -70,11 +70,25 @@ Description for Network
 Update `ip` runtime property in VM by data from network.
 
 ## Examples
-* [Ubuntu:amd64 vm with connection by fabric](examples/vm_fabric.amd64.yaml)
 * [Ubuntu:amd64 vm with scale support](examples/vm_agent.yaml)
+* [Ubuntu:amd64 vm with connection by fabric](examples/vm_fabric.amd64.yaml)
 * [Ubuntu:arm64 vm with connection by fabric](examples/vm_fabric.arm64.yaml)
+* [CentOS:amd64 vm with connection by fabric](examples/vm_centos.amd64.yaml)
+* [CentOS:Cluster blueprint, run vm on separate cento host](examples/cluster.yaml)
+  Has support `floating ips` separated by commas. Look to inputs.
+
+For documentation `backup` / `restore` workflows with noncluster blueprints look to
+[Utilities Plugin](https://github.com/cloudify-incubator/cloudify-utilities-plugin/blob/master/cloudify_suspend/README.md).
+
+## Wagon creation:
+
+Recommended constraints file for CentOs 7.x and RedHat 7.x is:
+```
+libvirt-python==4.0.0
+cloudify-plugins-common==3.3
+```
+
+You should to install [libvirt-devel](examples/bootstraps/centos.sh#L2) before create wagon.
 
 ## TODO:
 * Add more examples with different vm struct and archictures: mips, powerpc
-* Add tests
-
