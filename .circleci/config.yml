@@ -12,17 +12,28 @@ checkout:
 jobs:
 
   unittests:
-    machine:
-      enabled: true
-      python:
-        version: pypy-2.2.1
+    docker:
+      - image: circleci/python:2.7.15-stretch
     steps:
       - checkout
       - run:
+          name: install python/pip/libvirt packages
+          command: sudo apt-get install -yq python-libvirt libvirt-dev python-dev python-pip python-virtualenv
+      - run:
+          name: Download pip
+          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+      - run:
+          name: Install pip
+          command: sudo python get-pip.py
+      - run:
+          name: Install virtualenv
+          command: pip install --user virtualenv
+      - run:
           name: install tox
-          command: pip install tox
-      - run: tox -e flake8
-      - run: tox -e py27
+          command: pip install --user tox
+      - run: /home/circleci/.local/bin/tox -e flake8
+      - run: /home/circleci/.local/bin/tox -e py27
+      - run: /home/circleci/.local/bin/tox -e validate
 
 workflows:
   version: 2
