@@ -75,6 +75,8 @@ def configure(**kwargs):
         template_params['memory_size'] = memory_size * 2
     if not template_params.get("instance_uuid"):
         template_params["instance_uuid"] = str(uuid.uuid4())
+    if not template_params.get("domain_type"):
+        template_params["domain_type"] = "qemu"
 
     params = {"ctx": ctx}
     params.update(template_params)
