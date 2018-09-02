@@ -36,7 +36,30 @@ def create(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
+    if not template_params:
+        template_params = {}
+
+    if not template_params.get("resource_id"):
+        template_params["resource_id"] = ctx.instance.id
+    if not template_params.get("instance_uuid"):
+        template_params["instance_uuid"] = str(uuid.uuid4())
+
     try:
+        if template_params.get("use_external_resource"):
+            # lookup the default network by name
+            network = conn.networkLookupByName(template_params["resource_id"])
+            if network is None:
+                raise cfy_exc.NonRecoverableError(
+                    'Failed to find the network'
+                )
+
+            # save settings
+            ctx.instance.runtime_properties['params'] = template_params
+            ctx.instance.runtime_properties['resource_id'] = network.name()
+            ctx.instance.runtime_properties['use_external_resource'] = True
+            return
+
+        # templates
         network_file = kwargs.get('network_file')
         network_template = kwargs.get('network_template')
 
@@ -54,13 +77,6 @@ def create(**kwargs):
                 network_template = domain_desc.read()
 
         template_engine = Template(network_template)
-        if not template_params:
-            template_params = {}
-
-        if not template_params.get("resource_id"):
-            template_params["resource_id"] = ctx.instance.id
-        if not template_params.get("instance_uuid"):
-            template_params["instance_uuid"] = str(uuid.uuid4())
 
         params = {"ctx": ctx}
         params.update(template_params)
@@ -78,6 +94,7 @@ def create(**kwargs):
         ctx.logger.info('Params: ' + repr(template_params))
         ctx.instance.runtime_properties['params'] = template_params
         ctx.instance.runtime_properties['resource_id'] = network.name()
+        ctx.instance.runtime_properties['use_external_resource'] = False
 
         active = network.isActive()
         if active == 1:
@@ -95,6 +112,10 @@ def delete(**kwargs):
 
     if not resource_id:
         ctx.logger.info("No network for delete")
+        return
+
+    if ctx.instance.runtime_properties.get('use_external_resource'):
+        ctx.logger.info("External resource, skip")
         return
 
     libvirt_auth, _ = common.get_libvirt_params(**kwargs)

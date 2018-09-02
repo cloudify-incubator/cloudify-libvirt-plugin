@@ -54,6 +54,12 @@ Description for Network
 **Supported properties:**
 * `libvirt_auth`: connection url, by default: `qemu:///system`
 * `backup_dir`: directory for save backups, by default: `./`
+* `params`: params used for create object.
+  * `use_external_resource`: (optional) Use external object. The default is `false`.
+  * `resource_id`: (optional) Used to identify the object when `use_external_resource` is true.
+  * `dev`: Device name
+  * `forwards`: settings for network `forwards`.
+  * `ips`: settings for network `ips`.
 
 **Inputs for actions:**
 * `create`:
