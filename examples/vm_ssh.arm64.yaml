@@ -54,12 +54,15 @@ node_templates:
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
-          implementation: scripts/copy_disk.py
+          implementation: scripts/disk_prepere.py
           executor: central_deployment_agent
           inputs:
             disk_image: { get_attribute: [vm_download, vm_image] }
             cloud_init: { get_attribute: [cloud_init, cloud_config ] }
         configure:
+          implementation: scripts/copy_disk.py
+          executor: central_deployment_agent
+        start:
           implementation: scripts/copy_disk_arm.sh
           executor: central_deployment_agent
         stop:

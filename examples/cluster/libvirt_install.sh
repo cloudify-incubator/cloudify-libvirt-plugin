@@ -5,5 +5,6 @@ sudo service libvirtd restart
 sudo groupadd libvirt
 sudo usermod --append --groups kvm `whoami`
 sudo usermod --append --groups libvirt `whoami`
+sudo usermod --append --groups qemu `whoami`
 
 sudo service libvirtd restart
