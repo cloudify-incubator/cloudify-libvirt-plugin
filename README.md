@@ -80,8 +80,8 @@ Update `ip` runtime property in VM by data from network.
 
 ## Examples
 * [Ubuntu:amd64 vm with scale support](examples/vm_agent.yaml)
-* [Ubuntu:amd64 vm with connection by fabric](examples/vm_fabric.amd64.yaml)
-* [Ubuntu:arm64 vm with connection by fabric](examples/vm_fabric.arm64.yaml)
+* [Ubuntu:amd64 vm with connection by fabric](examples/vm_ssh.amd64.yaml)
+* [Ubuntu:arm64 vm with connection by fabric](examples/vm_ssh.arm64.yaml)
 * [CentOS:amd64 vm with connection by fabric](examples/vm_centos.amd64.yaml)
 * [CentOS:Cluster blueprint, run vm on separate cento host](examples/cluster.yaml)
   Has support `floating ips` separated by commas. Look to inputs.

@@ -2,13 +2,24 @@ tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/4.3.1/types.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.7.1/plugin.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.4.1/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.9.2/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.5.0/plugin.yaml
 
 inputs:
 
   agent_password:
     default: passw0rd
+
+relationships:
+
+  vm_connected_to_storage:
+    derived_from: cloudify.relationships.contained_in
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        preconfigure:
+          implementation: scripts/vm_preconfigure.py
+          executor: central_deployment_agent
+          inputs: {}
 
 node_templates:
 
@@ -38,7 +49,7 @@ node_templates:
           executor: central_deployment_agent
           inputs:
             CATALOG_URL: https://cloud-images.ubuntu.com/trusty/current
-            DISK: trusty-server-cloudimg-arm64-uefi1.img
+            DISK: trusty-server-cloudimg-amd64-disk1.img
 
   cloud_init:
     type: cloudify.nodes.CloudInit.CloudConfig
@@ -59,14 +70,16 @@ node_templates:
           inputs:
             disk_image: { get_attribute: [vm_download, vm_image] }
             cloud_init: { get_attribute: [cloud_init, cloud_config ] }
-        configure:
-          implementation: scripts/copy_disk_arm.sh
-          executor: central_deployment_agent
-        stop:
-          implementation: scripts/remove_disk_arm.sh
-          executor: central_deployment_agent
         delete:
           implementation: scripts/remove_disk.sh
+          executor: central_deployment_agent
+      # backups related section
+      cloudify.interfaces.snapshot:
+        create:
+          implementation: scripts/snapshot_disk_create.py
+          executor: central_deployment_agent
+        delete:
+          implementation: scripts/snapshot_disk_delete.py
           executor: central_deployment_agent
     relationships:
     - target: cloud_init
@@ -84,29 +97,16 @@ node_templates:
         create:
           inputs:
             params:
+              vcpu: 2
               memory_size: 524288
-              nvram: { get_attribute: [disk_clone, bios_flash] }
-              disks:
-                - bus: scsi
-                  dev: sda
-                  file: { get_attribute: [disk_clone, vm_image] }
-                  type: qcow2
-                - bus: scsi
-                  dev: sdb
-                  file: { get_attribute: [disk_clone, vm_cloudinit] }
-                  type: qcow2
               networks:
                 - network: { get_attribute: [common_network, resource_id] }
-                  dev: macvtap0
-                  mac: 52:54:00:c0:67:81
-        configure:
-          inputs:
-            domain_file: templates/domain-arm.xml
+                  dev: vnet0
     relationships:
       - target: common_network
         type: cloudify.libvirt.relationships.connected_to
       - target: disk_clone
-        type: cloudify.relationships.contained_in
+        type: vm_connected_to_storage
 
   example_node:
     type: cloudify.nodes.WebServer
@@ -121,6 +121,25 @@ node_templates:
                 ip: { get_attribute: [qemu_vm, ip] }
               calls:
               - action: uname -a
+      cloudify.interfaces.freeze:
+          fs_prepare:
+            implementation: terminal.cloudify_terminal.tasks.run
+            inputs:
+              terminal_auth:
+                user: ubuntu
+                password: { get_input: agent_password }
+                ip: { get_attribute: [qemu_vm, ip] }
+              calls:
+              - action: sudo sync
+          fs_finalize:
+            implementation: terminal.cloudify_terminal.tasks.run
+            inputs:
+              terminal_auth:
+                user: ubuntu
+                password: { get_input: agent_password }
+                ip: { get_attribute: [qemu_vm, ip] }
+              calls:
+              - action: sudo sync
     relationships:
       - target: qemu_vm
         type: cloudify.relationships.contained_in
