@@ -1,0 +1,19 @@
+releases:
+
+  v0.1: Implement minimal functionality for create network and virtual machine
+        based on embeded template.
+
+  v0.2: Add arm support and autogenerate mac addresses in examples
+
+  v0.3: Fix network validation and use virtio devices in embeded templates
+
+  v0.4:
+   * Add cluster example with external ip support
+   * Add backup/restore suport for vm
+   * Support for statistics workflow
+
+  v0.4.1: Add support for disk/network backup/snapshots
+
+  v0.5.0:
+    * Support for reuse external network
+    * Support for kvm virtualization in embeded examples
