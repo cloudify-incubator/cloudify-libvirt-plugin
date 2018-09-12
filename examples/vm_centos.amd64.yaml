@@ -2,8 +2,8 @@ tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/4.3.1/types.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.7.1/plugin.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.4.1/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.9.2/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.5.0/plugin.yaml
 
 inputs:
 
@@ -65,11 +65,14 @@ node_templates:
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
-          implementation: scripts/copy_disk.py
+          implementation: scripts/disk_prepere.py
           executor: central_deployment_agent
           inputs:
             disk_image: { get_attribute: [vm_download, vm_image] }
             cloud_init: { get_attribute: [cloud_init, cloud_config ] }
+        configure:
+          implementation: scripts/copy_disk.py
+          executor: central_deployment_agent
         delete:
           implementation: scripts/remove_disk.sh
           executor: central_deployment_agent
@@ -97,6 +100,7 @@ node_templates:
         create:
           inputs:
             params:
+              domain_type: qemu
               vcpu: 2
               memory_size: 524288
               networks:

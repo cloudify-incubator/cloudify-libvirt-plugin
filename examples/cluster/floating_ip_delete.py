@@ -52,9 +52,10 @@ def execute_command(command, extra_args=None):
 
 if __name__ == '__main__':
 
-    internal_ip = ctx.instance.runtime_properties["internal_ip"]
-    external_ip = ctx.instance.runtime_properties["external_ip"]
-    external_interface = ctx.instance.runtime_properties["external_interface"]
+    runtime_properties = ctx.instance.runtime_properties
+    internal_ip = runtime_properties.get("internal_ip")
+    external_ip = runtime_properties.get("external_ip")
+    external_interface = runtime_properties.get("external_interface")
 
     if external_ip and internal_ip and external_interface:
         execute_command(["sudo", "/sbin/ip", "address",

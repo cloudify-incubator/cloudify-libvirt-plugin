@@ -6,35 +6,60 @@ tosca_definitions_version: cloudify_dsl_1_3
 imports:
   - http://www.getcloudify.org/spec/cloudify/4.3.1/types.yaml
   - http://www.getcloudify.org/spec/fabric-plugin/1.5.1/plugin.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.7.1/plugin.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.4.1/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.9.2/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.5.0/plugin.yaml
 
 inputs:
+  # agent settings
+  agent_user:
+    default: { get_secret: agent_user }
 
+  # you should use such key for kvm host
+  agent_public_key:
+    default: { get_secret: agent_key_public }
+
+  disk_size:
+    default: 24GB
+
+  agent_private_key:
+    default: { get_secret: agent_private_key }
+
+  # cluster(kvm) settings
   cluster_user:
     type: string
     description: >
       Cluster user name.
+    default: { get_secret: libvirt_cluster_user }
 
   cluster_key:
     type: string
     description: >
       SSH key for cluster user.
+    default: { get_secret: libvirt_cluster_key }
+
+  manager_network:
+    type: string
+    description: >
+      Manager network.
+    default: { get_secret: libvirt_common_network }
 
   cluster_host:
     type: string
     description: >
       LibVirt computer ip address.
+    default: { get_secret: libvirt_cluster_host }
 
   external_ip:
     type: string
     description: >
       List external ip's separated by comma.
+    default: { get_secret: libvirt_cluster_external_ip }
 
   external_dev:
     type: string
     description: >
       Device with external access (same device as used for cluster_host ip)
+    default: { get_secret: libvirt_cluster_external_dev }
 
 relationships:
 
@@ -47,9 +72,17 @@ relationships:
           executor: central_deployment_agent
           inputs: {}
 
+node_types:
+
+  agent_domain:
+    derived_from: cloudify.nodes.Compute
+    properties:
+      use_public_ip:
+        default: false
+
 node_templates:
 
-  libvirt_install:
+  vm_download:
     type: cloudify.nodes.WebServer
     interfaces:
       cloudify.interfaces.lifecycle:
@@ -65,14 +98,21 @@ node_templates:
           implementation: fabric.fabric_plugin.tasks.run_script
           inputs:
             fabric_env: *fab_env
-            script_path: cluster/download_vm.sh
-            CATALOG_URL: https://buildlogs.centos.org/centos/7/isos/x86_64
-            DISK: CentOS-7-x86_64-GenericCloud-ContainerHost.qcow2
+            script_path: scripts/download_vm.sh
+            CATALOG_URL: https://cloud.centos.org/centos/7/images/
+            DISK: CentOS-7-x86_64-GenericCloud-1805.qcow2
 
   common_network:
     type: cloudify.libvirt.network
     properties:
-      libvirt_auth: {concat:["qemu+ssh://", { get_input: cluster_user }, "@", { get_input: cluster_host }, "/system?sshauth=privkey&keyfile=", { get_input: cluster_key }]}
+      libvirt_auth: &libvirt_auth
+        concat:
+         - "qemu+ssh://"
+         - { get_input: cluster_user }
+         - "@"
+         - { get_input: cluster_host }
+         - "/system?sshauth=privkey&keyfile="
+         - { get_input: cluster_key }
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -82,38 +122,62 @@ node_templates:
               forwards:
                 - mode: nat
               ips:
-                - address: 192.168.142.1
+                - address: 192.168.141.1
                   netmask: 255.255.255.0
                   dhcp:
-                    start: 192.168.142.2
-                    end: 192.168.142.254
+                    start: 192.168.141.2
+                    end: 192.168.141.254
     relationships:
-    - target: libvirt_install
+    - target: vm_download
       type: cloudify.relationships.depends_on
+
+  cloud_init:
+    type: cloudify.nodes.CloudInit.CloudConfig
+    properties:
+      resource_config:
+        groups:
+          - { get_input: agent_user }
+        users:
+          - name: { get_input: agent_user }
+            # group with same name as username required for agent running
+            primary_group: { get_input: agent_user }
+            groups: wheel
+            shell: /bin/bash
+            sudo: ['ALL=(ALL) NOPASSWD:ALL']
+            ssh-authorized-keys:
+              - { get_input: agent_public_key }
 
   disk_clone:
     type: cloudify.nodes.ApplicationServer
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
+          implementation: scripts/disk_prepere.py
+          executor: central_deployment_agent
+          inputs:
+            disk_image: { get_attribute: [vm_download, vm_image] }
+            cloud_init: { get_attribute: [cloud_init, cloud_config ] }
+            disk_size: { get_input: disk_size }
+        configure:
           implementation: fabric.fabric_plugin.tasks.run_script
           inputs:
             fabric_env: *fab_env
-            DISK: { get_attribute: [libvirt_install, vm_image] }
-            script_path: cluster/copy_disk.sh
+            script_path: scripts/copy_disk.py
         delete:
           implementation: fabric.fabric_plugin.tasks.run_script
           inputs:
             fabric_env: *fab_env
             script_path: scripts/remove_disk.sh
     relationships:
-    - target: libvirt_install
+    - target: vm_download
+      type: cloudify.relationships.depends_on
+    - target: cloud_init
       type: cloudify.relationships.depends_on
 
-  qemu_vm:
+  base_vm:
     type: cloudify.libvirt.domain
     properties:
-      libvirt_auth: {concat:["qemu+ssh://", { get_input: cluster_user }, "@", { get_input: cluster_host }, "/system?sshauth=privkey&keyfile=", { get_input: cluster_key }]}
+      libvirt_auth: *libvirt_auth
       agent_config:
         install_method: none
     interfaces:
@@ -123,6 +187,7 @@ node_templates:
             params:
               vcpu: 2
               memory_size: 1048576
+              domain_type: kvm
               networks:
                 - network: { get_attribute: [common_network, resource_id] }
                   dev: vnet0
@@ -133,7 +198,7 @@ node_templates:
         type: vm_connected_to_storage
 
   floating_ip:
-    type: cloudify.nodes.ApplicationServer
+    type: cloudify.nodes.VirtualIP
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -142,7 +207,7 @@ node_templates:
             fabric_env: *fab_env
             EXTERNAL_INTERFACE: { get_input: external_dev }
             EXTERNAL_IP: { get_input: external_ip }
-            INTERNAL_IP: { get_attribute: [qemu_vm, ip] }
+            INTERNAL_IP: { get_attribute: [base_vm, ip] }
             script_path: cluster/floating_ip.py
         delete:
           implementation: fabric.fabric_plugin.tasks.run_script
@@ -150,8 +215,8 @@ node_templates:
             fabric_env: *fab_env
             script_path: cluster/floating_ip_delete.py
     relationships:
-    - target: qemu_vm
-      type: cloudify.relationships.depends_on
+    - target: base_vm
+      type: cloudify.relationships.connected_to
 
   example_node:
     type: cloudify.nodes.WebServer
@@ -161,8 +226,8 @@ node_templates:
             implementation: terminal.cloudify_terminal.tasks.run
             inputs:
               terminal_auth:
-                user: centos
-                password: passw0rd
+                user: { get_input: agent_user }
+                key_content: { get_input: agent_private_key }
                 ip: { get_attribute: [floating_ip, external_ip] }
               calls:
               - action: uname -a

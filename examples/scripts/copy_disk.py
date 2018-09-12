@@ -15,10 +15,13 @@
 # limitations under the License.
 #
 
+import re
 import os
 import subprocess
 from cloudify import ctx
-from cloudify.state import ctx_parameters as inputs
+
+MAX_HOSTNAME = 63
+ID_HASH_CONST = 6
 
 
 def execute_command(command, extra_args=None):
@@ -52,10 +55,32 @@ def execute_command(command, extra_args=None):
     return output
 
 
+def _gen_hostname(name):
+    # replace underscores with hyphens
+    final_name = name.replace('_', '-')
+    # remove all non-alphanumeric characters except hyphens
+    final_name = re.sub(r'[^a-zA-Z0-9-]+', '', final_name)
+    # assure the first character is alpha
+    if not final_name[0].isalpha():
+        final_name = '{0}{1}'.format('a', final_name)
+    # trim to the length limit
+    if len(final_name) > MAX_HOSTNAME:
+        remain_len = MAX_HOSTNAME - len(final_name)
+        final_name = '{0}{1}'.format(
+            final_name[:remain_len - ID_HASH_CONST],
+            final_name[-ID_HASH_CONST:])
+    # remove dash at the end
+    while len(final_name) and final_name[-1] == "-":
+        final_name = final_name[:-1]
+    # convert string to lowercase
+    final_name = final_name.lower()
+    return final_name
+
+
 if __name__ == '__main__':
-    base_disk = inputs['disk_image']
+    base_disk = ctx.instance.runtime_properties['disk_image']
     ctx.logger.debug("Base image: {}".format(repr(base_disk)))
-    cloud_init = inputs['cloud_init']
+    cloud_init = ctx.instance.runtime_properties['cloud_init']
     ctx.logger.debug("Cloud init: {}".format(repr(cloud_init)))
     cwd = os.getcwd()
     ctx.logger.debug("Current dir: {}".format(repr(cwd)))
@@ -64,6 +89,9 @@ if __name__ == '__main__':
     execute_command(["qemu-img", "create", "-f", "qcow2", "-o",
                      "backing_file={}".format(base_disk),
                      copy_disk])
+    if ctx.instance.runtime_properties.get('disk_size'):
+        execute_command(["qemu-img", "resize", copy_disk,
+                         ctx.instance.runtime_properties.get('disk_size')])
 
     ctx.instance.runtime_properties["vm_image"] = copy_disk
 
@@ -71,8 +99,10 @@ if __name__ == '__main__':
     os.mkdir(seed_disk)
     with open("{}/meta-data".format(seed_disk), 'w') as meta_file:
         meta_file.write("instance-id: {}\n".format(ctx.instance.id))
-        meta_file.write("local-hostname: {}\n".format(ctx.instance.id))
+        meta_file.write("local-hostname: {}\n"
+                        .format(_gen_hostname(ctx.instance.id)))
 
+    ctx.logger.debug("cloud init:\n===\n{}\n===\n".format(cloud_init))
     with open("{}/user-data".format(seed_disk), 'w') as user_data:
         user_data.write(cloud_init)
 

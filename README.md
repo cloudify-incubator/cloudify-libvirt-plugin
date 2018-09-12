@@ -5,6 +5,8 @@ Before use check that you have 64bit platform, if you want to start 64bit images
 
 Based on https://libvirt.org/docs/libvirt-appdev-guide-python/en-US/html/
 
+Release history: [CHANGELOG.txt](CHANGELOG.txt)
+
 # Plugin Requirements
 
 * Python versions:
@@ -22,12 +24,13 @@ sudo usermod -a -G libvirtd `whoami`
 
 # Before use on CentOS
 ```shell
-sudo yum install epel-release
-sudo yum install qemu-kvm libvirt-devel libvirt libvirt-python wget gcc python-devel qemu-system-x86 genisoimage
+sudo yum install -y epel-release
+sudo yum install -y qemu-kvm libvirt-devel libvirt libvirt-python wget gcc python-devel qemu-system-x86 genisoimage
 sudo service libvirtd restart
 sudo groupadd libvirt
 sudo usermod -a -G libvirt cfyuser
 sudo usermod -a -G kvm cfyuser
+sudo usermod -a -G qemu cfyuser
 ```
 
 # Types
@@ -64,7 +67,7 @@ Description for Network
 **Inputs for actions:**
 * `create`:
   * `params`: list of params for template, can be empty
-  * `network_file`: Teplate for network. Defaults is [network.xml](cloudify_libvirt/templates/network.xml)
+  * `network_file`: Template for network. Defaults is [network.xml](cloudify_libvirt/templates/network.xml)
 
 **Runtime properties:**
 * `resource_id`: resource name.
@@ -77,8 +80,8 @@ Update `ip` runtime property in VM by data from network.
 
 ## Examples
 * [Ubuntu:amd64 vm with scale support](examples/vm_agent.yaml)
-* [Ubuntu:amd64 vm with connection by fabric](examples/vm_fabric.amd64.yaml)
-* [Ubuntu:arm64 vm with connection by fabric](examples/vm_fabric.arm64.yaml)
+* [Ubuntu:amd64 vm with connection by fabric](examples/vm_ssh.amd64.yaml)
+* [Ubuntu:arm64 vm with connection by fabric](examples/vm_ssh.arm64.yaml)
 * [CentOS:amd64 vm with connection by fabric](examples/vm_centos.amd64.yaml)
 * [CentOS:Cluster blueprint, run vm on separate cento host](examples/cluster.yaml)
   Has support `floating ips` separated by commas. Look to inputs.
