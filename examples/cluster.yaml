@@ -1,6 +1,3 @@
-# before use:
-# * cat examples/cluster/id_rsa.pub | ssh <cluster_user>@<cluster_host> "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >>  ~/.ssh/authorized_keys"
-# * and set cluster_key to examples/cluster/id_rsa
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
@@ -18,8 +15,11 @@ inputs:
   agent_public_key:
     default: { get_secret: agent_key_public }
 
+  agent_key_private:
+    default: { get_secret: agent_key_private }
+
   disk_size:
-    default: 24GB
+    default: 80GB
 
   agent_private_key:
     default: { get_secret: agent_private_key }
@@ -36,12 +36,6 @@ inputs:
     description: >
       SSH key for cluster user.
     default: { get_secret: libvirt_cluster_key }
-
-  manager_network:
-    type: string
-    description: >
-      Manager network.
-    default: { get_secret: libvirt_common_network }
 
   cluster_host:
     type: string
@@ -60,6 +54,12 @@ inputs:
     description: >
       Device with external access (same device as used for cluster_host ip)
     default: { get_secret: libvirt_cluster_external_dev }
+
+  libvirt_common_network:
+    type: string
+    description: >
+      Manager common network
+    default: { get_secret: libvirt_common_network }
 
 relationships:
 
@@ -99,10 +99,10 @@ node_templates:
           inputs:
             fabric_env: *fab_env
             script_path: scripts/download_vm.sh
-            CATALOG_URL: https://cloud.centos.org/centos/7/images/
-            DISK: CentOS-7-x86_64-GenericCloud-1805.qcow2
+            CATALOG_URL: http://repository.cloudifysource.org/cloudify/4.4.0/ga-release
+            DISK: cloudify-manager-4.4ga.qcow2
 
-  common_network:
+  manager_network:
     type: cloudify.libvirt.network
     properties:
       libvirt_auth: &libvirt_auth
@@ -118,15 +118,16 @@ node_templates:
         create:
           inputs:
             params:
-              dev: virbr1
+              resource_id: manager_network
+              dev: virbr9
               forwards:
                 - mode: nat
               ips:
-                - address: 192.168.141.1
+                - address: 192.168.149.1
                   netmask: 255.255.255.0
                   dhcp:
-                    start: 192.168.141.2
-                    end: 192.168.141.254
+                    start: 192.168.149.2
+                    end: 192.168.149.254
     relationships:
     - target: vm_download
       type: cloudify.relationships.depends_on
@@ -146,6 +147,15 @@ node_templates:
             sudo: ['ALL=(ALL) NOPASSWD:ALL']
             ssh-authorized-keys:
               - { get_input: agent_public_key }
+        write_files:
+          - path: /etc/cloudify/kvm.key
+            owner: cfyuser:cfyuser
+            permissions: '0400'
+            content: { get_input: agent_private_key }
+          - path: /etc/cloudify/kvm.key.pub
+            owner: cfyuser:cfyuser
+            permissions: '0400'
+            content: { get_input: agent_public_key }
 
   disk_clone:
     type: cloudify.nodes.ApplicationServer
@@ -186,13 +196,13 @@ node_templates:
           inputs:
             params:
               vcpu: 2
-              memory_size: 1048576
+              memory_size: 8388608 # 8Gb in Kb
               domain_type: kvm
               networks:
-                - network: { get_attribute: [common_network, resource_id] }
+                - network: { get_attribute: [manager_network, resource_id] }
                   dev: vnet0
     relationships:
-      - target: common_network
+      - target: manager_network
         type: cloudify.libvirt.relationships.connected_to
       - target: disk_clone
         type: vm_connected_to_storage
@@ -218,19 +228,100 @@ node_templates:
     - target: base_vm
       type: cloudify.relationships.connected_to
 
+  qemu_vm:
+    type: agent_domain
+    properties:
+      use_public_ip: true
+      agent_config:
+        user: { get_input: agent_user }
+        key: { get_input: agent_private_key }
+        install_method: remote
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: scripts/vm_fillip.py
+          executor: central_deployment_agent
+        start:
+          implementation: terminal.cloudify_terminal.tasks.run
+          inputs:
+            terminal_auth: &terminal_auth
+              user: { get_input: agent_user }
+              ip: { get_attribute: [SELF, ip] }
+              key_content: { get_input: agent_private_key }
+              port: 22
+              promt_check:
+                - '$'
+            calls:
+              # network fix
+              - action: sudo ip link set dev eth0 mtu 1400
+              # space fix
+              - action: sudo sudo xfs_growfs /
+              # add additional/support tools
+              - action: sudo yum install -y openssl-1.0.2k deltarpm nano
+              # add libvirt dependencies
+              - action: sudo yum install -y libvirt-devel libvirt libvirt-python
+              - action: sudo service libvirtd restart
+              - action: sudo groupadd libvirt
+              - action: sudo usermod -a -G libvirt cfyuser
+              - action: sudo usermod -a -G kvm cfyuser
+              - action: sudo usermod -a -G qemu cfyuser
+              # upload plugins
+              - action: cfy profile use localhost -u admin -p admin -t default_tenant
+              - action: cfy plugins bundle-upload
+              - action: cfy plugin upload -y https://github.com/cloudify-incubator/cloudify-utilities-plugin/releases/download/1.9.2/plugin.yaml http://repository.cloudifysource.org/cloudify/wagons/cloudify-utilities-plugin/1.9.2/cloudify_utilities_plugin-1.9.2-py27-none-linux_x86_64-centos-Core.wgn
+              - action: cfy plugin upload -y https://github.com/cloudify-incubator/cloudify-libvirt-plugin/releases/download/0.5.0/plugin.yaml https://github.com/cloudify-incubator/cloudify-libvirt-plugin/releases/download/0.5.0/cloudify_libvirt_plugin-0.5.0-py27-none-linux_x86_64-centos-Core.wgn
+              - action: cfy plugin upload -y https://github.com/cloudify-incubator/cloudify-kubernetes-plugin/releases/download/2.3.1/plugin.yaml https://github.com/cloudify-incubator/cloudify-kubernetes-plugin/releases/download/2.3.1/cloudify_kubernetes_plugin-2.3.1-py27-none-linux_x86_64-centos-Core.wgn
+              # set secrets
+              - action: sudo cfy secret create agent_key_private -u -f /etc/cloudify/kvm.key
+              - action: sudo cfy secret create agent_key_public -u -f /etc/cloudify/kvm.key.pub
+              - action: cfy secret create agent_use_public_ip -u -s "private"
+              - action: {concat:["cfy secret create agent_user -u -s '", { get_input: agent_user }, "'"]}
+              - action: cfy secret create bootstrap_hash -u -s "#"
+              - action: cfy secret create bootstrap_token -u -s "#"
+              - action: cfy secret create cfy_password -u -s admin
+              - action: cfy secret create cfy_tenant -u -s default_tenant
+              - action: cfy secret create cfy_user -u -s admin
+              - action: cfy secret create kubernetes-admin_client_certificate_data -u -s "#"
+              - action: cfy secret create kubernetes-admin_client_key_data -u -s "#"
+              - action: cfy secret create kubernetes_certificate_authority_data -u -s "#"
+              - action: cfy secret create kubernetes_master_ip -u -s "#"
+              - action: cfy secret create kubernetes_master_port -u -s "#"
+              - action: {concat:["cfy secret create libvirt_cluster_external_dev -u -s ", { get_input: external_dev }]}
+              - action: {concat:["cfy secret create libvirt_cluster_external_ip -u -s '", { get_input: external_ip }, "'"]}
+              - action: {concat:["cfy secret create libvirt_cluster_host -u -s ", { get_input: cluster_host }]}
+              - action: {concat:["cfy secret create libvirt_cluster_key -u -s ", { get_input: cluster_key }]}
+              - action: {concat:["cfy secret create libvirt_cluster_user -u -s ", { get_input: cluster_user }]}
+              - action: {concat:["cfy secret create libvirt_common_network -u -s ", { get_input: libvirt_common_network }]}
+    relationships:
+      - target: base_vm
+        type: cloudify.relationships.depends_on
+      - target: floating_ip
+        type: cloudify.relationships.depends_on
+
   example_node:
     type: cloudify.nodes.WebServer
     interfaces:
       cloudify.interfaces.lifecycle:
-          start:
-            implementation: terminal.cloudify_terminal.tasks.run
-            inputs:
-              terminal_auth:
-                user: { get_input: agent_user }
-                key_content: { get_input: agent_private_key }
-                ip: { get_attribute: [floating_ip, external_ip] }
-              calls:
-              - action: uname -a
+        configure:
+          implementation: scripts/vm_check.py
     relationships:
-      - target: floating_ip
+      - target: qemu_vm
         type: cloudify.relationships.contained_in
+
+groups:
+
+  vm_scale:
+    members:
+      - disk_clone
+      - base_vm
+      - floating_ip
+      - cloud_init
+      - qemu_vm
+
+policies:
+
+  vm_scaling_policy:
+    type: cloudify.policies.scaling
+    properties:
+      default_instances:  1
+    targets: [vm_scale]
