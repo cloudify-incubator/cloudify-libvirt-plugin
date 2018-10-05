@@ -5,6 +5,50 @@ plugins:
     package_version: '0.5.0'
     source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/0.5.0.zip
 
+data_types:
+
+  domain_params:
+    properties:
+      vcpu:
+        required: false
+        type: integer
+        description: >
+          CPU count
+      memory_minsize:
+        required: false
+        type: integer
+        description: >
+          Recomended VM memory size in KiB for downgrade
+      memory_size:
+        required: false
+        type: integer
+        description: >
+          VM memory size in KiB
+      nvram:
+        required: false
+        type: string
+        description: >
+          Path to nvram
+      disks:
+        required: false
+        description: >
+          List connected disks
+        default: []
+      networks:
+        required: false
+        description: >
+          List connected networks
+        default: []
+      full_dump:
+        description: >
+          Make full dump for backups with memory snapshot to dump file.
+          On create/restore backup will be removed all snapshots in domain.
+        default: False
+      domain_type:
+        description: >
+          Type of virtualization
+        default: qemu
+
 node_types:
 
   cloudify.libvirt.domain:
@@ -14,6 +58,8 @@ node_types:
         default: './'
       libvirt_auth:
         default: 'qemu:///system'
+      params:
+        type: domain_params
     interfaces:
       cloudify.interfaces.lifecycle:
         create:

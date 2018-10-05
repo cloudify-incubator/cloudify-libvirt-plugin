@@ -304,6 +304,34 @@ def _cleanup_snapshots(ctx, dom):
             .format(subsnapshots=repr(subsnapshots)))
 
 
+def _delete_force(dom):
+    """remove domain internaly without cleanup for properties"""
+    if dom.snapshotNum():
+        ctx.logger.info("Domain has {} snapshots."
+                        .format(dom.snapshotNum()))
+        _cleanup_snapshots(ctx, dom)
+
+    state, _ = dom.state()
+
+    if state != libvirt.VIR_DOMAIN_SHUTOFF:
+        if dom.destroy() < 0:
+            raise cfy_exc.RecoverableError(
+                'Can not destroy guest domain.'
+            )
+
+    try:
+        if dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM) < 0:
+            raise cfy_exc.RecoverableError(
+                'Can not undefine guest domain with NVRAM.'
+            )
+    except AttributeError as e:
+        ctx.logger.info("Non critical error: {}".format(str(e)))
+        if dom.undefine() < 0:
+            raise cfy_exc.RecoverableError(
+                'Can not undefine guest domain.'
+            )
+
+
 @operation
 def delete(**kwargs):
     ctx.logger.info("delete")
@@ -333,33 +361,39 @@ def delete(**kwargs):
                 'Failed to find the domain'
             )
 
-        if dom.snapshotNum():
-            ctx.logger.info("Domain has {} snapshots."
-                            .format(dom.snapshotNum()))
-            _cleanup_snapshots(ctx, dom)
-
-        state, _ = dom.state()
-
-        if state != libvirt.VIR_DOMAIN_SHUTOFF:
-            if dom.destroy() < 0:
-                raise cfy_exc.RecoverableError(
-                    'Can not destroy guest domain.'
-                )
-
-        try:
-            if dom.undefineFlags(libvirt.VIR_DOMAIN_UNDEFINE_NVRAM) < 0:
-                raise cfy_exc.RecoverableError(
-                    'Can not undefine guest domain with NVRAM.'
-                )
-        except AttributeError as e:
-            ctx.logger.info("Non critical error: {}".format(str(e)))
-            if dom.undefine() < 0:
-                raise cfy_exc.RecoverableError(
-                    'Can not undefine guest domain.'
-                )
+        _delete_force(dom)
         ctx.instance.runtime_properties['resource_id'] = None
     finally:
         conn.close()
+
+
+def _backup_create(conn, dom, resource_id, snapshot_name, full_dump, kwargs):
+    if full_dump:
+        ctx.logger.info("Used full raw dump")
+        # dump domain with memory and recreate domain
+        # all snapshots will be removed
+        if common.check_binary_place(common.get_backupdir(kwargs),
+                                     resource_id):
+            raise cfy_exc.NonRecoverableError(
+                "Backup {snapshot_name} already exists."
+                .format(snapshot_name=snapshot_name,))
+        # create place for store
+        common.create_binary_place(common.get_backupdir(kwargs))
+        # save backup to directory (domain will be removed)
+        dom.save(common.get_binary_place(common.get_backupdir(kwargs),
+                                         resource_id))
+        # restore from backup
+        conn.restore(common.get_binary_place(common.get_backupdir(kwargs),
+                                             resource_id))
+    else:
+        # non-destructive export for domain
+        if common.read_node_state(common.get_backupdir(kwargs),
+                                  resource_id):
+            raise cfy_exc.NonRecoverableError(
+                "Backup {snapshot_name} already exists."
+                .format(snapshot_name=snapshot_name,))
+        common.save_node_state(common.get_backupdir(kwargs), resource_id,
+                               dom.XMLDesc())
 
 
 @operation
@@ -436,17 +470,35 @@ def snapshot_create(**kwargs):
             snapshot = dom.snapshotCreateXML(xmlconfig)
             ctx.logger.info("Snapshot name: {}".format(snapshot.getName()))
         else:
-            if common.read_node_state(common.get_backupdir(kwargs),
-                                      resource_id):
-                raise cfy_exc.NonRecoverableError(
-                    "Backup {snapshot_name} already exists."
-                    .format(snapshot_name=snapshot_name,))
-            common.save_node_state(common.get_backupdir(kwargs), resource_id,
-                                   dom.XMLDesc())
+            _backup_create(
+                conn, dom, resource_id, snapshot_name,
+                template_params.get('full_dump', False),
+                kwargs)
             ctx.logger.info("Backup {snapshot_name} is created."
                             .format(snapshot_name=snapshot_name,))
     finally:
         conn.close()
+
+
+def _backup_delete(dom, resource_id, snapshot_name, full_dump, kwargs):
+    if full_dump:
+        ctx.logger.info("Used full raw dump")
+        # remove raw domain state
+        if not common.check_binary_place(common.get_backupdir(kwargs),
+                                         resource_id):
+            raise cfy_exc.NonRecoverableError(
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
+        common.delete_binary_place(common.get_backupdir(kwargs),
+                                   resource_id)
+    else:
+        # remove xml dump only
+        if not common.read_node_state(common.get_backupdir(kwargs),
+                                      resource_id):
+            raise cfy_exc.NonRecoverableError(
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
+        common.delete_node_state(common.get_backupdir(kwargs), resource_id)
 
 
 @operation
@@ -493,15 +545,47 @@ def snapshot_delete(**kwargs):
                             subsnapshots=repr(subsnapshots)))
             snapshot.delete()
         else:
-            if not common.read_node_state(common.get_backupdir(kwargs),
-                                          resource_id):
-                raise cfy_exc.NonRecoverableError(
-                    "No backups found with name: {snapshot_name}."
-                    .format(snapshot_name=snapshot_name,))
-            common.delete_node_state(common.get_backupdir(kwargs), resource_id)
+            _backup_delete(
+                dom, resource_id, snapshot_name,
+                template_params.get('full_dump', False), kwargs)
         ctx.logger.info("Backup deleted: {}".format(snapshot_name))
     finally:
         conn.close()
+
+
+def _backup_apply(conn, dom, resource_id, snapshot_name, full_dump, kwargs):
+    if full_dump:
+        ctx.logger.info("Used full raw dump")
+        # restore domain with memory and recreate domain
+        # all snapshots will be removed
+        if not common.check_binary_place(common.get_backupdir(kwargs),
+                                         resource_id):
+            raise cfy_exc.NonRecoverableError(
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
+
+        # old domain will be removed
+        _delete_force(dom)
+        # and new created
+        conn.restore(common.get_binary_place(common.get_backupdir(kwargs),
+                                             resource_id))
+    else:
+        # light version of backup
+        dom_backup = common.read_node_state(common.get_backupdir(kwargs),
+                                            resource_id)
+        if not dom_backup:
+            raise cfy_exc.NonRecoverableError(
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
+
+        if dom_backup.strip() != dom.XMLDesc().strip():
+            ctx.logger.info("We have different configs,\n{}\nvs\n{}\n"
+                            .format(
+                                repr(dom_backup.strip()),
+                                repr(dom.XMLDesc().strip())))
+        else:
+            ctx.logger.info("Already used such configuration: {}"
+                            .format(snapshot_name))
 
 
 @operation
@@ -540,21 +624,10 @@ def snapshot_apply(**kwargs):
             dom.revertToSnapshot(snapshot)
             ctx.logger.info("Reverted to: {}".format(snapshot.getName()))
         else:
-            dom_backup = common.read_node_state(common.get_backupdir(kwargs),
-                                                resource_id)
-            if not dom_backup:
-                raise cfy_exc.NonRecoverableError(
-                    "No backups found with name: {snapshot_name}."
-                    .format(snapshot_name=snapshot_name,))
-
-            if dom_backup.strip() != dom.XMLDesc().strip():
-                ctx.logger.info("We have different configs,\n{}\nvs\n{}\n"
-                                .format(
-                                    repr(dom_backup.strip()),
-                                    repr(dom.XMLDesc().strip())))
-            else:
-                ctx.logger.info("Already used such configuration: {}"
-                                .format(snapshot_name))
+            _backup_apply(
+                conn, dom, resource_id, snapshot_name,
+                template_params.get('full_dump', False), kwargs)
+            ctx.logger.info("Restored to: {}".format(snapshot_name))
     finally:
         conn.close()
 

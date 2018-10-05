@@ -70,3 +70,26 @@ def delete_node_state(backup_dir, object_name):
     if not os.path.isfile("{}/{}.xml".format(backup_dir, object_name)):
         return
     os.remove("{}/{}.xml".format(backup_dir, object_name))
+
+
+def get_binary_place(backup_dir, object_name):
+    # return path to binary/directory place
+    return "{}/{}_raw".format(backup_dir, object_name)
+
+
+def check_binary_place(backup_dir, object_name):
+    # check binary/directory place exists
+    return os.path.isfile(get_binary_place(backup_dir, object_name))
+
+
+def create_binary_place(backup_dir):
+    # create binary/directory place
+    if not os.path.isdir(backup_dir):
+        os.makedirs(backup_dir)
+
+
+def delete_binary_place(backup_dir, object_name):
+    # create binary/directory place
+    full_path = get_binary_place(backup_dir, object_name)
+    if os.path.isfile(full_path):
+        os.remove(full_path)
