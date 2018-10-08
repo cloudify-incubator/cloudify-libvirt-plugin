@@ -97,9 +97,58 @@ def configure(**kwargs):
         conn.close()
 
 
+def _update_network_list(dom, lease_only=True):
+    if lease_only:
+        request_type = libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE
+    else:
+        request_type = libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT
+
+    # get known by libvirt interfaces
+    virt_networks = dom.interfaceAddresses(request_type)
+
+    # networks from instance
+    if 'params' not in ctx.instance.runtime_properties:
+        ctx.instance.runtime_properties['params'] = {}
+    # add networks
+    if 'networks' not in ctx.instance.runtime_properties['params']:
+        ctx.instance.runtime_properties['params']['networks'] = []
+    # instance networks
+    instance_networks = ctx.instance.runtime_properties['params']["networks"]
+
+    for virt_name in virt_networks:
+        lease = virt_networks[virt_name]
+        for vm_network in instance_networks:
+            # copy current state
+            if vm_network.get('mac') == lease.get('hwaddr'):
+                vm_network['dev'] = virt_name
+                vm_network['addrs'] = lease.get('addrs', [])
+                # force update
+                ctx.instance.runtime_properties._set_changed()
+                break
+        else:
+            if lease.get('hwaddr'):
+                instance_networks.append({
+                    'dev': virt_name,
+                    'addrs': lease.get('addrs', []),
+                    'mac': lease['hwaddr']
+                })
+                # force update
+                ctx.instance.runtime_properties._set_changed()
+
+    if ctx.instance.runtime_properties.get('ip'):
+        # we already have some ip
+        return
+
+    for vm_network in instance_networks:
+        for ip_addr in vm_network.get('addrs', []):
+            if ip_addr.get('type') == libvirt.VIR_IP_ADDR_TYPE_IPV4:
+                ctx.instance.runtime_properties['ip'] = ip_addr['addr']
+                return
+
+
 @operation
-def start(**kwargs):
-    ctx.logger.info("start")
+def reboot(**kwargs):
+    ctx.logger.info("reboot")
 
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
@@ -107,7 +156,7 @@ def start(**kwargs):
         ctx.logger.info("No servers for start")
         return
 
-    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -126,20 +175,65 @@ def start(**kwargs):
                 'Failed to find the domain'
             )
 
-        state, _ = dom.state()
+        if dom.reboot() < 0:
+            raise cfy_exc.NonRecoverableError(
+                'Can not reboot guest domain.'
+            )
+    finally:
+        conn.close()
+
+
+@operation
+def start(**kwargs):
+    ctx.logger.info("start")
+
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+
+    if not resource_id:
+        ctx.logger.info("No servers for start")
+        return
+
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    # wait for ip on start
+    wait_for_ip = template_params.get('wait_for_ip', False)
+
+    try:
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
+
+        if dom is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain'
+            )
 
         for i in xrange(10):
-            if state == libvirt.VIR_DOMAIN_RUNNING:
-                ctx.logger.info("Looks as running.")
-                return
-
+            state, _ = dom.state()
             ctx.logger.info("Tring to start vm {}/10".format(i))
-            if dom.create() < 0:
+            if wait_for_ip:
+                ctx.logger.info("Waiting for ip.")
+            if state == libvirt.VIR_DOMAIN_RUNNING:
+                _update_network_list(dom)
+                # wait for ip check
+                if not wait_for_ip or (
+                    wait_for_ip and ctx.instance.runtime_properties.get('ip')
+                ):
+                    ctx.logger.info("Looks as running.")
+                    return
+            elif dom.create() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not start guest domain.'
                 )
+
             time.sleep(30)
-            state, _ = dom.state()
     finally:
         conn.close()
 
@@ -172,6 +266,9 @@ def stop(**kwargs):
             raise cfy_exc.NonRecoverableError(
                 'Failed to find the domain'
             )
+
+        # reset ip on stop
+        ctx.instance.runtime_properties['ip'] = None
 
         state, _ = dom.state()
         for i in xrange(10):

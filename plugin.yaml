@@ -7,6 +7,34 @@ plugins:
 
 data_types:
 
+  network_params:
+    properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
+      dev:
+        required: false
+        default: ""
+        description: >
+          Device name
+      forwards:
+        required: false
+        default: []
+        description: >
+          Settings for network `forwards`.
+      ips:
+        required: false
+        default: []
+        description: >
+          Settings for network `ips`.
+
   domain_params:
     properties:
       vcpu:
@@ -40,10 +68,14 @@ data_types:
           List connected networks
         default: []
       full_dump:
+        default: false
         description: >
           Make full dump for backups with memory snapshot to dump file.
           On create/restore backup will be removed all snapshots in domain.
-        default: False
+      wait_for_ip:
+        default: true
+        description: >
+          Wait until we have some private ip on interfaces
       domain_type:
         description: >
           Type of virtualization
@@ -70,6 +102,9 @@ node_types:
           inputs: {}
         start:
           implementation: libvirt.cloudify_libvirt.domain_tasks.start
+          inputs: {}
+        reboot:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.reboot
           inputs: {}
         stop:
           implementation: libvirt.cloudify_libvirt.domain_tasks.stop
@@ -109,6 +144,8 @@ node_types:
         default: './'
       libvirt_auth:
         default: 'qemu:///system'
+      params:
+        type: network_params
     interfaces:
       cloudify.interfaces.lifecycle:
         create:

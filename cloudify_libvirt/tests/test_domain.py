@@ -19,6 +19,7 @@ import libvirt
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError, RecoverableError
+from cloudify.manager import DirtyTrackingDict
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.domain_tasks as domain_tasks
@@ -33,10 +34,10 @@ class TestDomainTasks(LibVirtCommonTest):
                 'params': {'a': "b", 'c': 'g'},
                 'libvirt_auth': {'a': 'c'}
             },
-            runtime_properties={
+            runtime_properties=DirtyTrackingDict({
                 'params': {'c': "d", 'e': 'g', 'memory_size': 1024},
                 'libvirt_auth': {'a': 'd'}
-            }
+            })
         )
         current_ctx.set(_ctx)
         return _ctx
@@ -90,6 +91,15 @@ class TestDomainTasks(LibVirtCommonTest):
         self.assertEqual(
             _ctx.instance.runtime_properties['resource_id'], "domain_name"
         )
+
+    def test_reboot(self):
+        self._test_no_resource_id(domain_tasks.reboot)
+        self._test_check_correct_connect_action(domain_tasks.reboot)
+        self._test_check_correct_connect_no_object(domain_tasks.reboot)
+        self._test_action_states(
+            domain_tasks.reboot,
+            [],
+            'Can not reboot guest domain.')
 
     def test_start(self):
         self._test_no_resource_id(domain_tasks.start)
@@ -255,9 +265,86 @@ class TestDomainTasks(LibVirtCommonTest):
             {'cpu': 20.0, 'memory': 1.0}
         )
 
+    def test_update_network_list(self):
+        _ctx = self._create_ctx()
+        domain = mock.Mock()
+        domain.name = mock.Mock(return_value="domain_name")
+
+        # info from leases
+        _ctx.instance.runtime_properties['ip'] = '127.0.0.1'
+        domain.interfaceAddresses = mock.Mock(return_value={})
+        domain_tasks._update_network_list(domain)
+        domain.interfaceAddresses.assert_called_with(
+            libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE)
+
+        # info from agent
+        _ctx.instance.runtime_properties['ip'] = None
+        domain.interfaceAddresses = mock.Mock(return_value={})
+        domain_tasks._update_network_list(domain, False)
+        domain.interfaceAddresses.assert_called_with(
+            libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT)
+
+        # insert new
+        _ctx.instance._runtime_properties = DirtyTrackingDict({})
+        domain.interfaceAddresses = mock.Mock(return_value={
+            'vnet0': {
+                'hwaddr': '52:54:00:09:ba:97',
+                'addrs': [{
+                    'prefix': 24,
+                    'type': 0,
+                    'addr': '192.168.142.148'
+                }]
+            }
+        })
+        domain_tasks._update_network_list(domain, True)
+        self.assertEqual(
+            _ctx.instance.runtime_properties['params']["networks"],
+            [{
+                'addrs': [{
+                    'prefix': 24,
+                    'addr': '192.168.142.148',
+                    'type': 0
+                }],
+                'mac': '52:54:00:09:ba:97',
+                'dev': 'vnet0'
+            }]
+        )
+
+        # update
+        _ctx.instance.runtime_properties['params']["networks"] = [{
+            'network': 'common_network',
+            'dev': 'vnet0',
+            'mac': '52:54:00:09:ba:97'
+        }]
+        domain.interfaceAddresses = mock.Mock(return_value={
+            'vnet0': {
+                'hwaddr': '52:54:00:09:ba:97',
+                'addrs': [{
+                    'prefix': 24,
+                    'type': 0,
+                    'addr': '192.168.142.149'
+                }]
+            }
+        })
+        domain_tasks._update_network_list(domain, True)
+        self.assertEqual(
+            _ctx.instance.runtime_properties['params']["networks"],
+            [{
+                'network': 'common_network',
+                'mac': '52:54:00:09:ba:97',
+                'dev': 'vnet0',
+                'addrs': [{
+                    'prefix': 24,
+                    'type': 0,
+                    'addr': '192.168.142.149'
+                }],
+            }]
+        )
+
     def _test_action_states(self, func, states, error_text):
         _ctx = self._create_ctx()
         _ctx.instance.runtime_properties['resource_id'] = 'check'
+        _ctx.instance.runtime_properties['params']['wait_for_ip'] = True
         fake_states = [state for state in states]
 
         def _fake_state():
@@ -265,6 +352,7 @@ class TestDomainTasks(LibVirtCommonTest):
 
         domain = mock.Mock()
         domain.name = mock.Mock(return_value="domain_name")
+        domain.interfaceAddresses = mock.Mock(return_value={})
         domain.state = _fake_state
 
         connect = self._create_fake_connection()
@@ -275,6 +363,7 @@ class TestDomainTasks(LibVirtCommonTest):
         domain.shutdown = mock.Mock(return_value=-1)
         domain.resume = mock.Mock(return_value=-1)
         domain.suspend = mock.Mock(return_value=-1)
+        domain.reboot = mock.Mock(return_value=-1)
 
         with mock.patch(
             "cloudify_libvirt.domain_tasks.libvirt.open",
@@ -286,11 +375,13 @@ class TestDomainTasks(LibVirtCommonTest):
             ):
                 func(ctx=_ctx)
 
+        _ctx.instance.runtime_properties['params']['wait_for_ip'] = False
         # run
         domain.create = mock.Mock(return_value=0)
         domain.shutdown = mock.Mock(return_value=0)
         domain.resume = mock.Mock(return_value=0)
         domain.suspend = mock.Mock(return_value=0)
+        domain.reboot = mock.Mock(return_value=0)
         fake_states = [state for state in states]
 
         def _fake_state():
