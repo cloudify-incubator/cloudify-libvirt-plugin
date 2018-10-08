@@ -25,6 +25,21 @@ from pkg_resources import resource_filename
 import cloudify_libvirt.common as common
 
 
+def _update_template_params(template_params):
+    # set all params to default values
+    if not template_params:
+        template_params = {}
+
+    if not template_params:
+        template_params = {}
+
+    if not template_params.get("resource_id"):
+        template_params["resource_id"] = ctx.instance.id
+    if not template_params.get("instance_uuid"):
+        template_params["instance_uuid"] = str(uuid.uuid4())
+    return template_params
+
+
 @operation
 def create(**kwargs):
     ctx.logger.info("Creating new network.")
@@ -36,13 +51,7 @@ def create(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    if not template_params:
-        template_params = {}
-
-    if not template_params.get("resource_id"):
-        template_params["resource_id"] = ctx.instance.id
-    if not template_params.get("instance_uuid"):
-        template_params["instance_uuid"] = str(uuid.uuid4())
+    template_params = _update_template_params(template_params)
 
     try:
         if template_params.get("use_external_resource"):

@@ -116,7 +116,7 @@ class LibVirtCommonTest(unittest.TestCase):
         connect.close = mock.Mock(return_value=None)
         return connect
 
-    def _test_no_resource_id(self, func):
+    def _create_ctx(self):
         _ctx = MockCloudifyContext(
             'node_name',
             properties={
@@ -128,9 +128,24 @@ class LibVirtCommonTest(unittest.TestCase):
             }
         )
         current_ctx.set(_ctx)
+        return _ctx
 
+    def _test_no_resource_id(self, func):
+        _ctx = self._create_ctx()
         # no initilized/no resource id
         func(ctx=_ctx)
+
+    def _test_reused_object(self, func, use_existed=True):
+        # check use prexisted object
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = 'resource'
+        _ctx.instance.runtime_properties['use_external_resource'] = use_existed
+        connect = self._create_fake_connection()
+        with mock.patch(
+            "cloudify_libvirt.network_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            func(ctx=_ctx)
 
     def _test_no_snapshot_name(self, _ctx, func):
         _ctx.instance.runtime_properties['resource_id'] = 'resource'

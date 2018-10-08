@@ -37,6 +37,16 @@ data_types:
 
   domain_params:
     properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
       vcpu:
         required: false
         type: integer

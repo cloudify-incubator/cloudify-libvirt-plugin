@@ -42,6 +42,40 @@ class TestDomainTasks(LibVirtCommonTest):
         current_ctx.set(_ctx)
         return _ctx
 
+    def test_reuse_domain_create_not_exist(self):
+        # check correct handle exception with empty domain
+        _ctx = self._create_ctx()
+        self._check_no_such_object_domain(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.configure, [], {'ctx': _ctx, 'params': {
+                "resource_id": 'resource',
+                "use_external_resource": True,
+            }}, 'resource')
+
+    def test_reuse_domain_create_exist(self):
+        # check that we can use domain
+        _ctx = self._create_ctx()
+
+        domain = mock.Mock()
+        domain.name = mock.Mock(return_value="resource")
+
+        connect = self._create_fake_connection()
+        connect.lookupByName = mock.Mock(return_value=domain)
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            domain_tasks.configure(ctx=_ctx, params={
+                    "resource_id": 'resource',
+                    "use_external_resource": True})
+        connect.lookupByName.assert_called_with('resource')
+        self.assertEqual(
+            _ctx.instance.runtime_properties['resource_id'], 'resource'
+        )
+        self.assertTrue(
+            _ctx.instance.runtime_properties['use_external_resource']
+        )
+
     def test_create(self):
         """check create call, should run get_libvirt_params, without any
         real logic"""
@@ -108,10 +142,11 @@ class TestDomainTasks(LibVirtCommonTest):
         self._test_action_states(
             domain_tasks.start,
             [libvirt.VIR_DOMAIN_RUNNING, libvirt.VIR_DOMAIN_RUNNING_UNKNOWN],
-            'Can not start guest domain.')
+            'Can not start guest domain.', 'No ip for now, try later')
 
     def test_stop(self):
         self._test_no_resource_id(domain_tasks.stop)
+        self._test_reused_object(domain_tasks.stop)
         self._test_check_correct_connect_action(domain_tasks.stop)
         self._test_check_correct_connect_no_object(domain_tasks.stop)
         self._test_action_states(
@@ -139,6 +174,7 @@ class TestDomainTasks(LibVirtCommonTest):
 
     def test_delete(self):
         self._test_no_resource_id(domain_tasks.delete)
+        self._test_reused_object(domain_tasks.delete)
         self._test_check_correct_connect_action(domain_tasks.delete)
         self._test_check_correct_connect_no_object(domain_tasks.delete)
 
@@ -341,7 +377,8 @@ class TestDomainTasks(LibVirtCommonTest):
             }]
         )
 
-    def _test_action_states(self, func, states, error_text):
+    def _test_action_states(self, func, states, error_text,
+                            error_check_ip=None):
         _ctx = self._create_ctx()
         _ctx.instance.runtime_properties['resource_id'] = 'check'
         _ctx.instance.runtime_properties['params']['wait_for_ip'] = True
@@ -387,6 +424,7 @@ class TestDomainTasks(LibVirtCommonTest):
         def _fake_state():
             return fake_states.pop(), ""
 
+        domain.state = _fake_state
         connect = self._create_fake_connection()
         connect.lookupByName = mock.Mock(return_value=domain)
         with mock.patch(
@@ -398,6 +436,25 @@ class TestDomainTasks(LibVirtCommonTest):
                 mock.Mock(return_value=None)
             ):
                 func(ctx=_ctx)
+
+        # no ip but running
+        if error_check_ip:
+            domain.state = mock.Mock(
+                return_value=(libvirt.VIR_DOMAIN_RUNNING, ""))
+            _ctx.instance.runtime_properties['params']['wait_for_ip'] = True
+            with mock.patch(
+                "cloudify_libvirt.domain_tasks.libvirt.open",
+                mock.Mock(return_value=connect)
+            ):
+                with self.assertRaisesRegexp(
+                    RecoverableError,
+                    error_check_ip
+                ):
+                    with mock.patch(
+                        "time.sleep",
+                        mock.Mock(return_value=None)
+                    ):
+                        func(ctx=_ctx)
 
     def _test_check_correct_connect_no_object(self, func):
         # check correct handle exception with empty connection

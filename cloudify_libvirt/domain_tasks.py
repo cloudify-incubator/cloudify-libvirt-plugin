@@ -33,34 +33,8 @@ def create(**kwargs):
     # so we will define domain later
 
 
-@operation
-def configure(**kwargs):
-    ctx.logger.info("configure")
-
-    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
-    conn = libvirt.open(libvirt_auth)
-    if conn is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to open connection to the hypervisor'
-        )
-
-    domain_file = kwargs.get('domain_file')
-    domain_template = kwargs.get('domain_template')
-
-    if domain_file:
-        domain_template = ctx.get_resource(domain_file)
-
-    if not domain_file and not domain_template:
-        resource_dir = resource_filename(__name__, 'templates')
-        domain_file = '{}/domain.xml'.format(resource_dir)
-        ctx.logger.info("Will be used internal: %s" % domain_file)
-
-    if not domain_template:
-        domain_desc = open(domain_file)
-        with domain_desc:
-            domain_template = domain_desc.read()
-
-    template_engine = Template(domain_template)
+def _update_template_params(template_params):
+    # set all params to default values
     if not template_params:
         template_params = {}
 
@@ -77,14 +51,66 @@ def configure(**kwargs):
         template_params["instance_uuid"] = str(uuid.uuid4())
     if not template_params.get("domain_type"):
         template_params["domain_type"] = "qemu"
+    return template_params
 
-    params = {"ctx": ctx}
-    params.update(template_params)
-    xmlconfig = template_engine.render(params)
 
-    ctx.logger.debug(repr(xmlconfig))
+@operation
+def configure(**kwargs):
+    ctx.logger.info("configure")
+
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    template_params = _update_template_params(template_params)
 
     try:
+        if template_params.get("use_external_resource"):
+            # lookup the default domain by name
+            try:
+                dom = conn.lookupByName(template_params["resource_id"])
+            except Exception as e:
+                dom = None
+                ctx.logger.info("Non critical error: {}".format(str(e)))
+
+            if dom is None:
+                raise cfy_exc.NonRecoverableError(
+                    'Failed to find the domain'
+                )
+
+            # save settings
+            ctx.instance.runtime_properties['params'] = template_params
+            ctx.instance.runtime_properties['resource_id'] = dom.name()
+            ctx.instance.runtime_properties['use_external_resource'] = True
+            return
+
+        # templates
+        domain_file = kwargs.get('domain_file')
+        domain_template = kwargs.get('domain_template')
+
+        if domain_file:
+            domain_template = ctx.get_resource(domain_file)
+
+        if not domain_file and not domain_template:
+            resource_dir = resource_filename(__name__, 'templates')
+            domain_file = '{}/domain.xml'.format(resource_dir)
+            ctx.logger.info("Will be used internal: %s" % domain_file)
+
+        if not domain_template:
+            domain_desc = open(domain_file)
+            with domain_desc:
+                domain_template = domain_desc.read()
+
+        template_engine = Template(domain_template)
+        params = {"ctx": ctx}
+        params.update(template_params)
+        xmlconfig = template_engine.render(params)
+
+        ctx.logger.debug(repr(xmlconfig))
+
         dom = conn.defineXML(xmlconfig)
         if dom is None:
             raise cfy_exc.NonRecoverableError(
@@ -234,6 +260,12 @@ def start(**kwargs):
                 )
 
             time.sleep(30)
+
+        # still no ip
+        if wait_for_ip:
+            raise cfy_exc.RecoverableError(
+                'No ip for now, try later'
+            )
     finally:
         conn.close()
 
@@ -246,6 +278,10 @@ def stop(**kwargs):
 
     if not resource_id:
         ctx.logger.info("No servers for delete")
+        return
+
+    if ctx.instance.runtime_properties.get('use_external_resource'):
+        ctx.logger.info("External resource, skip")
         return
 
     libvirt_auth, _ = common.get_libvirt_params(**kwargs)
@@ -437,6 +473,10 @@ def delete(**kwargs):
 
     if not resource_id:
         ctx.logger.info("No servers for delete")
+        return
+
+    if ctx.instance.runtime_properties.get('use_external_resource'):
+        ctx.logger.info("External resource, skip")
         return
 
     libvirt_auth, _ = common.get_libvirt_params(**kwargs)

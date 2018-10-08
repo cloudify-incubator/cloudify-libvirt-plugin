@@ -200,18 +200,6 @@ class TestNetworkTasks(LibVirtCommonTest):
             _ctx.instance.runtime_properties['use_external_resource']
         )
 
-    def _test_reused_network(self, func, use_existed=True):
-        # check use prexisted network
-        _ctx = self._create_ctx()
-        _ctx.instance.runtime_properties['resource_id'] = 'resource'
-        _ctx.instance.runtime_properties['use_external_resource'] = use_existed
-        connect = self._create_fake_connection()
-        with mock.patch(
-            "cloudify_libvirt.network_tasks.libvirt.open",
-            mock.Mock(return_value=connect)
-        ):
-            func(ctx=_ctx)
-
     def _test_empty_network_backup(self, func):
         # check correct handle exception with empty network
         _ctx = self._create_ctx()
@@ -453,7 +441,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         self._test_no_resource_id(network_tasks.delete)
         self._test_empty_connection(network_tasks.delete)
         self._test_empty_network(network_tasks.delete)
-        self._test_reused_network(network_tasks.delete)
+        self._test_reused_object(network_tasks.delete)
 
         # delete with error
         _ctx = self._create_ctx()

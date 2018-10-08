@@ -21,3 +21,5 @@ releases:
   v0.6.0:
     * Support for dump full vm snapshot to fs on backup
     * Update start action for fill in `network` in vm runtime properties
+    * Cluster Example: Automatically add libvirt host to trusted
+    * Support for reuse external vm

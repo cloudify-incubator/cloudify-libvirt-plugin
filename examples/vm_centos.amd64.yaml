@@ -147,3 +147,19 @@ node_templates:
     relationships:
       - target: qemu_vm
         type: cloudify.relationships.contained_in
+
+  reuse_vm:
+    type: cloudify.libvirt.domain
+    properties:
+      agent_config:
+        install_method: none
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              use_external_resource: true
+              resource_id: { get_attribute: [qemu_vm, resource_id] }
+    relationships:
+      - target: example_node
+        type: cloudify.relationships.depends_on

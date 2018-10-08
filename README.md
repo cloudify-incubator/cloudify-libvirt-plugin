@@ -42,8 +42,13 @@ Description for VM
 * `libvirt_auth`: connection url, by default: `qemu:///system`
 * `backup_dir`: directory for save backups, by default: `./`
 * `params`: params used for create object, useful for embeded template.
+  * `use_external_resource`: (optional) Use external object. The default is
+    `false`.
+  * `resource_id`: (optional) Used to identify the object when
+    `use_external_resource` is true.
   * `vcpu`: CPU count
-  * `memory_minsize`: (optional) recomended VM memory size in KiB for downgrade.
+  * `memory_minsize`: (optional) recomended VM memory size in KiB for
+    downgrade.
   * `memory_size`: VM memory size in KiB
   * `nvram`: (optional) path to nvram (useful for arm)
   * `disks`: list connected disks
@@ -57,7 +62,8 @@ Description for VM
 **Inputs for actions:**
 * `configure`:
   * `params`: list of params for template, can be empty
-  * `domain_file`: Template for domain. Defaults is [domain.xml](cloudify_libvirt/templates/domain.xml)
+  * `domain_file`: Template for domain. Defaults is
+    [domain.xml](cloudify_libvirt/templates/domain.xml)
 
 **Runtime properties:**
 * `resource_id`: resource name.
@@ -70,8 +76,10 @@ Description for Network
 * `libvirt_auth`: connection url, by default: `qemu:///system`
 * `backup_dir`: directory for save backups, by default: `./`
 * `params`: params used for create object.
-  * `use_external_resource`: (optional) Use external object. The default is `false`.
-  * `resource_id`: (optional) Used to identify the object when `use_external_resource` is true.
+  * `use_external_resource`: (optional) Use external object. The default is
+    `false`.
+  * `resource_id`: (optional) Used to identify the object when
+    `use_external_resource` is true.
   * `dev`: Device name
   * `forwards`: settings for network `forwards`.
   * `ips`: settings for network `ips`.
@@ -79,7 +87,8 @@ Description for Network
 **Inputs for actions:**
 * `create`:
   * `params`: list of params for template, can be empty
-  * `network_file`: Template for network. Defaults is [network.xml](cloudify_libvirt/templates/network.xml)
+  * `network_file`: Template for network. Defaults is
+    [network.xml](cloudify_libvirt/templates/network.xml)
 
 **Runtime properties:**
 * `resource_id`: resource name.
