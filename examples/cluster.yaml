@@ -1,10 +1,10 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/4.3.1/types.yaml
+  - http://www.getcloudify.org/spec/cloudify/4.4/types.yaml
   - http://www.getcloudify.org/spec/fabric-plugin/1.5.1/plugin.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.9.2/plugin.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.5.0/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.9.5/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.6.0/plugin.yaml
 
 inputs:
   # agent settings
@@ -269,7 +269,8 @@ node_templates:
               - action: cfy profile use localhost -u admin -p admin -t default_tenant
               - action: cfy plugins bundle-upload
               - action: cfy plugin upload -y https://github.com/cloudify-incubator/cloudify-utilities-plugin/releases/download/1.9.2/plugin.yaml http://repository.cloudifysource.org/cloudify/wagons/cloudify-utilities-plugin/1.9.2/cloudify_utilities_plugin-1.9.2-py27-none-linux_x86_64-centos-Core.wgn
-              - action: cfy plugin upload -y https://github.com/cloudify-incubator/cloudify-libvirt-plugin/releases/download/0.5.0/plugin.yaml https://github.com/cloudify-incubator/cloudify-libvirt-plugin/releases/download/0.5.0/cloudify_libvirt_plugin-0.5.0-py27-none-linux_x86_64-centos-Core.wgn
+              - action: cfy plugin upload -y https://github.com/cloudify-incubator/cloudify-utilities-plugin/releases/download/1.9.5/plugin.yaml http://repository.cloudifysource.org/cloudify/wagons/cloudify-utilities-plugin/1.9.5/cloudify_utilities_plugin-1.9.5-py27-none-linux_x86_64-centos-Core.wgn
+              - action: cfy plugin upload -y https://github.com/cloudify-incubator/cloudify-libvirt-plugin/releases/download/0.6.0/plugin.yaml https://github.com/cloudify-incubator/cloudify-libvirt-plugin/releases/download/0.6.0/cloudify_libvirt_plugin-0.6.0-py27-none-linux_x86_64-centos-Core.wgn
               - action: cfy plugin upload -y https://github.com/cloudify-incubator/cloudify-kubernetes-plugin/releases/download/2.3.1/plugin.yaml https://github.com/cloudify-incubator/cloudify-kubernetes-plugin/releases/download/2.3.1/cloudify_kubernetes_plugin-2.3.1-py27-none-linux_x86_64-centos-Core.wgn
               # set secrets
               - action: sudo cfy secret create agent_key_private -u -f /etc/cloudify/kvm.key

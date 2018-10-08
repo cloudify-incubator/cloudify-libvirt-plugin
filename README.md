@@ -41,6 +41,18 @@ Description for VM
 **Supported properties:**
 * `libvirt_auth`: connection url, by default: `qemu:///system`
 * `backup_dir`: directory for save backups, by default: `./`
+* `params`: params used for create object, useful for embeded template.
+  * `vcpu`: CPU count
+  * `memory_minsize`: (optional) recomended VM memory size in KiB for downgrade.
+  * `memory_size`: VM memory size in KiB
+  * `nvram`: (optional) path to nvram (useful for arm)
+  * `disks`: list connected disks
+  * `networks`: list connected networks
+  * `full_dump`: make full dump for backups with memory snapshot to dump file.
+    On create/restore backup will be removed all snapshots in domain.
+  * `wait_for_ip`: (optional) wait until we have some private ip on interfaces
+    The default is `true`.
+  * `domain_type`: (optional) type of virtualization. The default is `qemu`
 
 **Inputs for actions:**
 * `configure`:
