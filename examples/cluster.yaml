@@ -21,9 +21,6 @@ inputs:
   disk_size:
     default: 80GB
 
-  agent_private_key:
-    default: { get_secret: agent_private_key }
-
   # cluster(kvm) settings
   cluster_user:
     type: string
@@ -151,7 +148,7 @@ node_templates:
           - path: /etc/cloudify/kvm.key
             owner: cfyuser:cfyuser
             permissions: '0400'
-            content: { get_input: agent_private_key }
+            content: { get_input: agent_key_private }
           - path: /etc/cloudify/kvm.key.pub
             owner: cfyuser:cfyuser
             permissions: '0400'
@@ -234,7 +231,7 @@ node_templates:
       use_public_ip: true
       agent_config:
         user: { get_input: agent_user }
-        key: { get_input: agent_private_key }
+        key: { get_input: agent_key_private }
         install_method: remote
     interfaces:
       cloudify.interfaces.lifecycle:
@@ -247,7 +244,7 @@ node_templates:
             terminal_auth: &terminal_auth
               user: { get_input: agent_user }
               ip: { get_attribute: [SELF, ip] }
-              key_content: { get_input: agent_private_key }
+              key_content: { get_input: agent_key_private }
               port: 22
               promt_check:
                 - '$'
@@ -265,6 +262,15 @@ node_templates:
               - action: sudo usermod -a -G libvirt cfyuser
               - action: sudo usermod -a -G kvm cfyuser
               - action: sudo usermod -a -G qemu cfyuser
+              # enable ssh connect
+              - action: sudo mkdir -p /etc/cloudify/.ssh/
+              # enable write for current user, will fix on next step
+              - action: sudo chmod 777 -R /etc/cloudify/.ssh
+              # dump ssh key to known_hsot
+              - action: {concat:["sudo ssh-keyscan -H ", { get_input: cluster_host }, " >> /etc/cloudify/.ssh/known_hosts"]}
+              - action: sudo chmod 700 /etc/cloudify/.ssh
+              - action: sudo chmod 600 /etc/cloudify/.ssh/known_hosts
+              - action: sudo chown cfyuser:cfyuser -R /etc/cloudify/.ssh
               # upload plugins
               - action: cfy profile use localhost -u admin -p admin -t default_tenant
               - action: cfy plugins bundle-upload

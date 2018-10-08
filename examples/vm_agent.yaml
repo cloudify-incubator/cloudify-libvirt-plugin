@@ -18,8 +18,8 @@ inputs:
   disk_size:
     default: 24GB
 
-  agent_private_key:
-    default: { get_secret: agent_private_key }
+  agent_key_private:
+    default: { get_secret: agent_key_private }
 
   # cluster(kvm) settings
   cluster_user:
@@ -221,7 +221,7 @@ node_templates:
       use_public_ip: true
       agent_config:
         user: { get_input: agent_user }
-        key: { get_input: agent_private_key }
+        key: { get_input: agent_key_private }
         install_method: remote
     interfaces:
       cloudify.interfaces.lifecycle:
@@ -234,7 +234,7 @@ node_templates:
             terminal_auth: &terminal_auth
               user: { get_input: agent_user }
               ip: { get_attribute: [SELF, ip] }
-              key_content: { get_input: agent_private_key }
+              key_content: { get_input: agent_key_private }
               port: 22
               promt_check:
                 - '$'
