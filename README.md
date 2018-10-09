@@ -41,15 +41,15 @@ Description for VM
 **Supported properties:**
 * `libvirt_auth`: connection url, by default: `qemu:///system`
 * `backup_dir`: directory for save backups, by default: `./`
+* `use_external_resource`: (optional) Use external object. The default is
+  `false`.
+* `resource_id`: (optional) Used to identify the object when
+  `use_external_resource` is true.
 * `params`: params used for create object, useful for embeded template.
-  * `use_external_resource`: (optional) Use external object. The default is
-    `false`.
-  * `resource_id`: (optional) Used to identify the object when
-    `use_external_resource` is true.
   * `vcpu`: CPU count
-  * `memory_minsize`: (optional) recomended VM memory size in KiB for
-    downgrade.
   * `memory_size`: VM memory size in KiB
+  * `memory_maxsize`: (optional) recomended VM memory size in KiB for
+        downgrade. The default is value from `memory_size` * 2.
   * `nvram`: (optional) path to nvram (useful for arm)
   * `disks`: list connected disks
   * `networks`: list connected networks
@@ -75,11 +75,11 @@ Description for Network
 **Supported properties:**
 * `libvirt_auth`: connection url, by default: `qemu:///system`
 * `backup_dir`: directory for save backups, by default: `./`
+* `use_external_resource`: (optional) Use external object. The default is
+  `false`.
+* `resource_id`: (optional) Used to identify the object when
+  `use_external_resource` is true.
 * `params`: params used for create object.
-  * `use_external_resource`: (optional) Use external object. The default is
-    `false`.
-  * `resource_id`: (optional) Used to identify the object when
-    `use_external_resource` is true.
   * `dev`: Device name
   * `forwards`: settings for network `forwards`.
   * `ips`: settings for network `ips`.

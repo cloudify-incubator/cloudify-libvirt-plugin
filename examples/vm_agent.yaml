@@ -61,7 +61,7 @@ inputs:
 relationships:
 
   vm_connected_to_storage:
-    derived_from: cloudify.relationships.contained_in
+    derived_from: cloudify.relationships.depends_on
     target_interfaces:
       cloudify.interfaces.relationship_lifecycle:
         preconfigure:
@@ -72,7 +72,7 @@ relationships:
 node_types:
 
   agent_domain:
-    derived_from: cloudify.nodes.Compute
+    derived_from: cloudify.nodes.WebServer
     properties:
       use_public_ip:
         default: false
@@ -114,16 +114,8 @@ node_templates:
       cloudify.interfaces.lifecycle:
         create:
           inputs:
-            params:
-              dev: virbr1
-              forwards:
-                - mode: nat
-              ips:
-                - address: 192.168.141.1
-                  netmask: 255.255.255.0
-                  dhcp:
-                    start: 192.168.141.2
-                    end: 192.168.141.254
+            resource_id: { get_secret: libvirt_common_network }
+            use_external_resource: true
     relationships:
     - target: vm_download
       type: cloudify.relationships.depends_on
@@ -176,7 +168,9 @@ node_templates:
     properties:
       libvirt_auth: *libvirt_auth
       agent_config:
-        install_method: none
+        user: { get_input: agent_user }
+        key: { get_input: agent_key_private }
+        install_method: remote
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -219,16 +213,11 @@ node_templates:
     type: agent_domain
     properties:
       use_public_ip: true
-      agent_config:
-        user: { get_input: agent_user }
-        key: { get_input: agent_key_private }
-        install_method: remote
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
-          implementation: scripts/vm_fillip.py
-          executor: central_deployment_agent
-        start:
+          implementation: scripts/vm_check.py
+        configure:
           implementation: terminal.cloudify_terminal.tasks.run
           inputs:
             terminal_auth: &terminal_auth
@@ -244,22 +233,14 @@ node_templates:
               - action: sudo yum install -y openssl-1.0.2k deltarpm
               # space fix
               - action: sudo sudo xfs_growfs /
+        start:
+          implementation: scripts/vm_fillip.py
+          executor: central_deployment_agent
     relationships:
       - target: base_vm
-        type: cloudify.relationships.depends_on
+        type: cloudify.relationships.contained_in
       - target: floating_ip
         type: cloudify.relationships.depends_on
-
-  example_node:
-    type: cloudify.nodes.WebServer
-    interfaces:
-      cloudify.interfaces.lifecycle:
-        configure:
-          implementation: scripts/vm_check.py
-    relationships:
-      - target: qemu_vm
-        type: cloudify.relationships.contained_in
-
 
 groups:
 

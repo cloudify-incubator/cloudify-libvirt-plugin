@@ -54,9 +54,10 @@ def create(**kwargs):
     template_params = _update_template_params(template_params)
 
     try:
-        if template_params.get("use_external_resource"):
+        if ctx.instance.runtime_properties.get("use_external_resource"):
             # lookup the default network by name
-            network = conn.networkLookupByName(template_params["resource_id"])
+            network = conn.networkLookupByName(
+                ctx.instance.runtime_properties["resource_id"])
             if network is None:
                 raise cfy_exc.NonRecoverableError(
                     'Failed to find the network'

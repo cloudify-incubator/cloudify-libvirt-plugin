@@ -23,3 +23,6 @@ releases:
     * Update start action for fill in `network` in vm runtime properties
     * Cluster Example: Automatically add libvirt host to trusted
     * Support for reuse external vm
+    * move use_external_resource to top of instance properties
+    * add `update` action for sync vm size to values from runtime properties.
+    * rename `memory_size` to `memory_maxsize`

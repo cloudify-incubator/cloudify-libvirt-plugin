@@ -9,16 +9,6 @@ data_types:
 
   network_params:
     properties:
-      use_external_resource:
-        required: false
-        default: false
-        description: >
-          Use external object. The default is `false`.
-      resource_id:
-        required: false
-        default: ""
-        description: >
-          Used to identify the object when `use_external_resource` is true.
       dev:
         required: false
         default: ""
@@ -37,31 +27,21 @@ data_types:
 
   domain_params:
     properties:
-      use_external_resource:
-        required: false
-        default: false
-        description: >
-          Use external object. The default is `false`.
-      resource_id:
-        required: false
-        default: ""
-        description: >
-          Used to identify the object when `use_external_resource` is true.
       vcpu:
         required: false
         type: integer
         description: >
           CPU count
-      memory_minsize:
-        required: false
-        type: integer
-        description: >
-          Recomended VM memory size in KiB for downgrade
       memory_size:
         required: false
         type: integer
         description: >
           VM memory size in KiB
+      memory_maxsize:
+        required: false
+        type: integer
+        description: >
+          Recomended VM memory size in KiB for upgrade
       nvram:
         required: false
         type: string
@@ -96,6 +76,16 @@ node_types:
   cloudify.libvirt.domain:
     derived_from: cloudify.nodes.Compute
     properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
       backup_dir:
         default: './'
       libvirt_auth:
@@ -113,8 +103,13 @@ node_types:
         start:
           implementation: libvirt.cloudify_libvirt.domain_tasks.start
           inputs: {}
+        # reboot vm
         reboot:
           implementation: libvirt.cloudify_libvirt.domain_tasks.reboot
+          inputs: {}
+        # update vm cpu/memory
+        update:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.update
           inputs: {}
         stop:
           implementation: libvirt.cloudify_libvirt.domain_tasks.stop
@@ -150,6 +145,16 @@ node_types:
   cloudify.libvirt.network:
     derived_from: cloudify.nodes.Network
     properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
       backup_dir:
         default: './'
       libvirt_auth:

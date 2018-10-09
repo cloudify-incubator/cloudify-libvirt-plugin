@@ -40,13 +40,12 @@ def _update_template_params(template_params):
 
     if not template_params.get("resource_id"):
         template_params["resource_id"] = ctx.instance.id
-    if (not template_params.get("memory_minsize") and
+    if (not template_params.get("memory_maxsize") and
             template_params.get('memory_size')):
-        # if have no minimal memory size, set current as minimum
+        # if have no maximum memory size, set current as minimum
         # and twised memory as maximum
         memory_size = int(template_params['memory_size'])
-        template_params["memory_minsize"] = memory_size
-        template_params['memory_size'] = memory_size * 2
+        template_params['memory_maxsize'] = memory_size * 2
     if not template_params.get("instance_uuid"):
         template_params["instance_uuid"] = str(uuid.uuid4())
     if not template_params.get("domain_type"):
@@ -68,10 +67,11 @@ def configure(**kwargs):
     template_params = _update_template_params(template_params)
 
     try:
-        if template_params.get("use_external_resource"):
+        if ctx.instance.runtime_properties.get("use_external_resource"):
             # lookup the default domain by name
             try:
-                dom = conn.lookupByName(template_params["resource_id"])
+                dom = conn.lookupByName(
+                    ctx.instance.runtime_properties["resource_id"])
             except Exception as e:
                 dom = None
                 ctx.logger.info("Non critical error: {}".format(str(e)))
@@ -131,6 +131,8 @@ def _update_network_list(dom, lease_only=True):
 
     # get known by libvirt interfaces
     virt_networks = dom.interfaceAddresses(request_type)
+    ctx.logger.info("Libvirt knows about such networks: {}"
+                    .format(repr(virt_networks)))
 
     # networks from instance
     if 'params' not in ctx.instance.runtime_properties:
@@ -179,7 +181,7 @@ def reboot(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for start")
+        ctx.logger.info("No servers for reboot")
         return
 
     libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
@@ -205,6 +207,72 @@ def reboot(**kwargs):
             raise cfy_exc.NonRecoverableError(
                 'Can not reboot guest domain.'
             )
+    finally:
+        conn.close()
+
+
+@operation
+def update(**kwargs):
+    ctx.logger.info("set vcpu/memory values")
+
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+
+    if not resource_id:
+        ctx.logger.info("No servers for update")
+        return
+
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    try:
+        try:
+            dom = conn.lookupByName(resource_id)
+        except Exception as e:
+            dom = None
+            ctx.logger.info("Non critical error: {}".format(str(e)))
+
+        if dom is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain'
+            )
+
+        # change memory values
+        if template_params.get('memory_size'):
+            ctx.logger.info("Set memory to {}"
+                            .format(repr(template_params['memory_size'])))
+            if dom.setMemory(template_params['memory_size']) < 0:
+                raise cfy_exc.NonRecoverableError(
+                    "Can not change memory amount."
+                )
+
+        state, _ = dom.state()
+        if state == libvirt.VIR_DOMAIN_RUNNING:
+            ctx.logger.info("CPU/Maximum memory size count should be changed "
+                            "on stopped vm.")
+            return
+
+        # change vcpu values
+        if template_params.get('vcpu'):
+            ctx.logger.info("Set cpu count to {}"
+                            .format(repr(template_params['vcpu'])))
+            if dom.setVcpus(template_params['vcpu']) < 0:
+                raise cfy_exc.NonRecoverableError(
+                    "Can not change cpu count."
+                )
+
+        # change max memory values
+        if template_params.get('memory_maxsize'):
+            ctx.logger.info("Set max memory to {}"
+                            .format(repr(template_params['memory_maxsize'])))
+            if dom.setMaxMemory(template_params['memory_maxsize']) < 0:
+                raise cfy_exc.NonRecoverableError(
+                    "Can not change max memory amount."
+                )
+
     finally:
         conn.close()
 

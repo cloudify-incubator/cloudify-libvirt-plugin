@@ -157,9 +157,13 @@ node_templates:
       cloudify.interfaces.lifecycle:
         create:
           inputs:
+            use_external_resource: true
+            resource_id: { get_attribute: [qemu_vm, resource_id] }
+        start:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.update
+          inputs:
             params:
-              use_external_resource: true
-              resource_id: { get_attribute: [qemu_vm, resource_id] }
+              memory_size: 393216
     relationships:
       - target: example_node
         type: cloudify.relationships.depends_on

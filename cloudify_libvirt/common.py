@@ -31,6 +31,12 @@ def get_libvirt_params(**kwargs):
     template_params.update(ctx.instance.runtime_properties.get('params', {}))
     template_params.update(kwargs.get('params', {}))
     ctx.instance.runtime_properties['params'] = template_params
+
+    # update 'resource_id', 'use_external_resource' from kwargs
+    for field in ['resource_id', 'use_external_resource']:
+        if field in kwargs:
+            ctx.instance.runtime_properties[field] = kwargs[field]
+
     return libvirt_auth, template_params
 
 

@@ -171,10 +171,11 @@ class TestNetworkTasks(LibVirtCommonTest):
         _ctx = self._create_ctx()
         self._check_no_such_object_network(
             "cloudify_libvirt.network_tasks.libvirt.open",
-            network_tasks.create, [], {'ctx': _ctx, 'params': {
+            network_tasks.create, [], {
+                'ctx': _ctx,
                 "resource_id": 'resource',
                 "use_external_resource": True,
-            }}, 'resource')
+            }, 'resource')
 
     def test_reuse_network_create_exist(self):
         # check that we can use network
@@ -189,9 +190,9 @@ class TestNetworkTasks(LibVirtCommonTest):
             "cloudify_libvirt.domain_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
-            network_tasks.create(ctx=_ctx, params={
-                    "resource_id": 'resource',
-                    "use_external_resource": True})
+            network_tasks.create(ctx=_ctx,
+                                 resource_id='resource',
+                                 use_external_resource=True)
         connect.networkLookupByName.assert_called_with('resource')
         self.assertEqual(
             _ctx.instance.runtime_properties['resource_id'], 'resource'
