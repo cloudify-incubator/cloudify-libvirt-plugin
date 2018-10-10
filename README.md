@@ -188,3 +188,5 @@ You should to install [libvirt-devel](examples/bootstraps/centos.sh#L2) before c
 
 ## TODO:
 * Add more examples with different vm struct and archictures: mips, powerpc
+* Implement storage volume/pool
+* Implement firewall rules

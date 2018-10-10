@@ -225,7 +225,8 @@ class TestNetworkTasks(LibVirtCommonTest):
         return _ctx, connect, network
 
     def test_snapshot_apply(self):
-        self._test_no_resource_id(network_tasks.snapshot_apply)
+        self._test_no_resource_id(network_tasks.snapshot_apply,
+                                  "No network for restore")
         self._test_no_snapshot_name(self._create_ctx(),
                                     network_tasks.snapshot_apply)
         self._test_empty_connection_backup(network_tasks.snapshot_apply)
@@ -294,7 +295,8 @@ class TestNetworkTasks(LibVirtCommonTest):
                 fake_file.assert_called_with('./backup!/resource.xml', 'r')
 
     def test_snapshot_create(self):
-        self._test_no_resource_id(network_tasks.snapshot_create)
+        self._test_no_resource_id(network_tasks.snapshot_create,
+                                  "No network for backup")
         self._test_no_snapshot_name(self._create_ctx(),
                                     network_tasks.snapshot_create)
         self._test_empty_connection_backup(network_tasks.snapshot_create)
@@ -363,7 +365,8 @@ class TestNetworkTasks(LibVirtCommonTest):
                     fake_file().write.assert_called_with("<network/>")
 
     def test_snapshot_delete(self):
-        self._test_no_resource_id(network_tasks.snapshot_delete)
+        self._test_no_resource_id(network_tasks.snapshot_delete,
+                                  "No network for backup delete")
         self._test_no_snapshot_name(self._create_ctx(),
                                     network_tasks.snapshot_delete)
 

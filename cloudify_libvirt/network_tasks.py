@@ -56,11 +56,12 @@ def create(**kwargs):
     try:
         if ctx.instance.runtime_properties.get("use_external_resource"):
             # lookup the default network by name
-            network = conn.networkLookupByName(
-                ctx.instance.runtime_properties["resource_id"])
-            if network is None:
+            resource_id = ctx.instance.runtime_properties["resource_id"]
+            try:
+                network = conn.networkLookupByName(resource_id)
+            except libvirt.libvirtError as e:
                 raise cfy_exc.NonRecoverableError(
-                    'Failed to find the network'
+                    'Failed to find the network: {}'.format(repr(e))
                 )
 
             # save settings
@@ -82,9 +83,8 @@ def create(**kwargs):
             ctx.logger.info("Will be used internal: %s" % network_file)
 
         if not network_template:
-            domain_desc = open(network_file)
-            with domain_desc:
-                network_template = domain_desc.read()
+            with open(network_file) as network_desc:
+                network_template = network_desc.read()
 
         template_engine = Template(network_template)
 
@@ -121,6 +121,7 @@ def delete(**kwargs):
     ctx.logger.info("Delete: {}".format(repr(resource_id)))
 
     if not resource_id:
+        # not raise exception on 'uninstall' workflow
         ctx.logger.info("No network for delete")
         return
 
@@ -137,10 +138,11 @@ def delete(**kwargs):
 
     try:
         # lookup the default network by name
-        network = conn.networkLookupByName(resource_id)
-        if network is None:
+        try:
+            network = conn.networkLookupByName(resource_id)
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the network'
+                'Failed to find the network: {}'.format(repr(e))
             )
 
         if network.destroy() < 0:
@@ -160,8 +162,8 @@ def snapshot_create(**kwargs):
     ctx.logger.info("Snapshot create: {}".format(repr(resource_id)))
 
     if not resource_id:
-        ctx.logger.info("No network for backup")
-        return
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No network for backup")
 
     snapshot_name = common.get_backupname(kwargs)
     libvirt_auth, _ = common.get_libvirt_params(**kwargs)
@@ -173,10 +175,11 @@ def snapshot_create(**kwargs):
 
     try:
         # lookup the default network by name
-        network = conn.networkLookupByName(resource_id)
-        if network is None:
+        try:
+            network = conn.networkLookupByName(resource_id)
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the network'
+                'Failed to find the network: {}'.format(repr(e))
             )
 
         net_backup = network.XMLDesc()
@@ -211,8 +214,8 @@ def snapshot_apply(**kwargs):
     ctx.logger.info("Snapshot restore for: {}".format(repr(resource_id)))
 
     if not resource_id:
-        ctx.logger.info("No network for restore")
-        return
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No network for restore")
 
     snapshot_name = common.get_backupname(kwargs)
 
@@ -225,10 +228,11 @@ def snapshot_apply(**kwargs):
 
     try:
         # lookup the default network by name
-        network = conn.networkLookupByName(resource_id)
-        if network is None:
+        try:
+            network = conn.networkLookupByName(resource_id)
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the network'
+                'Failed to find the network: {}'.format(repr(e))
             )
 
         if kwargs.get("snapshot_incremental"):
@@ -264,8 +268,8 @@ def snapshot_delete(**kwargs):
     ctx.logger.info("Snapshot delete for: {}".format(repr(resource_id)))
 
     if not resource_id:
-        ctx.logger.info("No network for backup delete")
-        return
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No network for backup delete")
 
     snapshot_name = common.get_backupname(kwargs)
     if kwargs.get("snapshot_incremental"):
@@ -289,9 +293,9 @@ def snapshot_delete(**kwargs):
 @operation
 def link(**kwargs):
     vm_id = ctx.source.instance.runtime_properties.get('resource_id')
-    net_id = ctx.target.instance.runtime_properties.get('resource_id')
+    resource_id = ctx.target.instance.runtime_properties.get('resource_id')
     ctx.logger.info('Link network: {} to VM: {}.'
-                    .format(repr(net_id), repr(vm_id)))
+                    .format(repr(resource_id), repr(vm_id)))
 
     libvirt_auth = ctx.target.instance.runtime_properties.get('libvirt_auth')
     conn = libvirt.open(libvirt_auth)
@@ -302,10 +306,11 @@ def link(**kwargs):
 
     try:
         # lookup the default network by name
-        network = conn.networkLookupByName(net_id)
-        if network is None:
+        try:
+            network = conn.networkLookupByName(resource_id)
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the network'
+                'Failed to find the network: {}'.format(repr(e))
             )
 
         MAX_RETRY = 10
@@ -335,8 +340,8 @@ def link(**kwargs):
 @operation
 def unlink(**kwargs):
     vm_id = ctx.source.instance.runtime_properties.get('resource_id')
-    net_id = ctx.target.instance.runtime_properties.get('resource_id')
+    resource_id = ctx.target.instance.runtime_properties.get('resource_id')
     ctx.logger.info('Unlink network: {} to VM: {}.'
-                    .format(repr(net_id), repr(vm_id)))
+                    .format(repr(resource_id), repr(vm_id)))
 
     ctx.target.instance.runtime_properties['ip'] = None

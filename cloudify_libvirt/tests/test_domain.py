@@ -146,9 +146,9 @@ class TestDomainTasks(LibVirtCommonTest):
             _ctx.instance.runtime_properties['params']['memory_size'],
             1024)
 
-
     def test_update(self):
-        self._test_no_resource_id(domain_tasks.update)
+        self._test_no_resource_id(domain_tasks.update,
+                                  "No servers for update")
         self._test_check_correct_connect_action(domain_tasks.update)
         self._test_check_correct_connect_no_object(domain_tasks.update)
         # check memory
@@ -171,7 +171,8 @@ class TestDomainTasks(LibVirtCommonTest):
             params_update={'vcpu': 1024})
 
     def test_reboot(self):
-        self._test_no_resource_id(domain_tasks.reboot)
+        self._test_no_resource_id(domain_tasks.reboot,
+                                  "No servers for reboot")
         self._test_check_correct_connect_action(domain_tasks.reboot)
         self._test_check_correct_connect_no_object(domain_tasks.reboot)
         self._test_action_states(
@@ -180,7 +181,8 @@ class TestDomainTasks(LibVirtCommonTest):
             'Can not reboot guest domain.')
 
     def test_start(self):
-        self._test_no_resource_id(domain_tasks.start)
+        self._test_no_resource_id(domain_tasks.start,
+                                  "No servers for start")
         self._test_check_correct_connect_action(domain_tasks.start)
         self._test_check_correct_connect_no_object(domain_tasks.start)
         self._test_action_states(
@@ -199,7 +201,8 @@ class TestDomainTasks(LibVirtCommonTest):
             'Can not shutdown guest domain.')
 
     def test_resume(self):
-        self._test_no_resource_id(domain_tasks.resume)
+        self._test_no_resource_id(domain_tasks.resume,
+                                  "No servers for resume")
         self._test_check_correct_connect_action(domain_tasks.resume)
         self._test_check_correct_connect_no_object(domain_tasks.resume)
         self._test_action_states(
@@ -208,7 +211,8 @@ class TestDomainTasks(LibVirtCommonTest):
             "Can not suspend guest domain.")
 
     def test_suspend(self):
-        self._test_no_resource_id(domain_tasks.suspend)
+        self._test_no_resource_id(domain_tasks.suspend,
+                                  "No servers for suspend")
         self._test_check_correct_connect_action(domain_tasks.suspend)
         self._test_check_correct_connect_no_object(domain_tasks.suspend)
         self._test_action_states(
@@ -309,7 +313,8 @@ class TestDomainTasks(LibVirtCommonTest):
                 _ctx.instance.runtime_properties.get('resource_id'))
 
     def test_perfomance(self):
-        self._test_no_resource_id(domain_tasks.perfomance)
+        self._test_no_resource_id(domain_tasks.perfomance,
+                                  "No servers for statistics.")
         self._test_check_correct_connect_action(domain_tasks.perfomance)
         self._test_check_correct_connect_no_object(domain_tasks.perfomance)
 
@@ -595,7 +600,8 @@ class TestDomainTasks(LibVirtCommonTest):
                     fake_file().write.assert_called_with("<domain/>")
 
     def test_snapshot_create(self):
-        self._test_common_backups(domain_tasks.snapshot_create)
+        self._test_common_backups(domain_tasks.snapshot_create,
+                                  "No servers for backup.")
 
         # check with without params and custom file
         _ctx = self._create_ctx()
@@ -704,7 +710,8 @@ class TestDomainTasks(LibVirtCommonTest):
                         './snapshot_name/resource.xml', "r")
 
     def test_snapshot_apply(self):
-        self._test_common_backups(domain_tasks.snapshot_apply)
+        self._test_common_backups(domain_tasks.snapshot_apply,
+                                  "No servers for restore.")
 
         # apply snapshot
         _ctx = self._create_ctx()
@@ -793,7 +800,8 @@ class TestDomainTasks(LibVirtCommonTest):
                             './snapshot_name/resource.xml')
 
     def test_snapshot_delete(self):
-        self._test_common_backups(domain_tasks.snapshot_delete)
+        self._test_common_backups(domain_tasks.snapshot_delete,
+                                  "No servers for remove_backup.")
 
         # delete snapshot with error
         _ctx = self._create_ctx()
@@ -876,9 +884,9 @@ class TestDomainTasks(LibVirtCommonTest):
             {'ctx': _ctx, 'snapshot_name': 'snapshot_name',
              'snapshot_incremental': True}, 'resource')
 
-    def _test_common_backups(self, func):
+    def _test_common_backups(self, func, noresource_text):
         # common funcs for backups
-        self._test_no_resource_id(func)
+        self._test_no_resource_id(func, noresource_text)
         self._test_no_snapshot_name(self._create_ctx(), func)
         self._test_snapshot_name_backup(func)
         self._test_check_correct_connect_backup(func)

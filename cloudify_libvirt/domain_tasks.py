@@ -69,16 +69,12 @@ def configure(**kwargs):
     try:
         if ctx.instance.runtime_properties.get("use_external_resource"):
             # lookup the default domain by name
+            resource_id = ctx.instance.runtime_properties["resource_id"]
             try:
-                dom = conn.lookupByName(
-                    ctx.instance.runtime_properties["resource_id"])
-            except Exception as e:
-                dom = None
-                ctx.logger.info("Non critical error: {}".format(str(e)))
-
-            if dom is None:
+                dom = conn.lookupByName(resource_id)
+            except libvirt.libvirtError as e:
                 raise cfy_exc.NonRecoverableError(
-                    'Failed to find the domain'
+                    'Failed to find the domain: {}'.format(repr(e))
                 )
 
             # save settings
@@ -94,14 +90,13 @@ def configure(**kwargs):
         if domain_file:
             domain_template = ctx.get_resource(domain_file)
 
-        if not domain_file and not domain_template:
+        if not (domain_file or domain_template):
             resource_dir = resource_filename(__name__, 'templates')
             domain_file = '{}/domain.xml'.format(resource_dir)
             ctx.logger.info("Will be used internal: %s" % domain_file)
 
         if not domain_template:
-            domain_desc = open(domain_file)
-            with domain_desc:
+            with open(domain_file) as domain_desc:
                 domain_template = domain_desc.read()
 
         template_engine = Template(domain_template)
@@ -181,8 +176,8 @@ def reboot(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for reboot")
-        return
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No servers for reboot")
 
     libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
@@ -194,13 +189,9 @@ def reboot(**kwargs):
     try:
         try:
             dom = conn.lookupByName(resource_id)
-        except Exception as e:
-            dom = None
-            ctx.logger.info("Non critical error: {}".format(str(e)))
-
-        if dom is None:
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the domain'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         if dom.reboot() < 0:
@@ -218,8 +209,8 @@ def update(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for update")
-        return
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No servers for update")
 
     libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
@@ -231,13 +222,9 @@ def update(**kwargs):
     try:
         try:
             dom = conn.lookupByName(resource_id)
-        except Exception as e:
-            dom = None
-            ctx.logger.info("Non critical error: {}".format(str(e)))
-
-        if dom is None:
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the domain'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         # change memory values
@@ -284,8 +271,8 @@ def start(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for start")
-        return
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No servers for start")
 
     libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
@@ -300,13 +287,9 @@ def start(**kwargs):
     try:
         try:
             dom = conn.lookupByName(resource_id)
-        except Exception as e:
-            dom = None
-            ctx.logger.info("Non critical error: {}".format(str(e)))
-
-        if dom is None:
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the domain'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         for i in xrange(10):
@@ -345,7 +328,8 @@ def stop(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for delete")
+        # not raise exception on 'uninstall' workflow
+        ctx.logger.info("No servers for stop")
         return
 
     if ctx.instance.runtime_properties.get('use_external_resource'):
@@ -362,13 +346,9 @@ def stop(**kwargs):
     try:
         try:
             dom = conn.lookupByName(resource_id)
-        except Exception as e:
-            dom = None
-            ctx.logger.info("Non critical error: {}".format(str(e)))
-
-        if dom is None:
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the domain'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         # reset ip on stop
@@ -398,8 +378,8 @@ def resume(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for resume")
-        return
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No servers for resume")
 
     libvirt_auth, _ = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
@@ -411,13 +391,9 @@ def resume(**kwargs):
     try:
         try:
             dom = conn.lookupByName(resource_id)
-        except Exception as e:
-            dom = None
-            ctx.logger.info("Non critical error: {}".format(str(e)))
-
-        if dom is None:
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the domain'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         state, _ = dom.state()
@@ -444,8 +420,8 @@ def suspend(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for suspend")
-        return
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No servers for suspend")
 
     libvirt_auth, _ = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
@@ -457,13 +433,9 @@ def suspend(**kwargs):
     try:
         try:
             dom = conn.lookupByName(resource_id)
-        except Exception as e:
-            dom = None
-            ctx.logger.info("Non critical error: {}".format(str(e)))
-
-        if dom is None:
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the domain'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         state, _ = dom.state()
@@ -540,6 +512,7 @@ def delete(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
+        # not raise exception on 'uninstall' workflow
         ctx.logger.info("No servers for delete")
         return
 
@@ -557,13 +530,9 @@ def delete(**kwargs):
     try:
         try:
             dom = conn.lookupByName(resource_id)
-        except Exception as e:
-            dom = None
-            ctx.logger.info("Non critical error: {}".format(str(e)))
-
-        if dom is None:
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the domain'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         _delete_force(dom)
@@ -608,8 +577,8 @@ def snapshot_create(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for backup.")
-        return
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No servers for backup.")
 
     snapshot_name = common.get_backupname(kwargs)
 
@@ -623,13 +592,9 @@ def snapshot_create(**kwargs):
     try:
         try:
             dom = conn.lookupByName(resource_id)
-        except Exception as e:
-            dom = None
-            ctx.logger.info("Non critical error: {}".format(str(e)))
-
-        if dom is None:
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the domain'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         if kwargs.get("snapshot_incremental"):
@@ -646,9 +611,8 @@ def snapshot_create(**kwargs):
                 ctx.logger.info("Will be used internal: %s" % backup_file)
 
             if not backup_template:
-                domain_desc = open(backup_file)
-                with domain_desc:
-                    backup_template = domain_desc.read()
+                with open(backup_file) as backup_desc:
+                    backup_template = backup_desc.read()
 
             template_engine = Template(backup_template)
             if not template_params:
@@ -712,8 +676,8 @@ def snapshot_delete(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for remove_backup.")
-        return
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No servers for remove_backup.")
 
     snapshot_name = common.get_backupname(kwargs)
 
@@ -727,13 +691,9 @@ def snapshot_delete(**kwargs):
     try:
         try:
             dom = conn.lookupByName(resource_id)
-        except Exception as e:
-            dom = None
-            ctx.logger.info("Non critical error: {}".format(str(e)))
-
-        if dom is None:
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the domain'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         if kwargs.get("snapshot_incremental"):
@@ -799,8 +759,8 @@ def snapshot_apply(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for restore.")
-        return
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No servers for restore.")
 
     snapshot_name = common.get_backupname(kwargs)
 
@@ -814,13 +774,9 @@ def snapshot_apply(**kwargs):
     try:
         try:
             dom = conn.lookupByName(resource_id)
-        except Exception as e:
-            dom = None
-            ctx.logger.info("Non critical error: {}".format(str(e)))
-
-        if dom is None:
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the domain'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         if kwargs.get("snapshot_incremental"):
@@ -855,8 +811,8 @@ def perfomance(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        ctx.logger.info("No servers for statistics.")
-        return
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No servers for statistics.")
 
     libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
@@ -868,13 +824,9 @@ def perfomance(**kwargs):
     try:
         try:
             dom = conn.lookupByName(resource_id)
-        except Exception as e:
-            dom = None
-            ctx.logger.info("Non critical error: {}".format(str(e)))
-
-        if dom is None:
+        except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the domain'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         statistics = ctx.instance.runtime_properties.get('stat', {})
