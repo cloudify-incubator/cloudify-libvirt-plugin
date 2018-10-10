@@ -3,7 +3,7 @@
     <partition>/machine</partition>
   </resource>
   <uuid>{{ instance_uuid }}</uuid>
-  <currentMemory unit="KiB">{{ memory_minsize }}</currentMemory>
+  <currentMemory unit="KiB">{{ memory_size }}</currentMemory>
   <on_poweroff>destroy</on_poweroff>
   <devices>
     <emulator>/usr/bin/qemu-system-aarch64</emulator>
@@ -66,7 +66,7 @@
   <features>
     <gic version='2'/>
   </features>
-  <memory unit="KiB">{{ memory_size }}</memory>
+  <memory unit="KiB">{{ memory_maxsize }}</memory>
   <os>
     <type arch='aarch64' machine='virt'>hvm</type>
     <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>

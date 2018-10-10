@@ -1,9 +1,9 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/4.3.1/types.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.9.2/plugin.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.5.0/plugin.yaml
+  - http://www.getcloudify.org/spec/cloudify/4.4/types.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.9.5/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.6.0/plugin.yaml
 
 inputs:
 
@@ -111,3 +111,59 @@ node_templates:
         type: cloudify.libvirt.relationships.connected_to
       - target: disk_clone
         type: vm_connected_to_storage
+
+  example_node:
+    type: cloudify.nodes.WebServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+          create:
+            implementation: terminal.cloudify_terminal.tasks.run
+            inputs:
+              terminal_auth:
+                user: centos
+                password: { get_input: agent_password }
+                ip: { get_attribute: [qemu_vm, ip] }
+              calls:
+              - action: uname -a
+      cloudify.interfaces.freeze:
+          fs_prepare:
+            implementation: terminal.cloudify_terminal.tasks.run
+            inputs:
+              terminal_auth:
+                user: centos
+                password: { get_input: agent_password }
+                ip: { get_attribute: [qemu_vm, ip] }
+              calls:
+              - action: sudo sync
+          fs_finalize:
+            implementation: terminal.cloudify_terminal.tasks.run
+            inputs:
+              terminal_auth:
+                user: centos
+                password: { get_input: agent_password }
+                ip: { get_attribute: [qemu_vm, ip] }
+              calls:
+              - action: sudo sync
+    relationships:
+      - target: qemu_vm
+        type: cloudify.relationships.contained_in
+
+  reuse_vm:
+    type: cloudify.libvirt.domain
+    properties:
+      agent_config:
+        install_method: none
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            use_external_resource: true
+            resource_id: { get_attribute: [qemu_vm, resource_id] }
+        start:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.update
+          inputs:
+            params:
+              memory_size: 393216
+    relationships:
+      - target: example_node
+        type: cloudify.relationships.depends_on

@@ -2,18 +2,96 @@ plugins:
   libvirt:
     executor: central_deployment_agent
     package_name: cloudify-libvirt-plugin
-    package_version: '0.5.0'
-    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/0.5.0.zip
+    package_version: '0.6.0'
+    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/0.6.0.zip
+
+data_types:
+
+  network_params:
+    properties:
+      dev:
+        required: false
+        default: ""
+        description: >
+          Device name
+      forwards:
+        required: false
+        default: []
+        description: >
+          Settings for network `forwards`.
+      ips:
+        required: false
+        default: []
+        description: >
+          Settings for network `ips`.
+
+  domain_params:
+    properties:
+      vcpu:
+        required: false
+        type: integer
+        description: >
+          CPU count
+      memory_size:
+        required: false
+        type: integer
+        description: >
+          VM memory size in KiB
+      memory_maxsize:
+        required: false
+        type: integer
+        description: >
+          Recomended VM memory size in KiB for upgrade
+      nvram:
+        required: false
+        type: string
+        description: >
+          Path to nvram
+      disks:
+        required: false
+        description: >
+          List connected disks
+        default: []
+      networks:
+        required: false
+        description: >
+          List connected networks
+        default: []
+      full_dump:
+        default: false
+        description: >
+          Make full dump for backups with memory snapshot to dump file.
+          On create/restore backup will be removed all snapshots in domain.
+      wait_for_ip:
+        default: true
+        description: >
+          Wait until we have some private ip on interfaces
+      domain_type:
+        description: >
+          Type of virtualization
+        default: qemu
 
 node_types:
 
   cloudify.libvirt.domain:
     derived_from: cloudify.nodes.Compute
     properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
       backup_dir:
         default: './'
       libvirt_auth:
         default: 'qemu:///system'
+      params:
+        type: domain_params
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -24,6 +102,14 @@ node_types:
           inputs: {}
         start:
           implementation: libvirt.cloudify_libvirt.domain_tasks.start
+          inputs: {}
+        # reboot vm
+        reboot:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.reboot
+          inputs: {}
+        # update vm cpu/memory
+        update:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.update
           inputs: {}
         stop:
           implementation: libvirt.cloudify_libvirt.domain_tasks.stop
@@ -59,10 +145,22 @@ node_types:
   cloudify.libvirt.network:
     derived_from: cloudify.nodes.Network
     properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
       backup_dir:
         default: './'
       libvirt_auth:
         default: 'qemu:///system'
+      params:
+        type: network_params
     interfaces:
       cloudify.interfaces.lifecycle:
         create:

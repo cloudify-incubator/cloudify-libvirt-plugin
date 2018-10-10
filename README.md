@@ -41,11 +41,29 @@ Description for VM
 **Supported properties:**
 * `libvirt_auth`: connection url, by default: `qemu:///system`
 * `backup_dir`: directory for save backups, by default: `./`
+* `use_external_resource`: (optional) Use external object. The default is
+  `false`.
+* `resource_id`: (optional) Used to identify the object when
+  `use_external_resource` is true.
+* `params`: params used for create object, useful for embeded template.
+  * `vcpu`: CPU count
+  * `memory_size`: VM memory size in KiB
+  * `memory_maxsize`: (optional) recomended VM memory size in KiB for
+        downgrade. The default is value from `memory_size` * 2.
+  * `nvram`: (optional) path to nvram (useful for arm)
+  * `disks`: list connected disks
+  * `networks`: list connected networks
+  * `full_dump`: make full dump for backups with memory snapshot to dump file.
+    On create/restore backup will be removed all snapshots in domain.
+  * `wait_for_ip`: (optional) wait until we have some private ip on interfaces
+    The default is `true`.
+  * `domain_type`: (optional) type of virtualization. The default is `qemu`
 
 **Inputs for actions:**
 * `configure`:
   * `params`: list of params for template, can be empty
-  * `domain_file`: Template for domain. Defaults is [domain.xml](cloudify_libvirt/templates/domain.xml)
+  * `domain_file`: Template for domain. Defaults is
+    [domain.xml](cloudify_libvirt/templates/domain.xml)
 
 **Runtime properties:**
 * `resource_id`: resource name.
@@ -57,9 +75,11 @@ Description for Network
 **Supported properties:**
 * `libvirt_auth`: connection url, by default: `qemu:///system`
 * `backup_dir`: directory for save backups, by default: `./`
+* `use_external_resource`: (optional) Use external object. The default is
+  `false`.
+* `resource_id`: (optional) Used to identify the object when
+  `use_external_resource` is true.
 * `params`: params used for create object.
-  * `use_external_resource`: (optional) Use external object. The default is `false`.
-  * `resource_id`: (optional) Used to identify the object when `use_external_resource` is true.
   * `dev`: Device name
   * `forwards`: settings for network `forwards`.
   * `ips`: settings for network `ips`.
@@ -67,7 +87,8 @@ Description for Network
 **Inputs for actions:**
 * `create`:
   * `params`: list of params for template, can be empty
-  * `network_file`: Template for network. Defaults is [network.xml](cloudify_libvirt/templates/network.xml)
+  * `network_file`: Template for network. Defaults is
+    [network.xml](cloudify_libvirt/templates/network.xml)
 
 **Runtime properties:**
 * `resource_id`: resource name.
@@ -167,3 +188,5 @@ You should to install [libvirt-devel](examples/bootstraps/centos.sh#L2) before c
 
 ## TODO:
 * Add more examples with different vm struct and archictures: mips, powerpc
+* Implement storage volume/pool
+* Implement firewall rules

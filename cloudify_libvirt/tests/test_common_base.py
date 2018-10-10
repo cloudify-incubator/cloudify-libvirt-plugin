@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import libvirt
 import unittest
 import mock
 
@@ -79,8 +80,10 @@ class LibVirtCommonTest(unittest.TestCase):
 
         # some strange error
         connect = self._create_fake_connection()
-        connect.networkLookupByName = mock.Mock(side_effect=OSError("e"))
-        connect.lookupByName = mock.Mock(side_effect=OSError("e"))
+        connect.networkLookupByName = mock.Mock(
+            side_effect=libvirt.libvirtError("networkLookupByName"))
+        connect.lookupByName = mock.Mock(
+            side_effect=libvirt.libvirtError("lookupByName"))
         with mock.patch(
             libvirt_open,
             mock.Mock(return_value=connect)
@@ -109,14 +112,16 @@ class LibVirtCommonTest(unittest.TestCase):
 
     def _create_fake_connection(self):
         connect = mock.Mock()
-        connect.networkLookupByName = mock.Mock(return_value=None)
-        connect.lookupByName = mock.Mock(return_value=None)
+        connect.networkLookupByName = mock.Mock(
+            side_effect=libvirt.libvirtError("networkLookupByName"))
+        connect.lookupByName = mock.Mock(
+            side_effect=libvirt.libvirtError("lookupByName"))
         connect.networkCreateXML = mock.Mock(return_value=None)
         connect.defineXML = mock.Mock(return_value=None)
         connect.close = mock.Mock(return_value=None)
         return connect
 
-    def _test_no_resource_id(self, func):
+    def _create_ctx(self):
         _ctx = MockCloudifyContext(
             'node_name',
             properties={
@@ -128,9 +133,31 @@ class LibVirtCommonTest(unittest.TestCase):
             }
         )
         current_ctx.set(_ctx)
+        return _ctx
 
+    def _test_no_resource_id(self, func, exception_text=None):
         # no initilized/no resource id
-        func(ctx=_ctx)
+        _ctx = self._create_ctx()
+        if not exception_text:
+            func(ctx=_ctx)
+        else:
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                exception_text
+            ):
+                func(ctx=_ctx)
+
+    def _test_reused_object(self, func, use_existed=True):
+        # check use prexisted object
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = 'resource'
+        _ctx.instance.runtime_properties['use_external_resource'] = use_existed
+        connect = self._create_fake_connection()
+        with mock.patch(
+            "cloudify_libvirt.network_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            func(ctx=_ctx)
 
     def _test_no_snapshot_name(self, _ctx, func):
         _ctx.instance.runtime_properties['resource_id'] = 'resource'

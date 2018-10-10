@@ -171,10 +171,11 @@ class TestNetworkTasks(LibVirtCommonTest):
         _ctx = self._create_ctx()
         self._check_no_such_object_network(
             "cloudify_libvirt.network_tasks.libvirt.open",
-            network_tasks.create, [], {'ctx': _ctx, 'params': {
+            network_tasks.create, [], {
+                'ctx': _ctx,
                 "resource_id": 'resource',
                 "use_external_resource": True,
-            }}, 'resource')
+            }, 'resource')
 
     def test_reuse_network_create_exist(self):
         # check that we can use network
@@ -189,9 +190,9 @@ class TestNetworkTasks(LibVirtCommonTest):
             "cloudify_libvirt.domain_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
-            network_tasks.create(ctx=_ctx, params={
-                    "resource_id": 'resource',
-                    "use_external_resource": True})
+            network_tasks.create(ctx=_ctx,
+                                 resource_id='resource',
+                                 use_external_resource=True)
         connect.networkLookupByName.assert_called_with('resource')
         self.assertEqual(
             _ctx.instance.runtime_properties['resource_id'], 'resource'
@@ -199,18 +200,6 @@ class TestNetworkTasks(LibVirtCommonTest):
         self.assertTrue(
             _ctx.instance.runtime_properties['use_external_resource']
         )
-
-    def _test_reused_network(self, func, use_existed=True):
-        # check use prexisted network
-        _ctx = self._create_ctx()
-        _ctx.instance.runtime_properties['resource_id'] = 'resource'
-        _ctx.instance.runtime_properties['use_external_resource'] = use_existed
-        connect = self._create_fake_connection()
-        with mock.patch(
-            "cloudify_libvirt.network_tasks.libvirt.open",
-            mock.Mock(return_value=connect)
-        ):
-            func(ctx=_ctx)
 
     def _test_empty_network_backup(self, func):
         # check correct handle exception with empty network
@@ -236,7 +225,8 @@ class TestNetworkTasks(LibVirtCommonTest):
         return _ctx, connect, network
 
     def test_snapshot_apply(self):
-        self._test_no_resource_id(network_tasks.snapshot_apply)
+        self._test_no_resource_id(network_tasks.snapshot_apply,
+                                  "No network for restore")
         self._test_no_snapshot_name(self._create_ctx(),
                                     network_tasks.snapshot_apply)
         self._test_empty_connection_backup(network_tasks.snapshot_apply)
@@ -305,7 +295,8 @@ class TestNetworkTasks(LibVirtCommonTest):
                 fake_file.assert_called_with('./backup!/resource.xml', 'r')
 
     def test_snapshot_create(self):
-        self._test_no_resource_id(network_tasks.snapshot_create)
+        self._test_no_resource_id(network_tasks.snapshot_create,
+                                  "No network for backup")
         self._test_no_snapshot_name(self._create_ctx(),
                                     network_tasks.snapshot_create)
         self._test_empty_connection_backup(network_tasks.snapshot_create)
@@ -374,7 +365,8 @@ class TestNetworkTasks(LibVirtCommonTest):
                     fake_file().write.assert_called_with("<network/>")
 
     def test_snapshot_delete(self):
-        self._test_no_resource_id(network_tasks.snapshot_delete)
+        self._test_no_resource_id(network_tasks.snapshot_delete,
+                                  "No network for backup delete")
         self._test_no_snapshot_name(self._create_ctx(),
                                     network_tasks.snapshot_delete)
 
@@ -453,7 +445,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         self._test_no_resource_id(network_tasks.delete)
         self._test_empty_connection(network_tasks.delete)
         self._test_empty_network(network_tasks.delete)
-        self._test_reused_network(network_tasks.delete)
+        self._test_reused_object(network_tasks.delete)
 
         # delete with error
         _ctx = self._create_ctx()

@@ -31,6 +31,12 @@ def get_libvirt_params(**kwargs):
     template_params.update(ctx.instance.runtime_properties.get('params', {}))
     template_params.update(kwargs.get('params', {}))
     ctx.instance.runtime_properties['params'] = template_params
+
+    # update 'resource_id', 'use_external_resource' from kwargs
+    for field in ['resource_id', 'use_external_resource']:
+        if field in kwargs:
+            ctx.instance.runtime_properties[field] = kwargs[field]
+
     return libvirt_auth, template_params
 
 
@@ -70,3 +76,26 @@ def delete_node_state(backup_dir, object_name):
     if not os.path.isfile("{}/{}.xml".format(backup_dir, object_name)):
         return
     os.remove("{}/{}.xml".format(backup_dir, object_name))
+
+
+def get_binary_place(backup_dir, object_name):
+    # return path to binary/directory place
+    return "{}/{}_raw".format(backup_dir, object_name)
+
+
+def check_binary_place(backup_dir, object_name):
+    # check binary/directory place exists
+    return os.path.isfile(get_binary_place(backup_dir, object_name))
+
+
+def create_binary_place(backup_dir):
+    # create binary/directory place
+    if not os.path.isdir(backup_dir):
+        os.makedirs(backup_dir)
+
+
+def delete_binary_place(backup_dir, object_name):
+    # create binary/directory place
+    full_path = get_binary_place(backup_dir, object_name)
+    if os.path.isfile(full_path):
+        os.remove(full_path)

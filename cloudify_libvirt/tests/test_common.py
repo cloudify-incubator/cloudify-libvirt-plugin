@@ -91,6 +91,21 @@ class TestCommon(LibVirtCommonTest):
             makedirs.assert_called_with("a")
             isdir.assert_called_with("a")
 
+    def test_create_binary_place(self):
+        isdir = mock.Mock(return_value=False)
+        with mock.patch(
+            "os.path.isdir",
+            isdir
+        ):
+            makedirs = mock.Mock()
+            with mock.patch(
+                "os.makedirs",
+                makedirs
+            ):
+                common.create_binary_place("a")
+            makedirs.assert_called_with("a")
+            isdir.assert_called_with("a")
+
     def test_read_node_state(self):
         # no such file
         isfile = mock.Mock(return_value=False)
@@ -147,6 +162,37 @@ class TestCommon(LibVirtCommonTest):
                 common.delete_node_state("a", "b")
             remove.assert_called_with('a/b.xml')
         isfile.assert_called_with('a/b.xml')
+
+    def test_delete_binary_place(self):
+        # no such file
+        isfile = mock.Mock(return_value=False)
+        with mock.patch(
+            "os.path.isfile",
+            isfile
+        ):
+            remove = mock.Mock()
+            with mock.patch(
+                "os.remove",
+                remove
+            ):
+                common.delete_binary_place("a", "b")
+            remove.assert_not_called()
+        isfile.assert_called_with('a/b_raw')
+
+        # remove file
+        isfile = mock.Mock(return_value=True)
+        with mock.patch(
+            "os.path.isfile",
+            isfile
+        ):
+            remove = mock.Mock()
+            with mock.patch(
+                "os.remove",
+                remove
+            ):
+                common.delete_binary_place("a", "b")
+            remove.assert_called_with('a/b_raw')
+        isfile.assert_called_with('a/b_raw')
 
 
 if __name__ == '__main__':
