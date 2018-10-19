@@ -58,6 +58,27 @@ class LibVirtCommonTest(unittest.TestCase):
 
         connect.networkLookupByName.assert_called_with(resource_id)
         connect.lookupByName.assert_not_called()
+        connect.storagePoolLookupByName.assert_not_called()
+
+    def _check_no_such_object_pool(self, libvirt_open, func, args, kwargs,
+                                   resource_id):
+        # check that we correctly raise exception without such object
+
+        # no such
+        connect = self._create_fake_connection()
+        with mock.patch(
+            libvirt_open,
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                'Failed to find the pool'
+            ):
+                func(*args, **kwargs)
+
+        connect.networkLookupByName.assert_not_called()
+        connect.lookupByName.assert_not_called()
+        connect.storagePoolLookupByName.assert_called_with(resource_id)
 
     def _check_no_such_object_domain(self, libvirt_open, func, args, kwargs,
                                      resource_id):
@@ -96,6 +117,7 @@ class LibVirtCommonTest(unittest.TestCase):
 
         connect.networkLookupByName.assert_not_called()
         connect.lookupByName.assert_called_with(resource_id)
+        connect.storagePoolLookupByName.assert_not_called()
 
     def _check_create_object(self, error_message, libvirt_open, func, args,
                              kwargs):
@@ -116,8 +138,11 @@ class LibVirtCommonTest(unittest.TestCase):
             side_effect=libvirt.libvirtError("networkLookupByName"))
         connect.lookupByName = mock.Mock(
             side_effect=libvirt.libvirtError("lookupByName"))
+        connect.storagePoolLookupByName = mock.Mock(
+            side_effect=libvirt.libvirtError("storagePoolLookupByName"))
         connect.networkCreateXML = mock.Mock(return_value=None)
         connect.defineXML = mock.Mock(return_value=None)
+        connect.storagePoolDefineXML = mock.Mock(return_value=None)
         connect.close = mock.Mock(return_value=None)
         return connect
 

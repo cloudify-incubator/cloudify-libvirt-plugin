@@ -26,6 +26,7 @@ setup(
             'templates/domain.xml',
             'templates/network.xml',
             'templates/snapshot.xml',
+            'templates/pool.xml',
         ]
     },
     install_requires=[
