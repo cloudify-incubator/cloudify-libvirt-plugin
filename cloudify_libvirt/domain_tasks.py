@@ -17,11 +17,9 @@ import libvirt
 import time
 import uuid
 
-from jinja2 import Template
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
-from pkg_resources import resource_filename
 import cloudify_libvirt.common as common
 
 
@@ -83,29 +81,7 @@ def configure(**kwargs):
             ctx.instance.runtime_properties['use_external_resource'] = True
             return
 
-        # templates
-        template_resource = kwargs.get('template_resource')
-        template_content = kwargs.get('template_content')
-
-        if template_resource:
-            template_content = ctx.get_resource(template_resource)
-
-        if not (template_resource or template_content):
-            resource_dir = resource_filename(__name__, 'templates')
-            template_resource = '{}/domain.xml'.format(resource_dir)
-            ctx.logger.info("Will be used internal: %s" % template_resource)
-
-        if not template_content:
-            with open(template_resource) as domain_desc:
-                template_content = domain_desc.read()
-
-        template_engine = Template(template_content)
-        params = {"ctx": ctx}
-        params.update(template_params)
-        xmlconfig = template_engine.render(params)
-
-        ctx.logger.debug(repr(xmlconfig))
-
+        xmlconfig = common.gen_xml_template(kwargs, template_params, 'domain')
         dom = conn.defineXML(xmlconfig)
         if dom is None:
             raise cfy_exc.NonRecoverableError(
@@ -598,36 +574,15 @@ def snapshot_create(**kwargs):
             )
 
         if kwargs.get("snapshot_incremental"):
-            template_resource = kwargs.get('template_resource')
-            template_content = kwargs.get('template_content')
             snapshot_type = kwargs.get('snapshot_type')
 
-            if template_resource:
-                template_content = ctx.get_resource(template_resource)
-
-            if not template_resource and not template_content:
-                resource_dir = resource_filename(__name__, 'templates')
-                template_resource = '{}/snapshot.xml'.format(resource_dir)
-                ctx.logger.info(
-                    "Will be used internal: %s" % template_resource)
-
-            if not template_content:
-                with open(template_resource) as backup_desc:
-                    template_content = backup_desc.read()
-
-            template_engine = Template(template_content)
-            if not template_params:
-                template_params = {}
-
             params = {
-                "ctx": ctx,
                 'snapshot_name': snapshot_name,
                 'snapshot_description': snapshot_type
             }
-            params.update(template_params)
-            xmlconfig = template_engine.render(params)
-
-            ctx.logger.debug(repr(xmlconfig))
+            if template_params:
+                params.update(template_params)
+            xmlconfig = common.gen_xml_template(kwargs, params, 'snapshot')
 
             try:
                 # will raise exception if unexist

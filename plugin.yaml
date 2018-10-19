@@ -99,7 +99,13 @@ node_types:
           inputs: {}
         configure:
           implementation: libvirt.cloudify_libvirt.domain_tasks.configure
-          inputs: {}
+          inputs:
+            params:
+              default: {}
+            template_resource:
+              default: ''
+            template_content:
+              default: ''
         start:
           implementation: libvirt.cloudify_libvirt.domain_tasks.start
           inputs: {}
@@ -165,7 +171,13 @@ node_types:
       cloudify.interfaces.lifecycle:
         create:
           implementation: libvirt.cloudify_libvirt.network_tasks.create
-          inputs: {}
+          inputs:
+            params:
+              default: {}
+            template_resource:
+              default: ''
+            template_content:
+              default: ''
         delete:
           implementation: libvirt.cloudify_libvirt.network_tasks.delete
           inputs: {}

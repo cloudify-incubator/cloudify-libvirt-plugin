@@ -187,7 +187,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         connect = self._create_fake_connection()
         connect.networkLookupByName = mock.Mock(return_value=network)
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             network_tasks.create(ctx=_ctx,
@@ -235,7 +235,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         # no such snapshot
         _ctx, connect, network = self._create_fake_network_backup()
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with self.assertRaisesRegexp(
@@ -249,7 +249,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         # we have such snapshot
         _ctx, connect, network = self._create_fake_network_backup()
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             network_tasks.snapshot_apply(
@@ -259,7 +259,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         # no such backup
         _ctx, connect, network = self._create_fake_network_backup()
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with mock.patch(
@@ -277,7 +277,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         # have backup
         _ctx, connect, network = self._create_fake_network_backup()
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with mock.patch(
@@ -305,7 +305,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         # check create snapshot with error, already exists
         _ctx, connect, network = self._create_fake_network_backup()
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with self.assertRaisesRegexp(
@@ -319,7 +319,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         # no such snapshots
         _ctx.instance.runtime_properties["backups"] = {}
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             network_tasks.snapshot_create(ctx=_ctx, snapshot_name="backup",
@@ -330,7 +330,7 @@ class TestNetworkTasks(LibVirtCommonTest):
 
         # check create snapshot
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with mock.patch(
@@ -373,7 +373,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         # no such snapshots
         _ctx, connect, network = self._create_fake_network_backup()
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with self.assertRaisesRegexp(
@@ -390,7 +390,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         # remove snapshot
         _ctx, connect, network = self._create_fake_network_backup()
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             network_tasks.snapshot_delete(ctx=_ctx, snapshot_name="backup",
@@ -400,7 +400,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         # no such backup
         _ctx, connect, network = self._create_fake_network_backup()
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with mock.patch(
@@ -459,7 +459,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         connect = self._create_fake_connection()
         connect.networkLookupByName = mock.Mock(return_value=network)
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with self.assertRaisesRegexp(
@@ -480,7 +480,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         connect = self._create_fake_connection()
         connect.networkLookupByName = mock.Mock(return_value=network)
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
                 network_tasks.delete(ctx=_ctx)
@@ -525,7 +525,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         _ctx.instance.runtime_properties['params'] = {}
         _ctx.node.properties['params'] = {}
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             network_tasks.create(ctx=_ctx,
@@ -547,7 +547,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         _ctx.instance.runtime_properties['params'] = {}
         _ctx.node.properties['params'] = {}
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             network_tasks.create(ctx=_ctx,

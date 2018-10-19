@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+from jinja2 import Template
+from pkg_resources import resource_filename
+
 from cloudify import ctx
 from cloudify import exceptions as cfy_exc
 
@@ -38,6 +41,32 @@ def get_libvirt_params(**kwargs):
             ctx.instance.runtime_properties[field] = kwargs[field]
 
     return libvirt_auth, template_params
+
+
+def gen_xml_template(kwargs, template_params, default_template):
+    # templates
+    template_resource = kwargs.get('template_resource')
+    template_content = kwargs.get('template_content')
+
+    if template_resource:
+        template_content = ctx.get_resource(template_resource)
+
+    if not (template_resource or template_content):
+        resource_dir = resource_filename(__name__, 'templates')
+        template_resource = '{}/{}.xml'.format(resource_dir, default_template)
+        ctx.logger.info("Will be used internal: %s" % template_resource)
+
+    if not template_content:
+        with open(template_resource) as object_desc:
+            template_content = object_desc.read()
+
+    template_engine = Template(template_content)
+    params = {"ctx": ctx}
+    if template_params:
+        params.update(template_params)
+    xmlconfig = template_engine.render(params)
+    ctx.logger.debug(repr(xmlconfig))
+    return xmlconfig
 
 
 def get_backupname(kwargs):

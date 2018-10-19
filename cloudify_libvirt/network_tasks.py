@@ -17,11 +17,9 @@ import libvirt
 import uuid
 import time
 
-from jinja2 import Template
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
-from pkg_resources import resource_filename
 import cloudify_libvirt.common as common
 
 
@@ -70,29 +68,7 @@ def create(**kwargs):
             ctx.instance.runtime_properties['use_external_resource'] = True
             return
 
-        # templates
-        template_resource = kwargs.get('template_resource')
-        template_content = kwargs.get('template_content')
-
-        if template_resource:
-            template_content = ctx.get_resource(template_resource)
-
-        if not template_resource and not template_content:
-            resource_dir = resource_filename(__name__, 'templates')
-            template_resource = '{}/network.xml'.format(resource_dir)
-            ctx.logger.info("Will be used internal: %s" % template_resource)
-
-        if not template_content:
-            with open(template_resource) as network_desc:
-                template_content = network_desc.read()
-
-        template_engine = Template(template_content)
-
-        params = {"ctx": ctx}
-        params.update(template_params)
-        xmlconfig = template_engine.render(params)
-
-        ctx.logger.debug(repr(xmlconfig))
+        xmlconfig = common.gen_xml_template(kwargs, template_params, 'network')
 
         # create a persistent virtual network
         network = conn.networkCreateXML(xmlconfig)
