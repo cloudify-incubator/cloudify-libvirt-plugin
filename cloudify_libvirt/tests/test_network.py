@@ -528,7 +528,8 @@ class TestNetworkTasks(LibVirtCommonTest):
             "cloudify_libvirt.domain_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
-            network_tasks.create(ctx=_ctx, network_file="domain_file")
+            network_tasks.create(ctx=_ctx,
+                                 template_resource="template_resource")
         connect.networkCreateXML.assert_called_with('<somexml/>')
         self.assertEqual(
             _ctx.instance.runtime_properties['resource_id'], "network_name"
@@ -549,7 +550,8 @@ class TestNetworkTasks(LibVirtCommonTest):
             "cloudify_libvirt.domain_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
-            network_tasks.create(ctx=_ctx, network_file="domain_file")
+            network_tasks.create(ctx=_ctx,
+                                 template_resource="template_resource")
         connect.networkCreateXML.assert_called_with('<somexml/>')
         self.assertEqual(
             _ctx.instance.runtime_properties['resource_id'], "network_name"

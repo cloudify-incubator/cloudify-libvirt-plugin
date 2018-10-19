@@ -104,7 +104,7 @@ node_templates:
                   mac: 52:54:00:c0:67:81
         configure:
           inputs:
-            domain_file: templates/domain-arm.xml
+            template_resource: templates/domain-arm.xml
     relationships:
       - target: common_network
         type: cloudify.libvirt.relationships.connected_to

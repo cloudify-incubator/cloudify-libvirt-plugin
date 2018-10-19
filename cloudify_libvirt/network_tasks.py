@@ -71,22 +71,22 @@ def create(**kwargs):
             return
 
         # templates
-        network_file = kwargs.get('network_file')
-        network_template = kwargs.get('network_template')
+        template_resource = kwargs.get('template_resource')
+        template_content = kwargs.get('template_content')
 
-        if network_file:
-            network_template = ctx.get_resource(network_file)
+        if template_resource:
+            template_content = ctx.get_resource(template_resource)
 
-        if not network_file and not network_template:
+        if not template_resource and not template_content:
             resource_dir = resource_filename(__name__, 'templates')
-            network_file = '{}/network.xml'.format(resource_dir)
-            ctx.logger.info("Will be used internal: %s" % network_file)
+            template_resource = '{}/network.xml'.format(resource_dir)
+            ctx.logger.info("Will be used internal: %s" % template_resource)
 
-        if not network_template:
-            with open(network_file) as network_desc:
-                network_template = network_desc.read()
+        if not template_content:
+            with open(template_resource) as network_desc:
+                template_content = network_desc.read()
 
-        template_engine = Template(network_template)
+        template_engine = Template(template_content)
 
         params = {"ctx": ctx}
         params.update(template_params)

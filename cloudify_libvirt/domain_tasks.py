@@ -84,22 +84,22 @@ def configure(**kwargs):
             return
 
         # templates
-        domain_file = kwargs.get('domain_file')
-        domain_template = kwargs.get('domain_template')
+        template_resource = kwargs.get('template_resource')
+        template_content = kwargs.get('template_content')
 
-        if domain_file:
-            domain_template = ctx.get_resource(domain_file)
+        if template_resource:
+            template_content = ctx.get_resource(template_resource)
 
-        if not (domain_file or domain_template):
+        if not (template_resource or template_content):
             resource_dir = resource_filename(__name__, 'templates')
-            domain_file = '{}/domain.xml'.format(resource_dir)
-            ctx.logger.info("Will be used internal: %s" % domain_file)
+            template_resource = '{}/domain.xml'.format(resource_dir)
+            ctx.logger.info("Will be used internal: %s" % template_resource)
 
-        if not domain_template:
-            with open(domain_file) as domain_desc:
-                domain_template = domain_desc.read()
+        if not template_content:
+            with open(template_resource) as domain_desc:
+                template_content = domain_desc.read()
 
-        template_engine = Template(domain_template)
+        template_engine = Template(template_content)
         params = {"ctx": ctx}
         params.update(template_params)
         xmlconfig = template_engine.render(params)
@@ -598,23 +598,24 @@ def snapshot_create(**kwargs):
             )
 
         if kwargs.get("snapshot_incremental"):
-            backup_file = kwargs.get('backup_file')
-            backup_template = kwargs.get('backup_template')
+            template_resource = kwargs.get('template_resource')
+            template_content = kwargs.get('template_content')
             snapshot_type = kwargs.get('snapshot_type')
 
-            if backup_file:
-                backup_template = ctx.get_resource(backup_file)
+            if template_resource:
+                template_content = ctx.get_resource(template_resource)
 
-            if not backup_file and not backup_template:
+            if not template_resource and not template_content:
                 resource_dir = resource_filename(__name__, 'templates')
-                backup_file = '{}/snapshot.xml'.format(resource_dir)
-                ctx.logger.info("Will be used internal: %s" % backup_file)
+                template_resource = '{}/snapshot.xml'.format(resource_dir)
+                ctx.logger.info(
+                    "Will be used internal: %s" % template_resource)
 
-            if not backup_template:
-                with open(backup_file) as backup_desc:
-                    backup_template = backup_desc.read()
+            if not template_content:
+                with open(template_resource) as backup_desc:
+                    template_content = backup_desc.read()
 
-            template_engine = Template(backup_template)
+            template_engine = Template(template_content)
             if not template_params:
                 template_params = {}
 

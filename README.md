@@ -62,7 +62,7 @@ Description for VM
 **Inputs for actions:**
 * `configure`:
   * `params`: list of params for template, can be empty
-  * `domain_file`: Template for domain. Defaults is
+  * `template_resource`: Template for domain. Defaults is
     [domain.xml](cloudify_libvirt/templates/domain.xml)
 
 **Runtime properties:**
@@ -87,7 +87,7 @@ Description for Network
 **Inputs for actions:**
 * `create`:
   * `params`: list of params for template, can be empty
-  * `network_file`: Template for network. Defaults is
+  * `template_resource`: Template for network. Defaults is
     [network.xml](cloudify_libvirt/templates/network.xml)
 
 **Runtime properties:**
