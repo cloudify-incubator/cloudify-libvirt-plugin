@@ -192,7 +192,9 @@ class TestDomainTasks(LibVirtCommonTest):
 
     def test_stop(self):
         self._test_no_resource_id(domain_tasks.stop)
-        self._test_reused_object(domain_tasks.stop)
+        self._test_reused_object(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.stop)
         self._test_check_correct_connect_action(domain_tasks.stop)
         self._test_check_correct_connect_no_object(domain_tasks.stop)
         self._test_action_states(
@@ -222,7 +224,9 @@ class TestDomainTasks(LibVirtCommonTest):
 
     def test_delete(self):
         self._test_no_resource_id(domain_tasks.delete)
-        self._test_reused_object(domain_tasks.delete)
+        self._test_reused_object(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.delete)
         self._test_check_correct_connect_action(domain_tasks.delete)
         self._test_check_correct_connect_no_object(domain_tasks.delete)
 
@@ -890,7 +894,10 @@ class TestDomainTasks(LibVirtCommonTest):
     def _test_common_backups(self, func, noresource_text):
         # common funcs for backups
         self._test_no_resource_id(func, noresource_text)
-        self._test_no_snapshot_name(self._create_ctx(), func)
+        self._test_no_snapshot_name(
+            self._create_ctx(),
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            func)
         self._test_snapshot_name_backup(func)
         self._test_check_correct_connect_backup(func)
         self._test_check_correct_connect_backup_no_object(func)

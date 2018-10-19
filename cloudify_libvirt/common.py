@@ -128,3 +128,71 @@ def delete_binary_place(backup_dir, object_name):
     full_path = get_binary_place(backup_dir, object_name)
     if os.path.isfile(full_path):
         os.remove(full_path)
+
+
+def xml_snapshot_create(kwargs, resource_id, current_xmldump):
+    snapshot_name = get_backupname(kwargs)
+    if kwargs.get("snapshot_incremental"):
+        backups = ctx.instance.runtime_properties.get("backups", {})
+        if snapshot_name in backups:
+            raise cfy_exc.NonRecoverableError(
+                "Snapshot {snapshot_name} already exists."
+                .format(snapshot_name=snapshot_name,))
+        backups[snapshot_name] = current_xmldump
+        ctx.instance.runtime_properties["backups"] = backups
+        ctx.logger.info("Snapshot {snapshot_name} is created."
+                        .format(snapshot_name=snapshot_name,))
+    else:
+        if read_node_state(get_backupdir(kwargs), resource_id):
+            raise cfy_exc.NonRecoverableError(
+                "Backup {snapshot_name} already exists."
+                .format(snapshot_name=snapshot_name,))
+        save_node_state(get_backupdir(kwargs), resource_id, current_xmldump)
+    ctx.logger.info("Backup {snapshot_name} is created."
+                    .format(snapshot_name=snapshot_name,))
+    ctx.logger.debug("Current config {}".format(repr(current_xmldump)))
+
+
+def xml_snapshot_apply(kwargs, resource_id, current_xmldump):
+    snapshot_name = get_backupname(kwargs)
+    if kwargs.get("snapshot_incremental"):
+        backups = ctx.instance.runtime_properties.get("backups", {})
+        if snapshot_name not in backups:
+            raise cfy_exc.NonRecoverableError(
+                "No snapshots found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
+        xml_backup = backups[snapshot_name]
+    else:
+        xml_backup = read_node_state(get_backupdir(kwargs), resource_id)
+        if not xml_backup:
+            raise cfy_exc.NonRecoverableError(
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
+
+    if xml_backup.strip() != current_xmldump.strip():
+        ctx.logger.info("We have different configs,\n{}\nvs\n{}\n"
+                        .format(
+                            repr(xml_backup.strip()),
+                            repr(current_xmldump.strip())))
+    else:
+        ctx.logger.info("Already used such configuration: {}"
+                        .format(snapshot_name))
+
+
+def xml_snapshot_delete(kwargs, resource_id):
+    snapshot_name = get_backupname(kwargs)
+    if kwargs.get("snapshot_incremental"):
+        backups = ctx.instance.runtime_properties.get("backups", {})
+        if snapshot_name not in backups:
+            raise cfy_exc.NonRecoverableError(
+                "No snapshots found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
+        del backups[snapshot_name]
+        ctx.instance.runtime_properties["backups"] = backups
+    else:
+        if not read_node_state(get_backupdir(kwargs), resource_id):
+            raise cfy_exc.NonRecoverableError(
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
+        delete_node_state(get_backupdir(kwargs), resource_id)
+    ctx.logger.info("Backup deleted: {}".format(snapshot_name))

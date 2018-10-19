@@ -147,23 +147,25 @@ class LibVirtCommonTest(unittest.TestCase):
             ):
                 func(ctx=_ctx)
 
-    def _test_reused_object(self, func, use_existed=True):
+    def _test_reused_object(self, libvirt_open, func, use_existed=True):
         # check use prexisted object
         _ctx = self._create_ctx()
         _ctx.instance.runtime_properties['resource_id'] = 'resource'
         _ctx.instance.runtime_properties['use_external_resource'] = use_existed
         connect = self._create_fake_connection()
-        with mock.patch(
-            "cloudify_libvirt.network_tasks.libvirt.open",
-            mock.Mock(return_value=connect)
-        ):
+        with mock.patch(libvirt_open, mock.Mock(return_value=connect)):
             func(ctx=_ctx)
 
-    def _test_no_snapshot_name(self, _ctx, func):
+    def _test_no_snapshot_name(self, _ctx, libvirt_open, func):
         _ctx.instance.runtime_properties['resource_id'] = 'resource'
 
         with self.assertRaisesRegexp(
             NonRecoverableError,
             "Backup name must be provided."
         ):
-            func(ctx=_ctx)
+            connect = self._create_fake_connection()
+            connect.networkLookupByName = mock.Mock()
+            connect.lookupByName = mock.Mock()
+            connect.storagePoolLookupByName = mock.Mock()
+            with mock.patch(libvirt_open, mock.Mock(return_value=connect)):
+                func(ctx=_ctx)

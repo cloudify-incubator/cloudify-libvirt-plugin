@@ -227,8 +227,10 @@ class TestNetworkTasks(LibVirtCommonTest):
     def test_snapshot_apply(self):
         self._test_no_resource_id(network_tasks.snapshot_apply,
                                   "No network for restore")
-        self._test_no_snapshot_name(self._create_ctx(),
-                                    network_tasks.snapshot_apply)
+        self._test_no_snapshot_name(
+            self._create_ctx(),
+            "cloudify_libvirt.network_tasks.libvirt.open",
+            network_tasks.snapshot_apply)
         self._test_empty_connection_backup(network_tasks.snapshot_apply)
         self._test_empty_network_backup(network_tasks.snapshot_apply)
 
@@ -297,8 +299,10 @@ class TestNetworkTasks(LibVirtCommonTest):
     def test_snapshot_create(self):
         self._test_no_resource_id(network_tasks.snapshot_create,
                                   "No network for backup")
-        self._test_no_snapshot_name(self._create_ctx(),
-                                    network_tasks.snapshot_create)
+        self._test_no_snapshot_name(
+            self._create_ctx(),
+            "cloudify_libvirt.network_tasks.libvirt.open",
+            network_tasks.snapshot_create)
         self._test_empty_connection_backup(network_tasks.snapshot_create)
         self._test_empty_network_backup(network_tasks.snapshot_create)
 
@@ -367,8 +371,10 @@ class TestNetworkTasks(LibVirtCommonTest):
     def test_snapshot_delete(self):
         self._test_no_resource_id(network_tasks.snapshot_delete,
                                   "No network for backup delete")
-        self._test_no_snapshot_name(self._create_ctx(),
-                                    network_tasks.snapshot_delete)
+        self._test_no_snapshot_name(
+            self._create_ctx(),
+            "cloudify_libvirt.network_tasks.libvirt.open",
+            network_tasks.snapshot_delete)
 
         # no such snapshots
         _ctx, connect, network = self._create_fake_network_backup()
@@ -418,7 +424,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         # remove backup
         _ctx, connect, network = self._create_fake_network_backup()
         with mock.patch(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
+            "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with mock.patch(
@@ -445,7 +451,9 @@ class TestNetworkTasks(LibVirtCommonTest):
         self._test_no_resource_id(network_tasks.delete)
         self._test_empty_connection(network_tasks.delete)
         self._test_empty_network(network_tasks.delete)
-        self._test_reused_object(network_tasks.delete)
+        self._test_reused_object(
+            "cloudify_libvirt.network_tasks.libvirt.open",
+            network_tasks.delete)
 
         # delete with error
         _ctx = self._create_ctx()
