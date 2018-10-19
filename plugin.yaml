@@ -9,6 +9,11 @@ data_types:
 
   network_params:
     properties:
+      name:
+        required: false
+        default: ""
+        description: >
+          Network name
       dev:
         required: false
         default: ""
@@ -27,6 +32,11 @@ data_types:
 
   domain_params:
     properties:
+      name:
+        required: false
+        default: ""
+        description: >
+          Domain name
       vcpu:
         required: false
         type: integer

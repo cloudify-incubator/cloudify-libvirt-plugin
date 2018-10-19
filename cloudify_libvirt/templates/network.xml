@@ -1,5 +1,5 @@
 <network>
-  <name>{{ resource_id }}</name>
+  <name>{{ name }}</name>
   <uuid>{{ instance_uuid }}</uuid>
   <bridge name="{{ dev }}" />
   {% for forward in forwards %}

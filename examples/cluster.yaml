@@ -115,7 +115,7 @@ node_templates:
         create:
           inputs:
             params:
-              resource_id: manager_network
+              name: manager_network
               dev: virbr9
               forwards:
                 - mode: nat

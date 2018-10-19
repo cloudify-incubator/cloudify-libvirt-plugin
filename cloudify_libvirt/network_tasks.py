@@ -14,28 +14,12 @@
 # limitations under the License.
 
 import libvirt
-import uuid
 import time
 
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 import cloudify_libvirt.common as common
-
-
-def _update_template_params(template_params):
-    # set all params to default values
-    if not template_params:
-        template_params = {}
-
-    if not template_params:
-        template_params = {}
-
-    if not template_params.get("resource_id"):
-        template_params["resource_id"] = ctx.instance.id
-    if not template_params.get("instance_uuid"):
-        template_params["instance_uuid"] = str(uuid.uuid4())
-    return template_params
 
 
 @operation
@@ -48,8 +32,6 @@ def create(**kwargs):
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'
         )
-
-    template_params = _update_template_params(template_params)
 
     try:
         if ctx.instance.runtime_properties.get("use_external_resource"):

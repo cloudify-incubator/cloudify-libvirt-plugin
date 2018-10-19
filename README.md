@@ -46,6 +46,7 @@ Description for VM
 * `resource_id`: (optional) Used to identify the object when
   `use_external_resource` is true.
 * `params`: params used for create object, useful for embeded template.
+  * `name`: Domain name
   * `vcpu`: CPU count
   * `memory_size`: VM memory size in KiB
   * `memory_maxsize`: (optional) recomended VM memory size in KiB for
@@ -80,6 +81,7 @@ Description for Network
 * `resource_id`: (optional) Used to identify the object when
   `use_external_resource` is true.
 * `params`: params used for create object.
+  * `name`: Network name
   * `dev`: Device name
   * `forwards`: settings for network `forwards`.
   * `ips`: settings for network `ips`.

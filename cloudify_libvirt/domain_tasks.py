@@ -15,7 +15,6 @@
 
 import libvirt
 import time
-import uuid
 
 from cloudify import ctx
 from cloudify.decorators import operation
@@ -33,22 +32,14 @@ def create(**kwargs):
 
 def _update_template_params(template_params):
     # set all params to default values
-    if not template_params:
-        template_params = {}
-
-    if not template_params.get("resource_id"):
-        template_params["resource_id"] = ctx.instance.id
     if (not template_params.get("memory_maxsize") and
             template_params.get('memory_size')):
         # if have no maximum memory size, set current as minimum
         # and twised memory as maximum
         memory_size = int(template_params['memory_size'])
         template_params['memory_maxsize'] = memory_size * 2
-    if not template_params.get("instance_uuid"):
-        template_params["instance_uuid"] = str(uuid.uuid4())
     if not template_params.get("domain_type"):
         template_params["domain_type"] = "qemu"
-    return template_params
 
 
 @operation
@@ -62,8 +53,7 @@ def configure(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    template_params = _update_template_params(template_params)
-
+    _update_template_params(template_params)
     try:
         if ctx.instance.runtime_properties.get("use_external_resource"):
             # lookup the default domain by name

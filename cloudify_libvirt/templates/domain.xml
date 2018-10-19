@@ -2,6 +2,7 @@
   <resource>
     <partition>/machine</partition>
   </resource>
+  <name>{{ name }}</name>
   <uuid>{{ instance_uuid }}</uuid>
   <currentMemory unit="KiB">{{ memory_size }}</currentMemory>
   <on_poweroff>destroy</on_poweroff>
@@ -67,5 +68,4 @@
     <timer name="pit" tickpolicy="delay"/>
     <timer name="hpet" present="no"/>
   </clock>
-  <name>{{ resource_id }}</name>
 </domain>

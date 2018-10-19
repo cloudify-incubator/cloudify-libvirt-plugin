@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+import uuid
 from jinja2 import Template
 from pkg_resources import resource_filename
 
@@ -34,6 +35,12 @@ def get_libvirt_params(**kwargs):
     template_params.update(ctx.instance.runtime_properties.get('params', {}))
     template_params.update(kwargs.get('params', {}))
     ctx.instance.runtime_properties['params'] = template_params
+
+    # set default names and instance_uuid
+    if not template_params.get("name"):
+        template_params["name"] = ctx.instance.id
+    if not template_params.get("instance_uuid"):
+        template_params["instance_uuid"] = str(uuid.uuid4())
 
     # update 'resource_id', 'use_external_resource' from kwargs
     for field in ['resource_id', 'use_external_resource']:

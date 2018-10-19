@@ -81,11 +81,18 @@ class TestDomainTasks(LibVirtCommonTest):
         real logic"""
         _ctx = self._create_ctx()
 
-        domain_tasks.create(ctx=_ctx, params={'z': 'y'},
-                            libvirt_auth={'w': 'x'})
+        with mock.patch(
+            "cloudify_libvirt.common.uuid.uuid4",
+            mock.Mock(return_value="some_uuid")
+        ):
+            domain_tasks.create(ctx=_ctx, params={'z': 'y'},
+                                libvirt_auth={'w': 'x'})
         self.assertEqual(_ctx.instance.runtime_properties, {
             'libvirt_auth': {'w': 'x'},
             'params': {
+                # default values
+                'name': 'node_name', 'instance_uuid': 'some_uuid',
+                # values from inputs
                 'a': 'b', 'c': 'd', 'e': 'g', 'z': 'y'
             }
         })

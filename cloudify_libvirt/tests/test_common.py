@@ -34,10 +34,18 @@ class TestCommon(LibVirtCommonTest):
         )
         current_ctx.set(_ctx)
 
-        self.assertEqual(common.get_libvirt_params(), (None, {}))
+        with mock.patch(
+            "cloudify_libvirt.common.uuid.uuid4",
+            mock.Mock(return_value="some_uuid")
+        ):
+            self.assertEqual(common.get_libvirt_params(),
+                             (None, {'name': 'node_name',
+                                     'instance_uuid': 'some_uuid'}))
+
         self.assertEqual(_ctx.instance.runtime_properties, {
             'libvirt_auth': None,
-            'params': {}
+            'params': {'name': 'node_name',
+                       'instance_uuid': 'some_uuid'}
         })
 
         # overwrite
@@ -54,21 +62,32 @@ class TestCommon(LibVirtCommonTest):
         )
         current_ctx.set(_ctx)
 
-        self.assertEqual(common.get_libvirt_params(
-            params={'z': 'y'}, libvirt_auth={'w': 'x'}
-        ), ({
-                'w': 'x'
-            }, {
-                'a': 'b',
-                'c': 'd',
-                'e': 'g',
-                'z': 'y'
-            })
-        )
+        with mock.patch(
+            "cloudify_libvirt.common.uuid.uuid4",
+            mock.Mock(return_value="some_uuid")
+        ):
+            self.assertEqual(common.get_libvirt_params(
+                params={'z': 'y'}, libvirt_auth={'w': 'x'}
+            ), ({
+                    'w': 'x'
+                }, {
+                    # default values
+                    'instance_uuid': 'some_uuid',
+                    'name': 'node_name',
+                    # combined
+                    'a': 'b',
+                    'c': 'd',
+                    'e': 'g',
+                    'z': 'y'
+                })
+            )
         self.assertEqual(_ctx.instance.runtime_properties, {
             'libvirt_auth': {'w': 'x'},
-            'params': {'a': 'b', 'c': 'd', 'e': 'g', 'z': 'y'}
-        })
+            'params': {
+                # default values
+                'instance_uuid': 'some_uuid', 'name': 'node_name',
+                # combined
+                'a': 'b', 'c': 'd', 'e': 'g', 'z': 'y'}})
 
     def test_save_node_state(self):
         isdir = mock.Mock(return_value=False)
