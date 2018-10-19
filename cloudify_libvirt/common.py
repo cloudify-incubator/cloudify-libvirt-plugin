@@ -81,7 +81,7 @@ def get_backupname(kwargs):
         raise cfy_exc.NonRecoverableError(
             'Backup name must be provided.'
         )
-    return kwargs["snapshot_name"]
+    return "{}-{}".format(ctx.instance.id, kwargs["snapshot_name"])
 
 
 def get_backupdir(kwargs):

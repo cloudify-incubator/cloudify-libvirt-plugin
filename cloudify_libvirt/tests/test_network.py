@@ -221,7 +221,8 @@ class TestNetworkTasks(LibVirtCommonTest):
         _ctx.instance.runtime_properties['resource_id'] = 'resource'
         _ctx.instance.runtime_properties['params'] = {}
         _ctx.node.properties['params'] = {}
-        _ctx.instance.runtime_properties["backups"] = {"backup": "<xml/>"}
+        _ctx.instance.runtime_properties["backups"] = {
+            "node_name-backup": "<xml/>"}
         return _ctx, connect, network
 
     def test_snapshot_apply(self):
@@ -242,7 +243,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         ):
             with self.assertRaisesRegexp(
                 NonRecoverableError,
-                "No snapshots found with name: backup!."
+                "No snapshots found with name: node_name-backup!."
             ):
                 network_tasks.snapshot_apply(
                     ctx=_ctx, snapshot_name="backup!",
@@ -270,7 +271,7 @@ class TestNetworkTasks(LibVirtCommonTest):
             ):
                 with self.assertRaisesRegexp(
                     NonRecoverableError,
-                    "No backups found with name: backup!."
+                    "No backups found with name: node_name-backup!."
                 ):
                     network_tasks.snapshot_apply(
                         ctx=_ctx, snapshot_name="backup!",
@@ -314,7 +315,7 @@ class TestNetworkTasks(LibVirtCommonTest):
         ):
             with self.assertRaisesRegexp(
                 NonRecoverableError,
-                "Snapshot backup already exists."
+                "Snapshot node_name-backup already exists."
             ):
                 network_tasks.snapshot_create(ctx=_ctx, snapshot_name="backup",
                                               snapshot_incremental=True)
@@ -330,7 +331,7 @@ class TestNetworkTasks(LibVirtCommonTest):
                                           snapshot_incremental=True)
         self.assertEqual(
             _ctx.instance.runtime_properties["backups"],
-            {"backup": "<network/>"})
+            {"node_name-backup": "<network/>"})
 
         # check create snapshot
         with mock.patch(
@@ -353,7 +354,7 @@ class TestNetworkTasks(LibVirtCommonTest):
                     ):
                         with self.assertRaisesRegexp(
                             NonRecoverableError,
-                            "Backup backup already exists."
+                            "Backup node_name-backup already exists."
                         ):
                             network_tasks.snapshot_create(
                                 ctx=_ctx, snapshot_name="backup",
@@ -384,14 +385,14 @@ class TestNetworkTasks(LibVirtCommonTest):
         ):
             with self.assertRaisesRegexp(
                 NonRecoverableError,
-                "No snapshots found with name: backup!."
+                "No snapshots found with name: node_name-backup!."
             ):
                 network_tasks.snapshot_delete(
                     ctx=_ctx, snapshot_name="backup!",
                     snapshot_incremental=True)
         self.assertEqual(
             _ctx.instance.runtime_properties["backups"],
-            {"backup": "<xml/>"})
+            {'node_name-backup': "<xml/>"})
 
         # remove snapshot
         _ctx, connect, network = self._create_fake_network_backup()
@@ -415,7 +416,7 @@ class TestNetworkTasks(LibVirtCommonTest):
             ):
                 with self.assertRaisesRegexp(
                     NonRecoverableError,
-                    "No backups found with name: backup!."
+                    "No backups found with name: node_name-backup!."
                 ):
                     network_tasks.snapshot_delete(
                         ctx=_ctx, snapshot_name="backup!",
@@ -458,7 +459,8 @@ class TestNetworkTasks(LibVirtCommonTest):
         # delete with error
         _ctx = self._create_ctx()
         _ctx.instance.runtime_properties['resource_id'] = 'resource'
-        _ctx.instance.runtime_properties["backups"] = {"backup": "<xml/>"}
+        _ctx.instance.runtime_properties["backups"] = {
+            "node_name-backup": "<xml/>"}
 
         network = mock.Mock()
         network.destroy = mock.Mock(return_value=-1)

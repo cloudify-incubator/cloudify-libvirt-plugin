@@ -587,7 +587,7 @@ class TestDomainTasks(LibVirtCommonTest):
                     ):
                         with self.assertRaisesRegexp(
                             NonRecoverableError,
-                            "Backup snapshot_name already exists."
+                            "Backup node_name-snapshot_name already exists."
                         ):
                             domain_tasks.snapshot_create(
                                 ctx=_ctx,
@@ -681,7 +681,7 @@ class TestDomainTasks(LibVirtCommonTest):
             ):
                 with self.assertRaisesRegexp(
                     NonRecoverableError,
-                    "No backups found with name: snapshot_name."
+                    "No backups found with name: node_name-snapshot_name."
                 ):
                     domain_tasks.snapshot_apply(ctx=_ctx,
                                                 snapshot_name='snapshot_name',
@@ -776,7 +776,7 @@ class TestDomainTasks(LibVirtCommonTest):
             ):
                 with self.assertRaisesRegexp(
                     NonRecoverableError,
-                    "No backups found with name: snapshot_name."
+                    "No backups found with name: node_name-snapshot_name."
                 ):
                     domain_tasks.snapshot_delete(ctx=_ctx,
                                                  snapshot_name='snapshot_name',
@@ -847,8 +847,9 @@ class TestDomainTasks(LibVirtCommonTest):
         ):
             with self.assertRaisesRegexp(
                 NonRecoverableError,
-                "Sub snapshots \['snapshot-'\] found for snapshot_name."
-                " You should remove subsnaphots before remove current."
+                "Sub snapshots \['snapshot-'\] found for "
+                "node_name-snapshot_name. You should remove subsnaphots before"
+                " remove current."
             ):
                 domain_tasks.snapshot_delete(ctx=_ctx,
                                              snapshot_name='snapshot_name',
