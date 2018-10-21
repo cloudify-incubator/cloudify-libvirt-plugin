@@ -81,11 +81,18 @@ class TestDomainTasks(LibVirtCommonTest):
         real logic"""
         _ctx = self._create_ctx()
 
-        domain_tasks.create(ctx=_ctx, params={'z': 'y'},
-                            libvirt_auth={'w': 'x'})
+        with mock.patch(
+            "cloudify_libvirt.common.uuid.uuid4",
+            mock.Mock(return_value="some_uuid")
+        ):
+            domain_tasks.create(ctx=_ctx, params={'z': 'y'},
+                                libvirt_auth={'w': 'x'})
         self.assertEqual(_ctx.instance.runtime_properties, {
             'libvirt_auth': {'w': 'x'},
             'params': {
+                # default values
+                'name': 'node_name', 'instance_uuid': 'some_uuid',
+                # values from inputs
                 'a': 'b', 'c': 'd', 'e': 'g', 'z': 'y'
             }
         })
@@ -123,7 +130,7 @@ class TestDomainTasks(LibVirtCommonTest):
             mock.Mock(return_value=connect)
         ):
             domain_tasks.configure(ctx=_ctx,
-                                   domain_file="domain_file")
+                                   template_resource="template_resource")
         connect.defineXML.assert_called_with('<somexml/>')
         self.assertEqual(
             _ctx.instance.runtime_properties['resource_id'], "domain_name"
@@ -136,7 +143,7 @@ class TestDomainTasks(LibVirtCommonTest):
             mock.Mock(return_value=connect)
         ):
             domain_tasks.configure(ctx=_ctx,
-                                   domain_file="domain_file",
+                                   template_resource="template_resource",
                                    params={"memory_size": 1024})
         connect.defineXML.assert_called_with('<somexml/>')
         self.assertEqual(
@@ -192,7 +199,9 @@ class TestDomainTasks(LibVirtCommonTest):
 
     def test_stop(self):
         self._test_no_resource_id(domain_tasks.stop)
-        self._test_reused_object(domain_tasks.stop)
+        self._test_reused_object(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.stop)
         self._test_check_correct_connect_action(domain_tasks.stop)
         self._test_check_correct_connect_no_object(domain_tasks.stop)
         self._test_action_states(
@@ -222,7 +231,9 @@ class TestDomainTasks(LibVirtCommonTest):
 
     def test_delete(self):
         self._test_no_resource_id(domain_tasks.delete)
-        self._test_reused_object(domain_tasks.delete)
+        self._test_reused_object(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.delete)
         self._test_check_correct_connect_action(domain_tasks.delete)
         self._test_check_correct_connect_no_object(domain_tasks.delete)
 
@@ -546,10 +557,11 @@ class TestDomainTasks(LibVirtCommonTest):
                 NonRecoverableError,
                 "Snapshot snapshot\! already exists."
             ):
-                domain_tasks.snapshot_create(ctx=_ctx,
-                                             backup_file="domain_file",
-                                             snapshot_name='snapshot_name',
-                                             snapshot_incremental=True)
+                domain_tasks.snapshot_create(
+                    ctx=_ctx,
+                    template_resource="template_resource",
+                    snapshot_name='snapshot_name',
+                    snapshot_incremental=True)
 
         # check create snapshot
         domain.XMLDesc = mock.Mock(return_value="<domain/>")
@@ -575,10 +587,11 @@ class TestDomainTasks(LibVirtCommonTest):
                     ):
                         with self.assertRaisesRegexp(
                             NonRecoverableError,
-                            "Backup snapshot_name already exists."
+                            "Backup node_name-snapshot_name already exists."
                         ):
                             domain_tasks.snapshot_create(
-                                ctx=_ctx, backup_file="domain_file",
+                                ctx=_ctx,
+                                template_resource="template_resource",
                                 snapshot_name='snapshot_name',
                                 snapshot_incremental=False)
                     # without error
@@ -587,7 +600,7 @@ class TestDomainTasks(LibVirtCommonTest):
                         mock.Mock(return_value=False)
                     ):
                         domain_tasks.snapshot_create(
-                            ctx=_ctx, backup_file="domain_file",
+                            ctx=_ctx, template_resource="template_resource",
                             snapshot_name='snapshot_name',
                             snapshot_incremental=False)
                 if raw_case:
@@ -627,7 +640,8 @@ class TestDomainTasks(LibVirtCommonTest):
             "cloudify_libvirt.domain_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
-            domain_tasks.snapshot_create(ctx=_ctx, backup_file="domain_file",
+            domain_tasks.snapshot_create(ctx=_ctx,
+                                         template_resource="template_resource",
                                          snapshot_name='snapshot_name',
                                          snapshot_incremental=True)
         domain.snapshotCreateXML.assert_called_with('<somexml/>')
@@ -667,7 +681,7 @@ class TestDomainTasks(LibVirtCommonTest):
             ):
                 with self.assertRaisesRegexp(
                     NonRecoverableError,
-                    "No backups found with name: snapshot_name."
+                    "No backups found with name: node_name-snapshot_name."
                 ):
                     domain_tasks.snapshot_apply(ctx=_ctx,
                                                 snapshot_name='snapshot_name',
@@ -762,7 +776,7 @@ class TestDomainTasks(LibVirtCommonTest):
             ):
                 with self.assertRaisesRegexp(
                     NonRecoverableError,
-                    "No backups found with name: snapshot_name."
+                    "No backups found with name: node_name-snapshot_name."
                 ):
                     domain_tasks.snapshot_delete(ctx=_ctx,
                                                  snapshot_name='snapshot_name',
@@ -833,8 +847,9 @@ class TestDomainTasks(LibVirtCommonTest):
         ):
             with self.assertRaisesRegexp(
                 NonRecoverableError,
-                "Sub snapshots \['snapshot-'\] found for snapshot_name."
-                " You should remove subsnaphots before remove current."
+                "Sub snapshots \['snapshot-'\] found for "
+                "node_name-snapshot_name. You should remove subsnaphots before"
+                " remove current."
             ):
                 domain_tasks.snapshot_delete(ctx=_ctx,
                                              snapshot_name='snapshot_name',
@@ -887,7 +902,10 @@ class TestDomainTasks(LibVirtCommonTest):
     def _test_common_backups(self, func, noresource_text):
         # common funcs for backups
         self._test_no_resource_id(func, noresource_text)
-        self._test_no_snapshot_name(self._create_ctx(), func)
+        self._test_no_snapshot_name(
+            self._create_ctx(),
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            func)
         self._test_snapshot_name_backup(func)
         self._test_check_correct_connect_backup(func)
         self._test_check_correct_connect_backup_no_object(func)

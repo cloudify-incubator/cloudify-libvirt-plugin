@@ -2,13 +2,36 @@ plugins:
   libvirt:
     executor: central_deployment_agent
     package_name: cloudify-libvirt-plugin
-    package_version: '0.6.0'
-    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/0.6.0.zip
+    package_version: '0.7.0'
+    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/0.7.0.zip
 
 data_types:
 
+  pool_params:
+    properties:
+      name:
+        required: false
+        default: ""
+        description: >
+          Pool name
+      path:
+        required: false
+        default: ""
+        description: >
+          Pool path
+      capacity:
+        required: false
+        type: integer
+        description: >
+          Storage size in GiB
+
   network_params:
     properties:
+      name:
+        required: false
+        default: ""
+        description: >
+          Network name
       dev:
         required: false
         default: ""
@@ -27,6 +50,11 @@ data_types:
 
   domain_params:
     properties:
+      name:
+        required: false
+        default: ""
+        description: >
+          Domain name
       vcpu:
         required: false
         type: integer
@@ -99,7 +127,13 @@ node_types:
           inputs: {}
         configure:
           implementation: libvirt.cloudify_libvirt.domain_tasks.configure
-          inputs: {}
+          inputs:
+            params:
+              default: {}
+            template_resource:
+              default: ''
+            template_content:
+              default: ''
         start:
           implementation: libvirt.cloudify_libvirt.domain_tasks.start
           inputs: {}
@@ -165,7 +199,13 @@ node_types:
       cloudify.interfaces.lifecycle:
         create:
           implementation: libvirt.cloudify_libvirt.network_tasks.create
-          inputs: {}
+          inputs:
+            params:
+              default: {}
+            template_resource:
+              default: ''
+            template_content:
+              default: ''
         delete:
           implementation: libvirt.cloudify_libvirt.network_tasks.delete
           inputs: {}
@@ -179,6 +219,60 @@ node_types:
           inputs: {}
         delete:
           implementation: libvirt.cloudify_libvirt.network_tasks.snapshot_delete
+          inputs: {}
+
+  cloudify.libvirt.pool:
+    derived_from: cloudify.nodes.Tier
+    properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
+      backup_dir:
+        default: './'
+      libvirt_auth:
+        default: 'qemu:///system'
+      params:
+        type: pool_params
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.create
+          inputs:
+            params:
+              default: {}
+            template_resource:
+              default: ''
+            template_content:
+              default: ''
+        configure:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.configure
+          inputs: {}
+        start:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.start
+          inputs: {}
+        stop:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.stop
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.delete
+          inputs: {}
+      # backups related section
+      cloudify.interfaces.snapshot:
+        create:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.snapshot_create
+          inputs: {}
+        apply:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.snapshot_apply
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.snapshot_delete
           inputs: {}
 
 relationships:

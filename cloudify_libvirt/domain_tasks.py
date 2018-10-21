@@ -15,13 +15,10 @@
 
 import libvirt
 import time
-import uuid
 
-from jinja2 import Template
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
-from pkg_resources import resource_filename
 import cloudify_libvirt.common as common
 
 
@@ -35,22 +32,14 @@ def create(**kwargs):
 
 def _update_template_params(template_params):
     # set all params to default values
-    if not template_params:
-        template_params = {}
-
-    if not template_params.get("resource_id"):
-        template_params["resource_id"] = ctx.instance.id
     if (not template_params.get("memory_maxsize") and
             template_params.get('memory_size')):
         # if have no maximum memory size, set current as minimum
         # and twised memory as maximum
         memory_size = int(template_params['memory_size'])
         template_params['memory_maxsize'] = memory_size * 2
-    if not template_params.get("instance_uuid"):
-        template_params["instance_uuid"] = str(uuid.uuid4())
     if not template_params.get("domain_type"):
         template_params["domain_type"] = "qemu"
-    return template_params
 
 
 @operation
@@ -64,8 +53,7 @@ def configure(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    template_params = _update_template_params(template_params)
-
+    _update_template_params(template_params)
     try:
         if ctx.instance.runtime_properties.get("use_external_resource"):
             # lookup the default domain by name
@@ -83,29 +71,7 @@ def configure(**kwargs):
             ctx.instance.runtime_properties['use_external_resource'] = True
             return
 
-        # templates
-        domain_file = kwargs.get('domain_file')
-        domain_template = kwargs.get('domain_template')
-
-        if domain_file:
-            domain_template = ctx.get_resource(domain_file)
-
-        if not (domain_file or domain_template):
-            resource_dir = resource_filename(__name__, 'templates')
-            domain_file = '{}/domain.xml'.format(resource_dir)
-            ctx.logger.info("Will be used internal: %s" % domain_file)
-
-        if not domain_template:
-            with open(domain_file) as domain_desc:
-                domain_template = domain_desc.read()
-
-        template_engine = Template(domain_template)
-        params = {"ctx": ctx}
-        params.update(template_params)
-        xmlconfig = template_engine.render(params)
-
-        ctx.logger.debug(repr(xmlconfig))
-
+        xmlconfig = common.gen_xml_template(kwargs, template_params, 'domain')
         dom = conn.defineXML(xmlconfig)
         if dom is None:
             raise cfy_exc.NonRecoverableError(
@@ -598,35 +564,15 @@ def snapshot_create(**kwargs):
             )
 
         if kwargs.get("snapshot_incremental"):
-            backup_file = kwargs.get('backup_file')
-            backup_template = kwargs.get('backup_template')
             snapshot_type = kwargs.get('snapshot_type')
 
-            if backup_file:
-                backup_template = ctx.get_resource(backup_file)
-
-            if not backup_file and not backup_template:
-                resource_dir = resource_filename(__name__, 'templates')
-                backup_file = '{}/snapshot.xml'.format(resource_dir)
-                ctx.logger.info("Will be used internal: %s" % backup_file)
-
-            if not backup_template:
-                with open(backup_file) as backup_desc:
-                    backup_template = backup_desc.read()
-
-            template_engine = Template(backup_template)
-            if not template_params:
-                template_params = {}
-
             params = {
-                "ctx": ctx,
                 'snapshot_name': snapshot_name,
                 'snapshot_description': snapshot_type
             }
-            params.update(template_params)
-            xmlconfig = template_engine.render(params)
-
-            ctx.logger.debug(repr(xmlconfig))
+            if template_params:
+                params.update(template_params)
+            xmlconfig = common.gen_xml_template(kwargs, params, 'snapshot')
 
             try:
                 # will raise exception if unexist

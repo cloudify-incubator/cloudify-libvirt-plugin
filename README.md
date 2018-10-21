@@ -46,6 +46,7 @@ Description for VM
 * `resource_id`: (optional) Used to identify the object when
   `use_external_resource` is true.
 * `params`: params used for create object, useful for embeded template.
+  * `name`: Domain name
   * `vcpu`: CPU count
   * `memory_size`: VM memory size in KiB
   * `memory_maxsize`: (optional) recomended VM memory size in KiB for
@@ -62,7 +63,7 @@ Description for VM
 **Inputs for actions:**
 * `configure`:
   * `params`: list of params for template, can be empty
-  * `domain_file`: Template for domain. Defaults is
+  * `template_resource`: Template for domain. Defaults is
     [domain.xml](cloudify_libvirt/templates/domain.xml)
 
 **Runtime properties:**
@@ -80,6 +81,7 @@ Description for Network
 * `resource_id`: (optional) Used to identify the object when
   `use_external_resource` is true.
 * `params`: params used for create object.
+  * `name`: Network name
   * `dev`: Device name
   * `forwards`: settings for network `forwards`.
   * `ips`: settings for network `ips`.
@@ -87,7 +89,7 @@ Description for Network
 **Inputs for actions:**
 * `create`:
   * `params`: list of params for template, can be empty
-  * `network_file`: Template for network. Defaults is
+  * `template_resource`: Template for network. Defaults is
     [network.xml](cloudify_libvirt/templates/network.xml)
 
 **Runtime properties:**

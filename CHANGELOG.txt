@@ -26,3 +26,8 @@ releases:
     * move use_external_resource to top of instance properties
     * add `update` action for sync vm size to values from runtime properties.
     * rename `memory_size` to `memory_maxsize`
+
+  v0.7.0:
+    * Support storage pool creation.
+    * Rename `params.resource_id` to `params.name`.
+    * Support creation snapshot on external resources.

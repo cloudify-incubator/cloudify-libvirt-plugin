@@ -14,30 +14,12 @@
 # limitations under the License.
 
 import libvirt
-import uuid
 import time
 
-from jinja2 import Template
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
-from pkg_resources import resource_filename
 import cloudify_libvirt.common as common
-
-
-def _update_template_params(template_params):
-    # set all params to default values
-    if not template_params:
-        template_params = {}
-
-    if not template_params:
-        template_params = {}
-
-    if not template_params.get("resource_id"):
-        template_params["resource_id"] = ctx.instance.id
-    if not template_params.get("instance_uuid"):
-        template_params["instance_uuid"] = str(uuid.uuid4())
-    return template_params
 
 
 @operation
@@ -50,8 +32,6 @@ def create(**kwargs):
         raise cfy_exc.NonRecoverableError(
             'Failed to open connection to the hypervisor'
         )
-
-    template_params = _update_template_params(template_params)
 
     try:
         if ctx.instance.runtime_properties.get("use_external_resource"):
@@ -70,29 +50,7 @@ def create(**kwargs):
             ctx.instance.runtime_properties['use_external_resource'] = True
             return
 
-        # templates
-        network_file = kwargs.get('network_file')
-        network_template = kwargs.get('network_template')
-
-        if network_file:
-            network_template = ctx.get_resource(network_file)
-
-        if not network_file and not network_template:
-            resource_dir = resource_filename(__name__, 'templates')
-            network_file = '{}/network.xml'.format(resource_dir)
-            ctx.logger.info("Will be used internal: %s" % network_file)
-
-        if not network_template:
-            with open(network_file) as network_desc:
-                network_template = network_desc.read()
-
-        template_engine = Template(network_template)
-
-        params = {"ctx": ctx}
-        params.update(template_params)
-        xmlconfig = template_engine.render(params)
-
-        ctx.logger.debug(repr(xmlconfig))
+        xmlconfig = common.gen_xml_template(kwargs, template_params, 'network')
 
         # create a persistent virtual network
         network = conn.networkCreateXML(xmlconfig)
@@ -165,7 +123,6 @@ def snapshot_create(**kwargs):
         # not uninstall workflow, raise exception
         raise cfy_exc.NonRecoverableError("No network for backup")
 
-    snapshot_name = common.get_backupname(kwargs)
     libvirt_auth, _ = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
@@ -182,28 +139,7 @@ def snapshot_create(**kwargs):
                 'Failed to find the network: {}'.format(repr(e))
             )
 
-        net_backup = network.XMLDesc()
-        if kwargs.get("snapshot_incremental"):
-            backups = ctx.instance.runtime_properties.get("backups", {})
-            if snapshot_name in backups:
-                raise cfy_exc.NonRecoverableError(
-                    "Snapshot {snapshot_name} already exists."
-                    .format(snapshot_name=snapshot_name,))
-            backups[snapshot_name] = net_backup
-            ctx.instance.runtime_properties["backups"] = backups
-            ctx.logger.info("Snapshot {snapshot_name} is created."
-                            .format(snapshot_name=snapshot_name,))
-        else:
-            if common.read_node_state(common.get_backupdir(kwargs),
-                                      resource_id):
-                raise cfy_exc.NonRecoverableError(
-                    "Backup {snapshot_name} already exists."
-                    .format(snapshot_name=snapshot_name,))
-            common.save_node_state(common.get_backupdir(kwargs), resource_id,
-                                   net_backup)
-        ctx.logger.info("Backup {snapshot_name} is created."
-                        .format(snapshot_name=snapshot_name,))
-        ctx.logger.debug("Current config {}".format(repr(net_backup)))
+        common.xml_snapshot_create(kwargs, resource_id, network.XMLDesc())
     finally:
         conn.close()
 
@@ -217,8 +153,6 @@ def snapshot_apply(**kwargs):
         # not uninstall workflow, raise exception
         raise cfy_exc.NonRecoverableError("No network for restore")
 
-    snapshot_name = common.get_backupname(kwargs)
-
     libvirt_auth, _ = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
@@ -235,29 +169,7 @@ def snapshot_apply(**kwargs):
                 'Failed to find the network: {}'.format(repr(e))
             )
 
-        if kwargs.get("snapshot_incremental"):
-            backups = ctx.instance.runtime_properties.get("backups", {})
-            if snapshot_name not in backups:
-                raise cfy_exc.NonRecoverableError(
-                    "No snapshots found with name: {snapshot_name}."
-                    .format(snapshot_name=snapshot_name,))
-            net_backup = backups[snapshot_name]
-        else:
-            net_backup = common.read_node_state(common.get_backupdir(kwargs),
-                                                resource_id)
-            if not net_backup:
-                raise cfy_exc.NonRecoverableError(
-                    "No backups found with name: {snapshot_name}."
-                    .format(snapshot_name=snapshot_name,))
-
-        if net_backup.strip() != network.XMLDesc().strip():
-            ctx.logger.info("We have different configs,\n{}\nvs\n{}\n"
-                            .format(
-                                repr(net_backup.strip()),
-                                repr(network.XMLDesc().strip())))
-        else:
-            ctx.logger.info("Already used such configuration: {}"
-                            .format(snapshot_name))
+        common.xml_snapshot_apply(kwargs, resource_id, network.XMLDesc())
     finally:
         conn.close()
 
@@ -271,23 +183,7 @@ def snapshot_delete(**kwargs):
         # not uninstall workflow, raise exception
         raise cfy_exc.NonRecoverableError("No network for backup delete")
 
-    snapshot_name = common.get_backupname(kwargs)
-    if kwargs.get("snapshot_incremental"):
-        backups = ctx.instance.runtime_properties.get("backups", {})
-        if snapshot_name not in backups:
-            raise cfy_exc.NonRecoverableError(
-                "No snapshots found with name: {snapshot_name}."
-                .format(snapshot_name=snapshot_name,))
-        del backups[snapshot_name]
-        ctx.instance.runtime_properties["backups"] = backups
-    else:
-        if not common.read_node_state(common.get_backupdir(kwargs),
-                                      resource_id):
-            raise cfy_exc.NonRecoverableError(
-                "No backups found with name: {snapshot_name}."
-                .format(snapshot_name=snapshot_name,))
-        common.delete_node_state(common.get_backupdir(kwargs), resource_id)
-    ctx.logger.info("Backup deleted: {}".format(snapshot_name))
+    common.xml_snapshot_delete(kwargs, resource_id)
 
 
 @operation
