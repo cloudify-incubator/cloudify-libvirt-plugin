@@ -22,16 +22,9 @@ from cloudify import exceptions as cfy_exc
 import cloudify_libvirt.common as common
 
 
-def _update_template_params(template_params):
-    # set all params to default values
-    if not template_params.get("path"):
-        template_params["path"] = (
-            "/var/lib/libvirt/images/{}".format(template_params["name"]))
-
-
 @operation
 def create(**kwargs):
-    ctx.logger.info("Creating new pool.")
+    ctx.logger.info("Creating new volume.")
 
     libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
@@ -40,80 +33,44 @@ def create(**kwargs):
             'Failed to open connection to the hypervisor'
         )
 
-    _update_template_params(template_params)
-    try:
-        if ctx.instance.runtime_properties.get("use_external_resource"):
-            # lookup the default pool by name
-            resource_id = ctx.instance.runtime_properties["resource_id"]
-            try:
-                pool = conn.storagePoolLookupByName(resource_id)
-            except libvirt.libvirtError as e:
-                raise cfy_exc.NonRecoverableError(
-                    'Failed to find the pool: {}'.format(repr(e))
-                )
-
-            # save settings
-            ctx.instance.runtime_properties['params'] = template_params
-            ctx.instance.runtime_properties['resource_id'] = pool.name()
-            ctx.instance.runtime_properties['use_external_resource'] = True
-            return
-
-        xmlconfig = common.gen_xml_template(kwargs, template_params, 'pool')
-
-        # create a persistent virtual pool
-        pool = conn.storagePoolDefineXML(xmlconfig)
-        if pool is None:
-            raise cfy_exc.NonRecoverableError(
-                'Failed to create a virtual pool')
-
-        ctx.logger.info('pool ' + pool.name() + ' has created.')
-        ctx.logger.info('Params: ' + repr(template_params))
-        ctx.instance.runtime_properties['params'] = template_params
-        ctx.instance.runtime_properties['resource_id'] = pool.name()
-        ctx.instance.runtime_properties['use_external_resource'] = False
-    finally:
-        conn.close()
-
-
-@operation
-def configure(**kwargs):
-    ctx.logger.info("configure")
-
-    resource_id = ctx.instance.runtime_properties.get('resource_id')
-
-    if not resource_id:
-        # not uninstall workflow, raise exception
-        raise cfy_exc.NonRecoverableError("No pool for configure")
-
-    if ctx.instance.runtime_properties.get('use_external_resource'):
-        ctx.logger.info("External resource, skip")
-        return
-
-    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
-    conn = libvirt.open(libvirt_auth)
-    if conn is None:
-        raise cfy_exc.NonRecoverableError(
-            'Failed to open connection to the hypervisor'
-        )
-
     try:
         try:
-            pool = conn.storagePoolLookupByName(resource_id)
+            pool = conn.storagePoolLookupByName(template_params["pool"])
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
                 'Failed to find the pool: {}'.format(repr(e))
             )
-
-        state, capacity, allocation, available = pool.info()
-        ctx.logger.info(
-            "State: {}, Capacity: {}, Allocation: {}, Available: {}"
-            .format(repr(state), repr(capacity),
-                    repr(allocation), repr(available)))
-        if state == libvirt.VIR_STORAGE_POOL_INACTIVE:
-            if pool.build(0) < 0:
-                raise cfy_exc.RecoverableError(
-                    'Can not build guest pool.'
+        if ctx.instance.runtime_properties.get("use_external_resource"):
+            # lookup the default volume by name
+            resource_id = ctx.instance.runtime_properties["resource_id"]
+            try:
+                volume = pool.storageVolLookupByName(resource_id)
+            except libvirt.libvirtError as e:
+                raise cfy_exc.NonRecoverableError(
+                    'Failed to find the volume: {}'.format(repr(e))
                 )
+
+            # save settings
+            template_params['path'] = volume.path()
+            ctx.instance.runtime_properties['params'] = template_params
+            ctx.instance.runtime_properties['resource_id'] = volume.name()
+            ctx.instance.runtime_properties['use_external_resource'] = True
+            return
+
+        xmlconfig = common.gen_xml_template(kwargs, template_params, 'volume')
+
+        # create a persistent virtual volume
+        volume = pool.createXML(xmlconfig)
+        if volume is None:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to create a virtual volume')
+
+        ctx.logger.info('volume ' + volume.name() + ' has created.')
+        ctx.logger.info('Params: ' + repr(template_params))
+        template_params['path'] = volume.path()
+        ctx.instance.runtime_properties['params'] = template_params
+        ctx.instance.runtime_properties['resource_id'] = volume.name()
+        ctx.instance.runtime_properties['use_external_resource'] = False
     finally:
         conn.close()
 
@@ -125,14 +82,14 @@ def start(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
 
     if not resource_id:
-        # not uninstall workflow, raise exception
-        raise cfy_exc.NonRecoverableError("No pool for start")
+        ctx.logger.info("No volumes for zero")
+        return
 
     if ctx.instance.runtime_properties.get('use_external_resource'):
         ctx.logger.info("External resource, skip")
         return
 
-    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -140,29 +97,28 @@ def start(**kwargs):
         )
 
     try:
+        # lookup the default volume by name
         try:
-            pool = conn.storagePoolLookupByName(resource_id)
+            pool = conn.storagePoolLookupByName(template_params["pool"])
+            volume = pool.storageVolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the pool: {}'.format(repr(e))
+                'Failed to find the volume: {}'.format(repr(e))
             )
 
-        # pool create
-        for i in xrange(10):
-            if pool.isActive():
-                ctx.logger.info("Looks as active.")
-                break
+        if (
+            template_params.get('zero_wipe') and
+            template_params.get('allocation')
+        ):
+            allocation = int(template_params.get('allocation', 0))
+            allocation *= 1024  # KB
+            stream = conn.newStream(0)
+            volume.upload(stream, 0, allocation * 1024, 0)
+            zero_buff = "\0" * 1024
+            for i in xrange(allocation):
+                stream.send(zero_buff)
+            stream.finish()
 
-            ctx.logger.info("Tring to start pool {}/10".format(i))
-            if pool.create() < 0:
-                raise cfy_exc.RecoverableError(
-                    'Can not start pool.'
-                )
-            time.sleep(30)
-        else:
-            raise cfy_exc.RecoverableError(
-                'Can not start pool.'
-            )
     finally:
         conn.close()
 
@@ -175,14 +131,14 @@ def stop(**kwargs):
 
     if not resource_id:
         # not raise exception on 'uninstall' workflow
-        ctx.logger.info("No pools for stop")
+        ctx.logger.info("No volumes for stop")
         return
 
     if ctx.instance.runtime_properties.get('use_external_resource'):
         ctx.logger.info("External resource, skip")
         return
 
-    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -190,35 +146,21 @@ def stop(**kwargs):
         )
 
     try:
+        # lookup the default volume by name
         try:
-            pool = conn.storagePoolLookupByName(resource_id)
+            pool = conn.storagePoolLookupByName(template_params["pool"])
+            volume = pool.storageVolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the pool: {}'.format(repr(e))
+                'Failed to find the volume: {}'.format(repr(e))
             )
 
         for i in xrange(10):
-            if not pool.isActive():
-                ctx.logger.info("Looks as not active.")
+            ctx.logger.info("Tring to wipe vm {}/10".format(i))
+            if volume.wipe(0) == 0:
                 break
-
-            ctx.logger.info("Tring to stop pool {}/10".format(i))
-            if pool.destroy() < 0:
-                raise cfy_exc.NonRecoverableError(
-                    'Can not destroy pool.'
-                )
             time.sleep(30)
 
-        state, capacity, allocation, available = pool.info()
-        ctx.logger.info(
-            "State: {}, Capacity: {}, Allocation: {}, Available: {}"
-            .format(repr(state), repr(capacity),
-                    repr(allocation), repr(available)))
-        if state != libvirt.VIR_STORAGE_POOL_INACTIVE:
-            if pool.delete() < 0:
-                raise cfy_exc.RecoverableError(
-                    'Can not delete guest pool.'
-                )
     finally:
         conn.close()
 
@@ -230,14 +172,14 @@ def delete(**kwargs):
 
     if not resource_id:
         # not raise exception on 'uninstall' workflow
-        ctx.logger.info("No pool for delete")
+        ctx.logger.info("No volume for delete")
         return
 
     if ctx.instance.runtime_properties.get('use_external_resource'):
         ctx.logger.info("External resource, skip")
         return
 
-    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -245,21 +187,23 @@ def delete(**kwargs):
         )
 
     try:
-        # lookup the default pool by name
+        # lookup the default volume by name
         try:
-            pool = conn.storagePoolLookupByName(resource_id)
+            pool = conn.storagePoolLookupByName(template_params["pool"])
+            volume = pool.storageVolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the pool: {}'.format(repr(e))
+                'Failed to find the volume: {}'.format(repr(e))
             )
 
-        if pool.undefine() < 0:
+        if volume.delete(0) < 0:
             raise cfy_exc.NonRecoverableError(
-                'Can not undefine pool.'
+                'Can not undefine volume.'
             )
 
         ctx.instance.runtime_properties['resource_id'] = None
         ctx.instance.runtime_properties['backups'] = {}
+        ctx.instance.runtime_properties['params'] = {}
     finally:
         conn.close()
 
@@ -271,9 +215,9 @@ def snapshot_create(**kwargs):
 
     if not resource_id:
         # not uninstall workflow, raise exception
-        raise cfy_exc.NonRecoverableError("No pool for backup")
+        raise cfy_exc.NonRecoverableError("No volume for backup")
 
-    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -281,15 +225,16 @@ def snapshot_create(**kwargs):
         )
 
     try:
-        # lookup the default pool by name
+        # lookup the default volume by name
         try:
-            pool = conn.storagePoolLookupByName(resource_id)
+            pool = conn.storagePoolLookupByName(template_params["pool"])
+            volume = pool.storageVolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the pool: {}'.format(repr(e))
+                'Failed to find the volume: {}'.format(repr(e))
             )
 
-        common.xml_snapshot_create(kwargs, resource_id, pool.XMLDesc())
+        common.xml_snapshot_create(kwargs, resource_id, volume.XMLDesc())
     finally:
         conn.close()
 
@@ -301,9 +246,9 @@ def snapshot_apply(**kwargs):
 
     if not resource_id:
         # not uninstall workflow, raise exception
-        raise cfy_exc.NonRecoverableError("No pool for restore")
+        raise cfy_exc.NonRecoverableError("No volume for restore")
 
-    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
     conn = libvirt.open(libvirt_auth)
     if conn is None:
         raise cfy_exc.NonRecoverableError(
@@ -311,15 +256,16 @@ def snapshot_apply(**kwargs):
         )
 
     try:
-        # lookup the default pool by name
+        # lookup the default volume by name
         try:
-            pool = conn.storagePoolLookupByName(resource_id)
+            pool = conn.storagePoolLookupByName(template_params["pool"])
+            volume = pool.storageVolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the pool: {}'.format(repr(e))
+                'Failed to find the volume: {}'.format(repr(e))
             )
 
-        common.xml_snapshot_apply(kwargs, resource_id, pool.XMLDesc())
+        common.xml_snapshot_apply(kwargs, resource_id, volume.XMLDesc())
     finally:
         conn.close()
 
@@ -331,6 +277,6 @@ def snapshot_delete(**kwargs):
 
     if not resource_id:
         # not uninstall workflow, raise exception
-        raise cfy_exc.NonRecoverableError("No pool for backup delete")
+        raise cfy_exc.NonRecoverableError("No volume for backup delete")
 
     common.xml_snapshot_delete(kwargs, resource_id)

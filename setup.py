@@ -15,7 +15,7 @@ from setuptools import setup
 
 setup(
     name='cloudify-libvirt-plugin',
-    version='0.7.0',
+    version='0.8.0',
     description='support libvirt',
     author='Cloudify',
     author_email='hello@getcloudify.org',
@@ -27,11 +27,13 @@ setup(
             'templates/network.xml',
             'templates/snapshot.xml',
             'templates/pool.xml',
+            'templates/volume.xml',
         ]
     },
     install_requires=[
-        'cloudify-plugins-common>=3.3',
-        'libvirt-python',
+        'cloudify-common>=4.5.0',
+        'libvirt-python>=4.5.0',
+        'pycdlib',
         "Jinja2>=2.7.2",  # for template support
     ],
 )

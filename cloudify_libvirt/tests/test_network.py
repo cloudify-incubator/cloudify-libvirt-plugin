@@ -497,19 +497,6 @@ class TestNetworkTasks(LibVirtCommonTest):
         self.assertFalse(_ctx.instance.runtime_properties.get('resource_id'))
         self.assertFalse(_ctx.instance.runtime_properties.get("backup"))
 
-    def _create_ctx(self):
-        _ctx = MockCloudifyContext(
-            'node_name',
-            properties={
-                'libvirt_auth': {'a': 'c'}
-            },
-            runtime_properties={
-                'libvirt_auth': {'a': 'd'}
-            }
-        )
-        current_ctx.set(_ctx)
-        return _ctx
-
     def test_create(self):
         # check correct handle exception with empty connection
         self._check_correct_connect(

@@ -178,14 +178,6 @@ Notes for use:
     cfy secret create libvirt_common_network -u -s "manager_network"
     ```
 
-## Wagon creation:
-
-Recommended constraints file for CentOs 7.x and RedHat 7.x is:
-```
-libvirt-python==4.0.0
-cloudify-plugins-common==3.3
-```
-
 You should to install [libvirt-devel](examples/bootstraps/centos.sh#L2) before create wagon.
 
 ## TODO:

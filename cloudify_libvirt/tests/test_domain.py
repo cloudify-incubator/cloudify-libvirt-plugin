@@ -156,7 +156,9 @@ class TestDomainTasks(LibVirtCommonTest):
     def test_update(self):
         self._test_no_resource_id(domain_tasks.update,
                                   "No servers for update")
-        self._test_check_correct_connect_action(domain_tasks.update)
+        self._test_check_correct_connect_action(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.update)
         self._test_check_correct_connect_no_object(domain_tasks.update)
         # check memory
         self._test_action_states(
@@ -180,7 +182,9 @@ class TestDomainTasks(LibVirtCommonTest):
     def test_reboot(self):
         self._test_no_resource_id(domain_tasks.reboot,
                                   "No servers for reboot")
-        self._test_check_correct_connect_action(domain_tasks.reboot)
+        self._test_check_correct_connect_action(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.reboot)
         self._test_check_correct_connect_no_object(domain_tasks.reboot)
         self._test_action_states(
             domain_tasks.reboot,
@@ -190,7 +194,9 @@ class TestDomainTasks(LibVirtCommonTest):
     def test_start(self):
         self._test_no_resource_id(domain_tasks.start,
                                   "No servers for start")
-        self._test_check_correct_connect_action(domain_tasks.start)
+        self._test_check_correct_connect_action(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.start)
         self._test_check_correct_connect_no_object(domain_tasks.start)
         self._test_action_states(
             domain_tasks.start,
@@ -202,7 +208,9 @@ class TestDomainTasks(LibVirtCommonTest):
         self._test_reused_object(
             "cloudify_libvirt.domain_tasks.libvirt.open",
             domain_tasks.stop)
-        self._test_check_correct_connect_action(domain_tasks.stop)
+        self._test_check_correct_connect_action(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.stop)
         self._test_check_correct_connect_no_object(domain_tasks.stop)
         self._test_action_states(
             domain_tasks.stop,
@@ -212,7 +220,9 @@ class TestDomainTasks(LibVirtCommonTest):
     def test_resume(self):
         self._test_no_resource_id(domain_tasks.resume,
                                   "No servers for resume")
-        self._test_check_correct_connect_action(domain_tasks.resume)
+        self._test_check_correct_connect_action(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.resume)
         self._test_check_correct_connect_no_object(domain_tasks.resume)
         self._test_action_states(
             domain_tasks.resume,
@@ -222,7 +232,9 @@ class TestDomainTasks(LibVirtCommonTest):
     def test_suspend(self):
         self._test_no_resource_id(domain_tasks.suspend,
                                   "No servers for suspend")
-        self._test_check_correct_connect_action(domain_tasks.suspend)
+        self._test_check_correct_connect_action(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.suspend)
         self._test_check_correct_connect_no_object(domain_tasks.suspend)
         self._test_action_states(
             domain_tasks.suspend,
@@ -234,7 +246,9 @@ class TestDomainTasks(LibVirtCommonTest):
         self._test_reused_object(
             "cloudify_libvirt.domain_tasks.libvirt.open",
             domain_tasks.delete)
-        self._test_check_correct_connect_action(domain_tasks.delete)
+        self._test_check_correct_connect_action(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.delete)
         self._test_check_correct_connect_no_object(domain_tasks.delete)
 
         # delete snapshot with error
@@ -262,7 +276,7 @@ class TestDomainTasks(LibVirtCommonTest):
         ):
             with self.assertRaisesRegexp(
                 RecoverableError,
-                "Still have several snapshots: \['snapshot!'\]."
+                "Still have several snapshots: \\['snapshot!'\\]."
             ):
                 domain_tasks.delete(ctx=_ctx,
                                     snapshot_name='snapshot_name',
@@ -326,7 +340,9 @@ class TestDomainTasks(LibVirtCommonTest):
     def test_perfomance(self):
         self._test_no_resource_id(domain_tasks.perfomance,
                                   "No servers for statistics.")
-        self._test_check_correct_connect_action(domain_tasks.perfomance)
+        self._test_check_correct_connect_action(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            domain_tasks.perfomance)
         self._test_check_correct_connect_no_object(domain_tasks.perfomance)
 
         # some fake statistics
@@ -532,14 +548,6 @@ class TestDomainTasks(LibVirtCommonTest):
             "cloudify_libvirt.domain_tasks.libvirt.open", func, [],
             {'ctx': _ctx}, 'resource')
 
-    def _test_check_correct_connect_action(self, func):
-        # check correct handle exception with empty connection
-        _ctx = self._create_ctx()
-        _ctx.instance.runtime_properties['resource_id'] = 'resource'
-        self._check_correct_connect(
-            "cloudify_libvirt.domain_tasks.libvirt.open",
-            func, [], {'ctx': _ctx})
-
     def _check_create_backups(self, _ctx, connect, domain, snapshot, raw_case):
         # raw_case - dump xml without real raw dump
         _ctx.instance.runtime_properties['params']['full_dump'] = raw_case
@@ -555,7 +563,7 @@ class TestDomainTasks(LibVirtCommonTest):
         ):
             with self.assertRaisesRegexp(
                 NonRecoverableError,
-                "Snapshot snapshot\! already exists."
+                "Snapshot snapshot\\! already exists."
             ):
                 domain_tasks.snapshot_create(
                     ctx=_ctx,
@@ -847,7 +855,7 @@ class TestDomainTasks(LibVirtCommonTest):
         ):
             with self.assertRaisesRegexp(
                 NonRecoverableError,
-                "Sub snapshots \['snapshot-'\] found for "
+                "Sub snapshots \\['snapshot-'\\] found for "
                 "node_name-snapshot_name. You should remove subsnaphots before"
                 " remove current."
             ):
