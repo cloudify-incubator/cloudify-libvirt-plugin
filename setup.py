@@ -31,8 +31,8 @@ setup(
         ]
     },
     install_requires=[
-        'cloudify-plugins-common>=3.3',
-        'libvirt-python',
+        'cloudify-common>=4.5.0',
+        'libvirt-python>=4.5.0',
         'pycdlib',
         "Jinja2>=2.7.2",  # for template support
     ],

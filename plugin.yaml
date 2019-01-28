@@ -7,7 +7,7 @@ plugins:
 
 data_types:
 
-  pool_params:
+  cloudify.datatypes.pool:
     properties:
       name:
         required: false
@@ -25,7 +25,7 @@ data_types:
         description: >
           Storage size in GiB
 
-  volume_params:
+  cloudify.datatypes.volume:
     properties:
       name:
         required: false
@@ -60,7 +60,7 @@ data_types:
         description: >
           Volume allocation zero wipe
 
-  iso9660_params:
+  cloudify.datatypes.iso9660:
     properties:
       volume:
         required: false
@@ -77,7 +77,7 @@ data_types:
         description: >
           File list with content. (Key:value)
 
-  network_params:
+  cloudify.datatypes.network:
     properties:
       name:
         required: false
@@ -100,7 +100,7 @@ data_types:
         description: >
           Settings for network `ips`.
 
-  domain_params:
+  cloudify.datatypes.domain:
     properties:
       name:
         required: false
@@ -171,7 +171,7 @@ node_types:
       libvirt_auth:
         default: 'qemu:///system'
       params:
-        type: domain_params
+        type: cloudify.datatypes.domain
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -246,7 +246,7 @@ node_types:
       libvirt_auth:
         default: 'qemu:///system'
       params:
-        type: network_params
+        type: cloudify.datatypes.network
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -291,7 +291,7 @@ node_types:
       libvirt_auth:
         default: 'qemu:///system'
       params:
-        type: pool_params
+        type: cloudify.datatypes.pool
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -345,7 +345,7 @@ node_types:
       libvirt_auth:
         default: 'qemu:///system'
       params:
-        type: volume_params
+        type: cloudify.datatypes.volume
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
@@ -396,7 +396,7 @@ node_types:
       libvirt_auth:
         default: 'qemu:///system'
       params:
-        type: iso9660_params
+        type: cloudify.datatypes.iso9660
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
