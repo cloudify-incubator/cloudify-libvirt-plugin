@@ -20,16 +20,17 @@ from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
-import cloudify_libvirt.pool_tasks as pool_tasks
+import cloudify_libvirt.volume_tasks as volume_tasks
 
 
-class TestPoolTasks(LibVirtCommonTest):
+class TestVolumeTasks(LibVirtCommonTest):
 
     def _create_ctx(self):
         _ctx = MockCloudifyContext(
             'node_name',
             properties={
-                'libvirt_auth': {'a': 'c'}
+                'libvirt_auth': {'a': 'c'},
+                'params': {'pool': 'pool_name'},
             },
             runtime_properties={
                 'libvirt_auth': {'a': 'd'}
@@ -43,80 +44,87 @@ class TestPoolTasks(LibVirtCommonTest):
         _ctx = self._create_ctx()
         _ctx.instance.runtime_properties['resource_id'] = 'resource'
         self._check_correct_connect(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             func, [], {'ctx': _ctx, "snapshot_name": "backup"})
 
-    def _test_empty_pool(self, func):
+    def _test_empty_volume_backup(self, func):
         # check correct handle exception with empty volume
         _ctx = self._create_ctx()
         _ctx.instance.runtime_properties['resource_id'] = 'resource'
         _ctx.instance.runtime_properties['params'] = {'pool': 'pool_name'}
-        self._check_no_such_object_pool(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            func, [], {'ctx': _ctx}, 'resource')
-
-    def _test_empty_pool_backup(self, func):
-        # check correct handle exception with empty pool
-        _ctx = self._create_ctx()
-        _ctx.instance.runtime_properties['resource_id'] = 'resource'
-        self._check_no_such_object_pool(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+        self._check_no_such_object_volume(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             func, [], {'ctx': _ctx, "snapshot_name": "backup"}, 'resource')
 
-    def _create_fake_pool_backup(self):
+    def _test_empty_volume(self, func):
+        # check correct handle exception with empty volume
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = 'resource'
+        _ctx.instance.runtime_properties['params'] = {'pool': 'pool_name'}
+        self._check_no_such_object_volume(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            func, [], {'ctx': _ctx}, 'resource')
+
+    def _create_fake_volume_backup(self):
+        volume = mock.Mock()
+        volume.XMLDesc = mock.Mock(return_value="<volume/>")
+        volume.isActive = mock.Mock(return_value=1)
+        volume.name = mock.Mock(return_value="volume_name")
+
         pool = mock.Mock()
         pool.XMLDesc = mock.Mock(return_value="<pool/>")
         pool.isActive = mock.Mock(return_value=1)
         pool.name = mock.Mock(return_value="pool_name")
+        pool.storageVolLookupByName = mock.Mock(return_value=volume)
 
         connect = self._create_fake_connection()
         connect.storagePoolLookupByName = mock.Mock(return_value=pool)
         _ctx = self._create_ctx()
         _ctx.instance.runtime_properties['resource_id'] = 'resource'
-        _ctx.instance.runtime_properties['params'] = {}
+        _ctx.instance.runtime_properties['params'] = {'pool': 'pool_name'}
         _ctx.node.properties['params'] = {}
         _ctx.instance.runtime_properties["backups"] = {
             "node_name-backup": "<xml/>"}
-        return _ctx, connect, pool
+        return _ctx, connect, pool, volume
 
     def test_snapshot_apply(self):
-        self._test_no_resource_id(pool_tasks.snapshot_apply,
-                                  "No pool for restore")
+        self._test_no_resource_id(volume_tasks.snapshot_apply,
+                                  "No volume for restore")
         self._test_no_snapshot_name(
             self._create_ctx(),
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.snapshot_apply)
-        self._test_empty_connection_backup(pool_tasks.snapshot_apply)
-        self._test_empty_pool_backup(pool_tasks.snapshot_apply)
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            volume_tasks.snapshot_apply)
+        self._test_empty_connection_backup(volume_tasks.snapshot_apply)
+        self._test_empty_volume_backup(volume_tasks.snapshot_apply)
 
         # no such snapshot
-        _ctx, connect, pool = self._create_fake_pool_backup()
+        _ctx, connect, pool, volume = self._create_fake_volume_backup()
         with mock.patch(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with self.assertRaisesRegexp(
                 NonRecoverableError,
                 "No snapshots found with name: node_name-backup!."
             ):
-                pool_tasks.snapshot_apply(
+                volume_tasks.snapshot_apply(
                     ctx=_ctx, snapshot_name="backup!",
                     snapshot_incremental=True)
 
         # we have such snapshot
-        _ctx, connect, pool = self._create_fake_pool_backup()
+        _ctx, connect, pool, volume = self._create_fake_volume_backup()
         with mock.patch(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
-            pool_tasks.snapshot_apply(
+            volume_tasks.snapshot_apply(
                 ctx=_ctx, snapshot_name="backup",
                 snapshot_incremental=True)
 
         # no such backup
-        _ctx, connect, pool = self._create_fake_pool_backup()
+        _ctx, connect, pool, volume = self._create_fake_volume_backup()
         with mock.patch(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with mock.patch(
@@ -127,14 +135,14 @@ class TestPoolTasks(LibVirtCommonTest):
                     NonRecoverableError,
                     "No backups found with name: node_name-backup!."
                 ):
-                    pool_tasks.snapshot_apply(
+                    volume_tasks.snapshot_apply(
                         ctx=_ctx, snapshot_name="backup!",
                         snapshot_incremental=False)
 
         # have backup
-        _ctx, connect, pool = self._create_fake_pool_backup()
+        _ctx, connect, pool, volume = self._create_fake_volume_backup()
         with mock.patch(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with mock.patch(
@@ -142,54 +150,55 @@ class TestPoolTasks(LibVirtCommonTest):
                 mock.Mock(return_value=True)
             ):
                 fake_file = mock.mock_open()
-                fake_file().read.return_value = "<pool/>"
+                fake_file().read.return_value = "<volume/>"
                 with mock.patch(
                     '__builtin__.open', fake_file
                 ):
-                    pool_tasks.snapshot_apply(
+                    volume_tasks.snapshot_apply(
                         ctx=_ctx, snapshot_name="backup!",
                         snapshot_incremental=False)
                 fake_file.assert_called_with('./backup!/resource.xml', 'r')
 
     def test_snapshot_create(self):
-        self._test_no_resource_id(pool_tasks.snapshot_create,
-                                  "No pool for backup")
+        self._test_no_resource_id(volume_tasks.snapshot_create,
+                                  "No volume for backup")
         self._test_no_snapshot_name(
             self._create_ctx(),
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.snapshot_create)
-        self._test_empty_connection_backup(pool_tasks.snapshot_create)
-        self._test_empty_pool_backup(pool_tasks.snapshot_create)
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            volume_tasks.snapshot_create)
+        self._test_empty_connection_backup(volume_tasks.snapshot_create)
+        self._test_empty_volume_backup(volume_tasks.snapshot_create)
 
         # check create snapshot with error, already exists
-        _ctx, connect, pool = self._create_fake_pool_backup()
+        _ctx, connect, pool, volume = self._create_fake_volume_backup()
         with mock.patch(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with self.assertRaisesRegexp(
                 NonRecoverableError,
                 "Snapshot node_name-backup already exists."
             ):
-                pool_tasks.snapshot_create(ctx=_ctx, snapshot_name="backup",
-                                           snapshot_incremental=True)
-        connect.storagePoolLookupByName.assert_called_with('resource')
+                volume_tasks.snapshot_create(ctx=_ctx, snapshot_name="backup",
+                                             snapshot_incremental=True)
+        connect.storagePoolLookupByName.assert_called_with('pool_name')
+        pool.storageVolLookupByName.assert_called_with('resource')
 
         # no such snapshots
         _ctx.instance.runtime_properties["backups"] = {}
         with mock.patch(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
-            pool_tasks.snapshot_create(ctx=_ctx, snapshot_name="backup",
-                                       snapshot_incremental=True)
+            volume_tasks.snapshot_create(ctx=_ctx, snapshot_name="backup",
+                                         snapshot_incremental=True)
         self.assertEqual(
             _ctx.instance.runtime_properties["backups"],
-            {"node_name-backup": "<pool/>"})
+            {"node_name-backup": "<volume/>"})
 
         # check create snapshot
         with mock.patch(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with mock.patch(
@@ -210,7 +219,7 @@ class TestPoolTasks(LibVirtCommonTest):
                             NonRecoverableError,
                             "Backup node_name-backup already exists."
                         ):
-                            pool_tasks.snapshot_create(
+                            volume_tasks.snapshot_create(
                                 ctx=_ctx, snapshot_name="backup",
                                 snapshot_incremental=False)
                     # without error
@@ -218,30 +227,30 @@ class TestPoolTasks(LibVirtCommonTest):
                         "os.path.isfile",
                         mock.Mock(return_value=False)
                     ):
-                        pool_tasks.snapshot_create(
+                        volume_tasks.snapshot_create(
                             ctx=_ctx, snapshot_name="backup",
                             snapshot_incremental=False)
-                    fake_file().write.assert_called_with("<pool/>")
+                    fake_file().write.assert_called_with("<volume/>")
 
     def test_snapshot_delete(self):
-        self._test_no_resource_id(pool_tasks.snapshot_delete,
-                                  "No pool for backup delete")
+        self._test_no_resource_id(volume_tasks.snapshot_delete,
+                                  "No volume for backup delete")
         self._test_no_snapshot_name(
             self._create_ctx(),
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.snapshot_delete)
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            volume_tasks.snapshot_delete)
 
         # no such snapshots
-        _ctx, connect, pool = self._create_fake_pool_backup()
+        _ctx, connect, pool, volume = self._create_fake_volume_backup()
         with mock.patch(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with self.assertRaisesRegexp(
                 NonRecoverableError,
                 "No snapshots found with name: node_name-backup!."
             ):
-                pool_tasks.snapshot_delete(
+                volume_tasks.snapshot_delete(
                     ctx=_ctx, snapshot_name="backup!",
                     snapshot_incremental=True)
         self.assertEqual(
@@ -249,19 +258,19 @@ class TestPoolTasks(LibVirtCommonTest):
             {'node_name-backup': "<xml/>"})
 
         # remove snapshot
-        _ctx, connect, pool = self._create_fake_pool_backup()
+        _ctx, connect, pool, volume = self._create_fake_volume_backup()
         with mock.patch(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
-            pool_tasks.snapshot_delete(ctx=_ctx, snapshot_name="backup",
-                                       snapshot_incremental=True)
+            volume_tasks.snapshot_delete(ctx=_ctx, snapshot_name="backup",
+                                         snapshot_incremental=True)
         self.assertEqual(_ctx.instance.runtime_properties["backups"], {})
 
         # no such backup
-        _ctx, connect, pool = self._create_fake_pool_backup()
+        _ctx, connect, pool, volume = self._create_fake_volume_backup()
         with mock.patch(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with mock.patch(
@@ -272,14 +281,14 @@ class TestPoolTasks(LibVirtCommonTest):
                     NonRecoverableError,
                     "No backups found with name: node_name-backup!."
                 ):
-                    pool_tasks.snapshot_delete(
+                    volume_tasks.snapshot_delete(
                         ctx=_ctx, snapshot_name="backup!",
                         snapshot_incremental=False)
 
         # remove backup
-        _ctx, connect, pool = self._create_fake_pool_backup()
+        _ctx, connect, pool, volume = self._create_fake_volume_backup()
         with mock.patch(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
             with mock.patch(
@@ -296,7 +305,7 @@ class TestPoolTasks(LibVirtCommonTest):
                         "os.remove",
                         remove_mock
                     ):
-                        pool_tasks.snapshot_delete(
+                        volume_tasks.snapshot_delete(
                             ctx=_ctx, snapshot_name="backup!",
                             snapshot_incremental=False)
                     remove_mock.assert_called_with('./backup!/resource.xml')
@@ -305,45 +314,52 @@ class TestPoolTasks(LibVirtCommonTest):
     def test_create(self):
         # check correct handle exception with empty connection
         self._check_correct_connect(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.create, [], {'ctx': self._create_ctx()})
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            volume_tasks.create, [], {'ctx': self._create_ctx()})
 
-        # check error with create pool
+        # check error with create volume image
         self._check_create_object(
-            'Failed to create a virtual pool',
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.create, [], {'ctx': self._create_ctx()})
+            'Failed to find the pool',
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            volume_tasks.create, [], {'ctx': self._create_ctx(),
+                                      'params': {'pool': 'empty'}})
 
-    def test_reuse_pool_create_not_exist(self):
+    def test_reuse_volume_create_not_exist(self):
         # check correct handle exception with empty network
         _ctx = self._create_ctx()
-        self._check_no_such_object_pool(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.create, [], {
+        _ctx.instance.runtime_properties['params'] = {'pool': 'pool_name'}
+        self._check_no_such_object_volume(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            volume_tasks.create, [], {
                 'ctx': _ctx,
                 "resource_id": 'resource',
                 "use_external_resource": True,
             }, 'resource')
 
-    def test_reuse_pool_create_exist(self):
+    def test_reuse_volume_create_exist(self):
         # check that we can use network
         _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['params'] = {'pool': 'pool_name'}
 
+        volume = mock.Mock()
+        volume.name = mock.Mock(return_value="volume")
         pool = mock.Mock()
-        pool.name = mock.Mock(return_value="resource")
+        pool.name = mock.Mock(return_value="pool")
+        pool.storageVolLookupByName = mock.Mock(return_value=volume)
 
         connect = self._create_fake_connection()
         connect.storagePoolLookupByName = mock.Mock(return_value=pool)
         with mock.patch(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
+            "cloudify_libvirt.volume_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
-            pool_tasks.create(ctx=_ctx,
-                              resource_id='resource',
-                              use_external_resource=True)
-        connect.storagePoolLookupByName.assert_called_with('resource')
+            volume_tasks.create(ctx=_ctx,
+                                resource_id='resource',
+                                use_external_resource=True)
+        connect.storagePoolLookupByName.assert_called_with('pool_name')
+        pool.storageVolLookupByName.assert_called_with('resource')
         self.assertEqual(
-            _ctx.instance.runtime_properties['resource_id'], 'resource'
+            _ctx.instance.runtime_properties['resource_id'], 'volume'
         )
         self.assertTrue(
             _ctx.instance.runtime_properties['use_external_resource']
@@ -352,49 +368,38 @@ class TestPoolTasks(LibVirtCommonTest):
     def test_start(self):
         # check correct handle exception with empty connection
         self._test_check_correct_connect_action(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.start)
-        self._test_reused_object(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.start)
-        self._test_no_resource_id(pool_tasks.start, "No pool for start")
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            volume_tasks.start)
 
-    def test_configure(self):
-        # check correct handle exception with empty connection
-        self._test_check_correct_connect_action(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.configure)
-
-        self._test_empty_pool(pool_tasks.configure)
+        self._test_empty_volume(volume_tasks.start)
         self._test_reused_object(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.configure)
-        self._test_no_resource_id(pool_tasks.configure,
-                                  "No pool for configure")
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            volume_tasks.start)
+        self._test_no_resource_id(volume_tasks.start)
 
     def test_stop(self):
         # check correct handle exception with empty connection
         self._test_check_correct_connect_action(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.stop)
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            volume_tasks.stop)
 
-        self._test_empty_pool(pool_tasks.stop)
+        self._test_empty_volume(volume_tasks.stop)
         self._test_reused_object(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.stop)
-        self._test_no_resource_id(pool_tasks.stop)
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            volume_tasks.stop)
+        self._test_no_resource_id(volume_tasks.stop)
 
     def test_delete(self):
         # check correct handle exception with empty connection
         self._test_check_correct_connect_action(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.delete)
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            volume_tasks.delete)
 
-        self._test_empty_pool(pool_tasks.delete)
+        self._test_empty_volume(volume_tasks.delete)
         self._test_reused_object(
-            "cloudify_libvirt.pool_tasks.libvirt.open",
-            pool_tasks.delete)
-        self._test_no_resource_id(pool_tasks.delete)
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            volume_tasks.delete)
+        self._test_no_resource_id(volume_tasks.delete)
 
 
 if __name__ == '__main__':

@@ -80,6 +80,29 @@ class LibVirtCommonTest(unittest.TestCase):
         connect.lookupByName.assert_not_called()
         connect.storagePoolLookupByName.assert_called_with(resource_id)
 
+    def _check_no_such_object_volume(self, libvirt_open, func, args, kwargs,
+                                     resource_id):
+        # check that we correctly raise exception without such object
+        # no such
+        connect = self._create_fake_connection()
+        fake_pool = mock.Mock()
+        fake_pool.storageVolLookupByName = mock.Mock(
+            side_effect=libvirt.libvirtError("storageVolLookupByName"))
+        connect.storagePoolLookupByName = mock.Mock(return_value=fake_pool)
+        with mock.patch(
+            libvirt_open,
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                'Failed to find the volume'
+            ):
+                func(*args, **kwargs)
+
+        connect.networkLookupByName.assert_not_called()
+        connect.lookupByName.assert_not_called()
+        connect.storagePoolLookupByName.assert_called_with('pool_name')
+
     def _check_no_such_object_domain(self, libvirt_open, func, args, kwargs,
                                      resource_id):
         # check that we correctly raise exception without such object
@@ -194,3 +217,12 @@ class LibVirtCommonTest(unittest.TestCase):
             connect.storagePoolLookupByName = mock.Mock()
             with mock.patch(libvirt_open, mock.Mock(return_value=connect)):
                 func(ctx=_ctx)
+
+    def _test_check_correct_connect_action(self, libvirt_open, func):
+        # check correct handle exception with empty connection
+        # for start/stop/delete
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = 'resource'
+        self._check_correct_connect(
+            libvirt_open,
+            func, [], {'ctx': _ctx})
