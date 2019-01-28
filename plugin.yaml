@@ -2,8 +2,8 @@ plugins:
   libvirt:
     executor: central_deployment_agent
     package_name: cloudify-libvirt-plugin
-    package_version: '0.7.0'
-    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/0.7.0.zip
+    package_version: '0.8.0'
+    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/0.8.0.zip
 
 data_types:
 
@@ -24,6 +24,58 @@ data_types:
         type: integer
         description: >
           Storage size in GiB
+
+  volume_params:
+    properties:
+      name:
+        required: false
+        default: ""
+        description: >
+          Volume name
+      path:
+        required: false
+        default: ""
+        description: >
+          Volume path
+      pool:
+        required: false
+        type: string
+        description: >
+          Parent pool
+      capacity:
+        required: false
+        type: integer
+        description: >
+          Volume size in GiB
+      allocation:
+        required: false
+        default: 0
+        type: integer
+        description: >
+          Volume allocation size in MiB
+      zero_wipe:
+        required: false
+        default: false
+        type: boolean
+        description: >
+          Volume allocation zero wipe
+
+  iso9660_params:
+    properties:
+      volume:
+        required: false
+        default: ""
+        description: >
+          Volume name
+      pool:
+        required: false
+        type: string
+        description: >
+          Parent pool
+      files:
+        required: false
+        description: >
+          File list with content. (Key:value)
 
   network_params:
     properties:
@@ -274,6 +326,88 @@ node_types:
         delete:
           implementation: libvirt.cloudify_libvirt.pool_tasks.snapshot_delete
           inputs: {}
+
+  cloudify.libvirt.volume:
+    derived_from: cloudify.nodes.Tier
+    properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
+      backup_dir:
+        default: './'
+      libvirt_auth:
+        default: 'qemu:///system'
+      params:
+        type: volume_params
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.create
+          inputs:
+            params:
+              default: {}
+            template_resource:
+              default: ''
+            template_content:
+              default: ''
+        start:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.start
+          inputs: {}
+        stop:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.stop
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.delete
+          inputs: {}
+      # backups related section
+      cloudify.interfaces.snapshot:
+        create:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.snapshot_create
+          inputs: {}
+        apply:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.snapshot_apply
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.snapshot_delete
+          inputs: {}
+
+  cloudify.libvirt.ISO9660:
+    derived_from: cloudify.nodes.Tier
+    properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
+      backup_dir:
+        default: './'
+      libvirt_auth:
+        default: 'qemu:///system'
+      params:
+        type: iso9660_params
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: libvirt.cloudify_libvirt.iso9660_tasks.create
+          inputs:
+            params:
+              default: {}
+            template_resource:
+              default: ''
+            template_content:
+              default: ''
 
 relationships:
 

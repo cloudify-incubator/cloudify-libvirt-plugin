@@ -77,5 +77,5 @@
     <model fallback='allow'>cortex-a57</model>
   </cpu>
   <clock offset="utc"/>
-  <name>{{ resource_id }}</name>
+  <name>{{ name }}</name>
 </domain>

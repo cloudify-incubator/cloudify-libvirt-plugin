@@ -2,13 +2,16 @@ tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
   - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.9.5/plugin.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.7.0/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.12.3/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.8.0/plugin.yaml
 
 inputs:
 
   agent_password:
     default: passw0rd
+
+  agent_user:
+    default: ubuntu
 
 node_templates:
 
@@ -49,6 +52,62 @@ node_templates:
            expire: False
         ssh_pwauth: True
 
+  common_pool:
+    type: cloudify.libvirt.pool
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              capacity: 80
+
+  cloudinit_volume:
+    type: cloudify.libvirt.volume
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              pool: { get_attribute: [common_pool, resource_id]}
+              capacity: 1
+              allocation: 1
+    relationships:
+    - target: common_pool
+      type: cloudify.relationships.depends_on
+
+  flash_volume:
+    type: cloudify.libvirt.volume
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              pool: { get_attribute: [common_pool, resource_id]}
+              capacity: 64
+              allocation: 64
+    relationships:
+    - target: common_pool
+      type: cloudify.relationships.depends_on
+
+  cloud_init_image:
+    type: cloudify.libvirt.ISO9660
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              pool: { get_attribute: [common_pool, resource_id]}
+              volume: { get_attribute: [cloudinit_volume, resource_id]}
+              files:
+                meta-data: >
+                    instance-id: localhost
+                user-data: { get_attribute: [cloud_init, cloud_config ] }
+    relationships:
+    - target: cloud_init
+      type: cloudify.relationships.depends_on
+    - target: cloudinit_volume
+      type: cloudify.relationships.depends_on
+
   disk_clone:
     type: cloudify.nodes.ApplicationServer
     interfaces:
@@ -61,12 +120,6 @@ node_templates:
             cloud_init: { get_attribute: [cloud_init, cloud_config ] }
         configure:
           implementation: scripts/copy_disk.py
-          executor: central_deployment_agent
-        start:
-          implementation: scripts/copy_disk_arm.sh
-          executor: central_deployment_agent
-        stop:
-          implementation: scripts/remove_disk_arm.sh
           executor: central_deployment_agent
         delete:
           implementation: scripts/remove_disk.sh
@@ -88,7 +141,7 @@ node_templates:
           inputs:
             params:
               memory_size: 524288
-              nvram: { get_attribute: [disk_clone, bios_flash] }
+              nvram: { get_attribute: [flash_volume, params, path] }
               disks:
                 - bus: scsi
                   dev: sda
@@ -96,8 +149,8 @@ node_templates:
                   type: qcow2
                 - bus: scsi
                   dev: sdb
-                  file: { get_attribute: [disk_clone, vm_cloudinit] }
-                  type: qcow2
+                  file: { get_attribute: [cloudinit_volume, params, path] }
+                  type: raw
               networks:
                 - network: { get_attribute: [common_network, resource_id] }
                   dev: macvtap0
@@ -110,6 +163,10 @@ node_templates:
         type: cloudify.libvirt.relationships.connected_to
       - target: disk_clone
         type: cloudify.relationships.contained_in
+      - target: cloud_init_image
+        type: cloudify.relationships.depends_on
+      - target: flash_volume
+        type: cloudify.relationships.depends_on
 
   example_node:
     type: cloudify.nodes.WebServer
