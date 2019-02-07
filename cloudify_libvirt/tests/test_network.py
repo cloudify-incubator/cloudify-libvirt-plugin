@@ -493,7 +493,7 @@ class TestNetworkTasks(LibVirtCommonTest):
             "cloudify_libvirt.network_tasks.libvirt.open",
             mock.Mock(return_value=connect)
         ):
-                network_tasks.delete(ctx=_ctx)
+            network_tasks.delete(ctx=_ctx)
         self.assertFalse(_ctx.instance.runtime_properties.get('resource_id'))
         self.assertFalse(_ctx.instance.runtime_properties.get("backup"))
 
