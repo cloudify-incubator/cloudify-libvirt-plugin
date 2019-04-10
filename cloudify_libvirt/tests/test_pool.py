@@ -314,6 +314,30 @@ class TestPoolTasks(LibVirtCommonTest):
             "cloudify_libvirt.pool_tasks.libvirt.open",
             pool_tasks.create, [], {'ctx': self._create_ctx()})
 
+        # successful create
+        _ctx = self._create_ctx()
+        _ctx.get_resource = mock.Mock(return_value='<somexml/>')
+
+        pool = mock.Mock()
+        pool.name = mock.Mock(return_value="pool_name")
+
+        connect = self._create_fake_connection()
+        connect.storagePoolDefineXML = mock.Mock(return_value=pool)
+
+        # without params
+        _ctx.instance.runtime_properties['params'] = {}
+        _ctx.node.properties['params'] = {}
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            pool_tasks.create(ctx=_ctx,
+                              template_resource="template_resource")
+        connect.storagePoolDefineXML.assert_called_with('<somexml/>')
+        self.assertEqual(
+            _ctx.instance.runtime_properties['resource_id'], "pool_name"
+        )
+
     def test_reuse_pool_create_not_exist(self):
         # check correct handle exception with empty network
         _ctx = self._create_ctx()

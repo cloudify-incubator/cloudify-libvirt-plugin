@@ -324,6 +324,48 @@ class TestVolumeTasks(LibVirtCommonTest):
             volume_tasks.create, [], {'ctx': self._create_ctx(),
                                       'params': {'pool': 'empty'}})
 
+        # successful create
+        _ctx = self._create_ctx()
+        _ctx.get_resource = mock.Mock(return_value='<somexml/>')
+
+        volume = mock.Mock()
+        volume.name = mock.Mock(return_value="volume_name")
+
+        pool = mock.Mock()
+        pool.createXML = mock.Mock(return_value=volume)
+
+        connect = self._create_fake_connection()
+        connect.storagePoolLookupByName = mock.Mock(return_value=pool)
+
+        # without params
+        _ctx.instance.runtime_properties['params'] = {}
+        _ctx.node.properties['params'] = {}
+        with mock.patch(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            volume_tasks.create(ctx=_ctx,
+                                template_resource="template_resource",
+                                params={'pool': 'empty'})
+        pool.createXML.assert_called_with('<somexml/>')
+        self.assertEqual(
+            _ctx.instance.runtime_properties['resource_id'], "volume_name"
+        )
+
+        # failed on create
+        pool.createXML = mock.Mock(return_value=None)
+        with mock.patch(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                'Failed to create a virtual volume'
+            ):
+                volume_tasks.create(ctx=_ctx,
+                                    template_resource="template_resource",
+                                    params={'pool': 'empty'})
+
     def test_reuse_volume_create_not_exist(self):
         # check correct handle exception with empty network
         _ctx = self._create_ctx()
@@ -377,6 +419,32 @@ class TestVolumeTasks(LibVirtCommonTest):
             volume_tasks.start)
         self._test_no_resource_id(volume_tasks.start)
 
+    def test_start_wipe(self):
+        # zero wipe
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = 'volume'
+        _ctx.instance.runtime_properties['params'] = {'pool': 'pool_name'}
+
+        volume = mock.Mock()
+        volume.name = mock.Mock(return_value="volume")
+        volume.upload = mock.Mock()
+        pool = mock.Mock()
+        pool.name = mock.Mock(return_value="pool")
+        pool.storageVolLookupByName = mock.Mock(return_value=volume)
+
+        connect = self._create_fake_connection()
+
+        connect.storagePoolLookupByName = mock.Mock(return_value=pool)
+        with mock.patch(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            volume_tasks.start(ctx=_ctx,
+                               params={
+                                    'zero_wipe': True,
+                                    'allocation': 1
+                                })
+
     def test_stop(self):
         # check correct handle exception with empty connection
         self._test_check_correct_connect_action(
@@ -389,6 +457,47 @@ class TestVolumeTasks(LibVirtCommonTest):
             volume_tasks.stop)
         self._test_no_resource_id(volume_tasks.stop)
 
+    def test_stop_wipe(self):
+        # failed to wipe/error ignored
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = 'volume'
+        _ctx.instance.runtime_properties['params'] = {'pool': 'pool_name'}
+
+        volume = mock.Mock()
+        volume.name = mock.Mock(return_value="volume")
+        volume.wipe = mock.Mock(
+            side_effect=volume_tasks.libvirt.libvirtError("e"))
+        pool = mock.Mock()
+        pool.name = mock.Mock(return_value="pool")
+        pool.storageVolLookupByName = mock.Mock(return_value=volume)
+
+        connect = self._create_fake_connection()
+
+        connect.storagePoolLookupByName = mock.Mock(return_value=pool)
+        with mock.patch(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            volume_tasks.stop(ctx=_ctx)
+        # failed to wipe/wrong response
+        volume.wipe = mock.Mock(return_value=-1)
+        with mock.patch(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with mock.patch(
+                "cloudify_libvirt.volume_tasks.time.sleep",
+                mock.Mock(return_value=mock.Mock())
+            ):
+                volume_tasks.stop(ctx=_ctx)
+        # correctly wiped
+        volume.wipe = mock.Mock(return_value=0)
+        with mock.patch(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            volume_tasks.stop(ctx=_ctx)
+
     def test_delete(self):
         # check correct handle exception with empty connection
         self._test_check_correct_connect_action(
@@ -400,6 +509,48 @@ class TestVolumeTasks(LibVirtCommonTest):
             "cloudify_libvirt.volume_tasks.libvirt.open",
             volume_tasks.delete)
         self._test_no_resource_id(volume_tasks.delete)
+
+        # failed to remove
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = 'volume'
+        _ctx.instance.runtime_properties['params'] = {'pool': 'pool_name'}
+
+        volume = mock.Mock()
+        volume.name = mock.Mock(return_value="volume")
+        volume.delete = mock.Mock(return_value=-1)
+        pool = mock.Mock()
+        pool.name = mock.Mock(return_value="pool")
+        pool.storageVolLookupByName = mock.Mock(return_value=volume)
+
+        connect = self._create_fake_connection()
+
+        connect.storagePoolLookupByName = mock.Mock(return_value=pool)
+        with mock.patch(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                'Can not undefine volume.'
+            ):
+                volume_tasks.delete(ctx=_ctx)
+
+        # sucessful remove
+        volume.delete = mock.Mock(return_value=0)
+        with mock.patch(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            volume_tasks.delete(ctx=_ctx)
+        self.assertEqual(
+            _ctx.instance.runtime_properties,
+            {
+                'backups': {},
+                'libvirt_auth': {'a': 'd'},
+                'params': {},
+                'resource_id': None
+            }
+        )
 
 
 if __name__ == '__main__':

@@ -167,6 +167,7 @@ class LibVirtCommonTest(unittest.TestCase):
         connect.defineXML = mock.Mock(return_value=None)
         connect.storagePoolDefineXML = mock.Mock(return_value=None)
         connect.close = mock.Mock(return_value=None)
+        connect.newStream = mock.Mock(return_value=mock.Mock())
         return connect
 
     def _create_ctx(self):
