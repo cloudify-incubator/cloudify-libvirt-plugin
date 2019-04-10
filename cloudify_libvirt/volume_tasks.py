@@ -156,11 +156,12 @@ def stop(**kwargs):
             )
 
         for i in xrange(10):
-            ctx.logger.info("Tring to wipe vm {}/10".format(i))
+            ctx.logger.info("Tring to wipe volume {}/10".format(i))
             if volume.wipe(0) == 0:
                 break
             time.sleep(30)
-
+    except libvirt.libvirtError as e:
+        ctx.logger.info('Failed to wipe the volume: {}'.format(repr(e)))
     finally:
         conn.close()
 

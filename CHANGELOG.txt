@@ -31,3 +31,9 @@ releases:
     * Support storage pool creation.
     * Rename `params.resource_id` to `params.name`.
     * Support creation snapshot on external resources.
+
+  v0.8.0:
+    * Support storage volume creation.
+
+  v0.8.1:
+    * Fix volume wipe code.
