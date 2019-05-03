@@ -1,4 +1,3 @@
-########
 # Copyright (c) 2016-2019 Cloudify Platform Ltd. All rights reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,12 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import libvirt
 import mock
 import unittest
 
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
-from cloudify.exceptions import NonRecoverableError
+from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.pool_tasks as pool_tasks
@@ -350,7 +350,7 @@ class TestPoolTasks(LibVirtCommonTest):
             }, 'resource')
 
     def test_reuse_pool_create_exist(self):
-        # check that we can use network
+        # check that we can use pool
         _ctx = self._create_ctx()
 
         pool = mock.Mock()
@@ -378,10 +378,60 @@ class TestPoolTasks(LibVirtCommonTest):
         self._test_check_correct_connect_action(
             "cloudify_libvirt.pool_tasks.libvirt.open",
             pool_tasks.start)
+        self._test_empty_pool(pool_tasks.start)
         self._test_reused_object(
             "cloudify_libvirt.pool_tasks.libvirt.open",
             pool_tasks.start)
         self._test_no_resource_id(pool_tasks.start, "No pool for start")
+
+        # start resource
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = "pool_name"
+
+        pool = mock.Mock()
+        pool.isActive = mock.Mock(return_value=True)
+        pool.name = mock.Mock(return_value="resource")
+
+        connect = self._create_fake_connection()
+        connect.storagePoolLookupByName = mock.Mock(return_value=pool)
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            pool_tasks.start(ctx=_ctx)
+
+        # can't start
+        pool.isActive = mock.Mock(return_value=False)
+        pool.create = mock.Mock(return_value=-1)
+        connect = self._create_fake_connection()
+        connect.storagePoolLookupByName = mock.Mock(return_value=pool)
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                RecoverableError,
+                "Can not start pool."
+            ):
+                pool_tasks.start(ctx=_ctx)
+
+        # too many retry
+        pool.create = mock.Mock(return_value=0)
+        connect = self._create_fake_connection()
+        connect.storagePoolLookupByName = mock.Mock(return_value=pool)
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with mock.patch(
+                "time.sleep",
+                mock.Mock(return_value=None)
+            ):
+                with self.assertRaisesRegexp(
+                    RecoverableError,
+                    "Can not start pool."
+                ):
+                    pool_tasks.start(ctx=_ctx)
 
     def test_configure(self):
         # check correct handle exception with empty connection
@@ -396,6 +446,36 @@ class TestPoolTasks(LibVirtCommonTest):
         self._test_no_resource_id(pool_tasks.configure,
                                   "No pool for configure")
 
+        # configure resource
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = "pool_name"
+
+        pool = mock.Mock()
+        pool.info = mock.Mock(
+            return_value=(libvirt.VIR_STORAGE_POOL_INACTIVE, 0, 0, 0))
+        pool.build = mock.Mock(return_value=0)
+        pool.name = mock.Mock(return_value="resource")
+
+        connect = self._create_fake_connection()
+        connect.storagePoolLookupByName = mock.Mock(return_value=pool)
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            pool_tasks.configure(ctx=_ctx)
+
+        # can't configure
+        pool.build = mock.Mock(return_value=-1)
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                RecoverableError,
+                "Can not build guest pool."
+            ):
+                pool_tasks.configure(ctx=_ctx)
+
     def test_stop(self):
         # check correct handle exception with empty connection
         self._test_check_correct_connect_action(
@@ -408,6 +488,66 @@ class TestPoolTasks(LibVirtCommonTest):
             pool_tasks.stop)
         self._test_no_resource_id(pool_tasks.stop)
 
+        # stop resource
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = "pool_name"
+
+        pool = mock.Mock()
+        pool.isActive = mock.Mock(return_value=False)
+        pool.info = mock.Mock(
+            return_value=(libvirt.VIR_STORAGE_POOL_INACTIVE, 0, 0, 0))
+        pool.delete = mock.Mock(return_value=0)
+        pool.name = mock.Mock(return_value="resource")
+
+        connect = self._create_fake_connection()
+        connect.storagePoolLookupByName = mock.Mock(return_value=pool)
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            pool_tasks.stop(ctx=_ctx)
+
+        # cant delete
+        pool.info = mock.Mock(
+            return_value=(libvirt.VIR_STORAGE_POOL_RUNNING, 0, 0, 0))
+        pool.delete = mock.Mock(return_value=-1)
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                RecoverableError,
+                "Can not delete guest pool."
+            ):
+                pool_tasks.stop(ctx=_ctx)
+
+        # should stop before delete, but failed
+        pool.destroy = mock.Mock(return_value=-1)
+        pool.isActive = mock.Mock(return_value=True)
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                "Can not destroy pool."
+            ):
+                pool_tasks.stop(ctx=_ctx)
+
+        # should stop before delete, but failed
+        pool.destroy = mock.Mock(return_value=0)
+        pool.delete = mock.Mock(return_value=0)
+        pool.isActive = mock.Mock(return_value=True)
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with mock.patch(
+                "time.sleep",
+                mock.Mock(return_value=None)
+            ):
+                pool_tasks.stop(ctx=_ctx)
+
     def test_delete(self):
         # check correct handle exception with empty connection
         self._test_check_correct_connect_action(
@@ -419,6 +559,33 @@ class TestPoolTasks(LibVirtCommonTest):
             "cloudify_libvirt.pool_tasks.libvirt.open",
             pool_tasks.delete)
         self._test_no_resource_id(pool_tasks.delete)
+
+        # delete resource
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = "pool_name"
+
+        pool = mock.Mock()
+        pool.undefine = mock.Mock(return_value=-1)
+        pool.name = mock.Mock(return_value="resource")
+
+        connect = self._create_fake_connection()
+        connect.storagePoolLookupByName = mock.Mock(return_value=pool)
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                "Can not undefine pool."
+            ):
+                pool_tasks.delete(ctx=_ctx)
+        # remove witout issues
+        pool.undefine = mock.Mock(return_value=0)
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            pool_tasks.delete(ctx=_ctx)
 
 
 if __name__ == '__main__':
