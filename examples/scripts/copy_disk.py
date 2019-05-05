@@ -79,11 +79,11 @@ def _gen_hostname(name):
 
 if __name__ == '__main__':
     base_disk = ctx.instance.runtime_properties['disk_image']
-    ctx.logger.debug("Base image: {}".format(repr(base_disk)))
+    ctx.logger.info("Base image: {}".format(repr(base_disk)))
     cloud_init = ctx.instance.runtime_properties['cloud_init']
     ctx.logger.debug("Cloud init: {}".format(repr(cloud_init)))
-    cwd = os.getcwd()
-    ctx.logger.debug("Current dir: {}".format(repr(cwd)))
+    cwd = ctx.instance.runtime_properties.get('storage_path', os.getcwd())
+    ctx.logger.info("Current dir: {}".format(repr(cwd)))
 
     copy_disk = "{}/{}.qcow2".format(cwd, ctx.instance.id)
     execute_command(["qemu-img", "create", "-f", "qcow2", "-o",
