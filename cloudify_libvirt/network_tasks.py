@@ -51,17 +51,27 @@ def create(**kwargs):
 
         xmlconfig = common.gen_xml_template(kwargs, template_params, 'network')
 
-        # create a persistent virtual network
-        network = conn.networkCreateXML(xmlconfig)
-        if network is None:
-            raise cfy_exc.NonRecoverableError(
-                'Failed to create a virtual network')
+        resource_id = ctx.instance.runtime_properties.get('resource_id')
+        if resource_id:
+            ctx.logger.info("Network is already alive, skip create.")
+            try:
+                network = conn.networkLookupByName(resource_id)
+            except libvirt.libvirtError as e:
+                raise cfy_exc.NonRecoverableError(
+                    'Failed to find the network: {}'.format(repr(e))
+                )
+        else:
+            # create a persistent virtual network
+            network = conn.networkCreateXML(xmlconfig)
+            if network is None:
+                raise cfy_exc.NonRecoverableError(
+                    'Failed to create a virtual network')
 
-        ctx.logger.info('Network ' + network.name() + ' has created.')
-        ctx.logger.info('Params: ' + repr(template_params))
-        ctx.instance.runtime_properties['params'] = template_params
-        ctx.instance.runtime_properties['resource_id'] = network.name()
-        ctx.instance.runtime_properties['use_external_resource'] = False
+            ctx.logger.info('Network ' + network.name() + ' has created.')
+            ctx.logger.info('Params: ' + repr(template_params))
+            ctx.instance.runtime_properties['params'] = template_params
+            ctx.instance.runtime_properties['resource_id'] = network.name()
+            ctx.instance.runtime_properties['use_external_resource'] = False
 
         active = network.isActive()
         if active == 1:

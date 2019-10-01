@@ -135,6 +135,7 @@ class TestDomainTasks(LibVirtCommonTest):
             _ctx.instance.runtime_properties['resource_id'], "domain_name"
         )
         # with params from inputs
+        _ctx.instance.runtime_properties['resource_id'] = None
         _ctx.instance.runtime_properties['params'] = {}
         _ctx.node.properties['params'] = {}
         with mock.patch(

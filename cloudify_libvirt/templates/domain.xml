@@ -62,7 +62,9 @@
     <type machine="pc" arch="x86_64">hvm</type>
     <boot dev="hd"/>
   </os>
-  <cpu mode="host-model"/>
+  <cpu mode="{{domain_cpu}}" match="exact" check="partial">
+    <model fallback="allow">qemu64</model>
+  </cpu>
   <clock offset="utc">
     <timer name="rtc" tickpolicy="catchup"/>
     <timer name="pit" tickpolicy="delay"/>
