@@ -39,6 +39,8 @@ def _update_template_params(template_params):
         template_params['memory_maxsize'] = memory_size * 2
     if not template_params.get("domain_type"):
         template_params["domain_type"] = "qemu"
+    if not template_params.get("domain_cpu"):
+        template_params["domain_cpu"] = "custom"
 
 
 @operation
@@ -70,15 +72,26 @@ def configure(**kwargs):
             ctx.instance.runtime_properties['use_external_resource'] = True
             return
 
-        xmlconfig = common.gen_xml_template(kwargs, template_params, 'domain')
-        dom = conn.defineXML(xmlconfig)
-        if dom is None:
-            raise cfy_exc.NonRecoverableError(
-                'Failed to define a domain from an XML definition.'
-            )
+        resource_id = ctx.instance.runtime_properties.get('resource_id')
+        if resource_id:
+            ctx.logger.info("Domain is already alive, skip create.")
+            try:
+                dom = conn.lookupByName(resource_id)
+            except libvirt.libvirtError as e:
+                raise cfy_exc.NonRecoverableError(
+                    'Failed to find the domain: {}'.format(repr(e))
+                )
+        else:
+            xmlconfig = common.gen_xml_template(
+                kwargs, template_params, 'domain')
+            dom = conn.defineXML(xmlconfig)
+            if dom is None:
+                raise cfy_exc.NonRecoverableError(
+                    'Failed to define a domain from an XML definition.'
+                )
 
-        ctx.instance.runtime_properties['resource_id'] = dom.name()
-        ctx.instance.runtime_properties['params'] = template_params
+            ctx.instance.runtime_properties['resource_id'] = dom.name()
+            ctx.instance.runtime_properties['params'] = template_params
     finally:
         conn.close()
 

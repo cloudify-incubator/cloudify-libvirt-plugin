@@ -1,14 +1,9 @@
 tosca_definitions_version: cloudify_dsl_1_3
 
 imports:
-  - http://www.getcloudify.org/spec/cloudify/4.5/types.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.9.5/plugin.yaml
-  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.7.0/plugin.yaml
-
-inputs:
-
-  agent_password:
-    default: passw0rd
+  - http://www.getcloudify.org/spec/cloudify/4.6/types.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.15.3/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.8.1/plugin.yaml
 
 relationships:
 
@@ -48,17 +43,45 @@ node_templates:
           implementation: scripts/download_vm.sh
           executor: central_deployment_agent
           inputs:
-            CATALOG_URL: https://buildlogs.centos.org/centos/7/isos/x86_64
-            DISK: CentOS-7-x86_64-GenericCloud-ContainerHost.qcow2
+            CATALOG_URL: https://cloud.centos.org/centos/7/images/
+            DISK: CentOS-7-x86_64-GenericCloud-1907.qcow2
+
+  agent_key:
+    type: cloudify.keys.nodes.RSAKey
+    properties:
+      use_secret_store: false
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: keys.cloudify_ssh_key.operations.create
+          inputs:
+            store_private_key_material: true
 
   cloud_init:
     type: cloudify.nodes.CloudInit.CloudConfig
-    properties:
-      resource_config:
-        password: passw0rd
-        chpasswd:
-           expire: False
-        ssh_pwauth: True
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            resource_config:
+              users:
+              - name: centos
+                primary_group: centos
+                # mkpasswd --method=SHA-512 --rounds=4096
+                # hash of passw0rd
+                passwd: $6$rounds=4096$sEbWYCRnr$kV18TY9O9Bkq0DdSo5Zvp8saK0gnpZ3RD.55YvQp1ZuaU89eG/T3UrWRh7s9SzchEjebL9ETr2KyMVHqtiXbQ.
+                groups: users, admin, wheel
+                lock_passwd: false
+                shell: /bin/bash
+                sudo: ['ALL=(ALL) NOPASSWD:ALL']
+                ssh_authorized_keys:
+                - { get_attribute: [agent_key, public_key_export] }
+              packages:
+              - [epel-release]
+              - [deltarpm]
+    relationships:
+    - target: agent_key
+      type: cloudify.relationships.depends_on
 
   disk_clone:
     type: cloudify.nodes.ApplicationServer
@@ -120,18 +143,22 @@ node_templates:
             implementation: terminal.cloudify_terminal.tasks.run
             inputs:
               terminal_auth:
+                smart_device: true
                 user: centos
-                password: { get_input: agent_password }
+                key_content: { get_attribute: [agent_key, private_key_export] }
                 ip: { get_attribute: [qemu_vm, ip] }
               calls:
-              - action: uname -a
+              # network fix
+              - action: sudo ip link set dev eth0 mtu 1400
+              # space fix
+              - action: sudo sudo xfs_growfs /
       cloudify.interfaces.freeze:
           fs_prepare:
             implementation: terminal.cloudify_terminal.tasks.run
             inputs:
               terminal_auth:
                 user: centos
-                password: { get_input: agent_password }
+                key_content: { get_attribute: [agent_key, private_key_export] }
                 ip: { get_attribute: [qemu_vm, ip] }
               calls:
               - action: sudo sync
@@ -140,7 +167,7 @@ node_templates:
             inputs:
               terminal_auth:
                 user: centos
-                password: { get_input: agent_password }
+                key_content: { get_attribute: [agent_key, private_key_export] }
                 ip: { get_attribute: [qemu_vm, ip] }
               calls:
               - action: sudo sync
