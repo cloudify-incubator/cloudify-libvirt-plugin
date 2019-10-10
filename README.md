@@ -105,8 +105,7 @@ Update `ip` runtime property in VM by data from network.
 
 ### Without external connectivity
 
-* [Ubuntu:amd64 vm with connection by fabric](examples/vm_ssh.amd64.yaml)
-* [Ubuntu:arm64 vm with connection by fabric](examples/vm_ssh.arm64.yaml)
+* [Ubuntu:arm64 vm with connection by fabric](examples/vm_ubuntu.arm64.yaml)
 * [CentOS:amd64 vm with connection by fabric](examples/vm_centos.amd64.yaml)
 
 For documentation `backup` / `restore` workflows with noncluster blueprints look to

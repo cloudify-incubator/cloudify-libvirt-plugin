@@ -79,6 +79,26 @@ node_templates:
               packages:
               - [epel-release]
               - [deltarpm]
+              write_files:
+              - path: /etc/yum.repos.d/custom.repo
+                content: |
+                  [customrepo]
+                  name=Custom Repository
+                  baseurl=http://localhost:8080/
+                  enabled=0
+                  gpgcheck=0
+              - path: /etc/nginx/conf.d/repos.conf
+                content: |
+                  server {
+                    listen 8080 default_server;
+                    listen [::]:8080 default_server;
+                    server_name  _;
+                    root /usr/share/nginx/html/custom_repository/;
+                    location / {
+                      index index.html index.htm;
+                      autoindex on; #enable listing of directory index
+                    }
+                  }
     relationships:
     - target: agent_key
       type: cloudify.relationships.depends_on
@@ -125,7 +145,8 @@ node_templates:
             params:
               domain_type: qemu
               vcpu: 2
-              memory_size: 524288
+              # 2 GB
+              memory_size: 2097152
               networks:
                 - network: { get_attribute: [common_network, resource_id] }
                   dev: vnet0
@@ -147,11 +168,43 @@ node_templates:
                 user: centos
                 key_content: { get_attribute: [agent_key, private_key_export] }
                 ip: { get_attribute: [qemu_vm, ip] }
+                warnings:
+                - Another app is currently holding the yum lock; waiting for it to exit....
               calls:
+              # set terminal properties
+              - action: echo $LANG
+              - action: stty rows 200 cols 160
               # network fix
               - action: sudo ip link set dev eth0 mtu 1400
               # space fix
               - action: sudo sudo xfs_growfs /
+              # install packages
+              - action: sudo yum clean metadata
+              # need to install epel before any other
+              - action: sudo yum install -y epel-release deltarpm
+              # install other rpm's
+              - action: sudo yum install -y createrepo nginx yum-utils firewalld
+              # create repository
+              - action: sudo mkdir -p /usr/share/nginx/html/custom_repository
+              # download content
+              - action: sudo curl http://mirror.centos.org/centos/7/os/x86_64/Packages/pciutils-3.5.1-3.el7.x86_64.rpm -o /usr/share/nginx/html/custom_repository/pciutils-3.5.1-3.el7.x86_64.rpm
+              # enable firewall
+              - action: sudo systemctl start firewalld > /dev/null || echo "Failed!"
+              - action: sudo systemctl enable firewalld > /dev/null || echo "Failed!"
+              # ebnable nginx
+              - action: sudo systemctl start nginx > /dev/null || echo "Failed!"
+              - action: sudo systemctl enable nginx > /dev/null || echo "Failed!"
+              # set rules
+              - action: sudo firewall-cmd --zone=public --permanent --add-service=http > /dev/null || echo "Failed!"
+              - action: sudo firewall-cmd --zone=public --permanent --add-port=8080/tcp > /dev/null || echo "Failed!"
+              - action: sudo firewall-cmd --zone=public --permanent --add-service=ssh > /dev/null || echo "Failed!"
+              - action: sudo firewall-cmd --reload > /dev/null > /dev/null || echo "Failed!"
+              # create reposotory
+              - action: sudo createrepo /usr/share/nginx/html/custom_repository
+              # fix rights
+              - action: sudo find /usr/share/nginx/html/custom_repository/ -type f -print | sudo xargs chmod 644 -v > /dev/null || echo "Failed!"
+              - action: sudo find /usr/share/nginx/html/custom_repository/ -type d -print | sudo xargs chmod 755 -v > /dev/null || echo "Failed!"
+
       cloudify.interfaces.freeze:
           fs_prepare:
             implementation: terminal.cloudify_terminal.tasks.run
@@ -190,7 +243,7 @@ node_templates:
           implementation: libvirt.cloudify_libvirt.domain_tasks.update
           inputs:
             params:
-              memory_size: 393216
+              memory_size: 1048576
     relationships:
       - target: example_node
         type: cloudify.relationships.depends_on
