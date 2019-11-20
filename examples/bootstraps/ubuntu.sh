@@ -6,14 +6,24 @@ sudo apt-get install -yq python-virtualenv python-dev git python-netifaces
 # env create
 rm -rf centos-libvirt
 mkdir  centos-libvirt
-virtualenv centos-libvirt
+virtualenv centos-libvirt --python=python2.7
 cd centos-libvirt
+# install cloudify
 source bin/activate
 pip install pip --upgrade
-pip install cloudify
-cfy profile use local
 
+# install plugins
+git clone https://github.com/cloudify-incubator/cloudify-utilities-plugin.git -b master
+pip install -e cloudify-utilities-plugin
 git clone https://github.com/cloudify-incubator/cloudify-libvirt-plugin.git -b master
 pip install -e cloudify-libvirt-plugin
+# install cloudify
+pip install cloudify==4.6
+# use local install
+cfy profile use local
 
-cfy install  cloudify-libvirt-plugin/examples/vm_ssh.amd64.yaml --install-plugins
+# create vm
+cfy install cloudify-libvirt-plugin/examples/vm_ubuntu.arm64.yaml --task-retry-interval=30 --task-retries=20
+
+# desroy vm
+cfy uninstall -b examples

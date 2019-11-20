@@ -1,5 +1,5 @@
-sudo yum install -y epel-release deltarpm
-sudo yum install -y qemu-kvm libvirt-devel libvirt libvirt-python wget gcc python-devel qemu-system-x86 genisoimage
+sudo yum install -q -y epel-release deltarpm
+sudo yum install -q -y qemu-kvm libvirt-devel libvirt libvirt-python wget gcc python-devel qemu-system-x86 genisoimage qemu-system-arm
 sudo service libvirtd restart
 sudo groupadd libvirt
 sudo usermod --append --groups kvm `whoami`
@@ -18,12 +18,10 @@ sudo rm -rf $CREATEPATH
 sudo mkdir $CREATEPATH
 sudo chmod 777 $CREATEPATH
 sudo chown qemu:libvirt $CREATEPATH
-virtualenv $CREATEPATH
+virtualenv $CREATEPATH --python=python2.7
 cd $CREATEPATH
 source bin/activate
 pip install pip --upgrade
-pip install cloudify==4.3
-cfy profile use local
 
 # enable zram, better to enable, we will run many hungry hosts
 git clone https://github.com/mystilleef/FedoraZram.git
@@ -43,8 +41,23 @@ sudo systemctl daemon-reload
 sudo systemctl enable mkzram.service
 sudo systemctl start mkzram.service
 
-# run real create
-git clone https://github.com/cloudify-incubator/cloudify-libvirt-plugin.git -b virt-cloud
+# install plugins
+git clone https://github.com/cloudify-incubator/cloudify-utilities-plugin.git -b master
+pip install -e cloudify-utilities-plugin
+git clone https://github.com/cloudify-incubator/cloudify-libvirt-plugin.git -b master
 pip install -e cloudify-libvirt-plugin
+# install cloudify
+pip install cloudify==4.6
+# use local install
+cfy profile use local
 
-cfy install cloudify-libvirt-plugin/examples/vm_ssh.amd64.yaml --install-plugins --task-retries 20  --task-retry-interval 30
+# create arm vm
+cfy install cloudify-libvirt-plugin/examples/vm_ubuntu.arm64.yaml --task-retry-interval=30 --task-retries=20 -b arm_ubuntu -vv
+sleep 3600
+cfy uninstall -b arm_ubuntu
+
+# create x86 vm
+cfy install cloudify-libvirt-plugin/examples/vm_centos.amd64.yaml --task-retry-interval=30 --task-retries=20 -b x86_centos -vv
+sleep 3600
+cfy uninstall -b x86_centos
+
