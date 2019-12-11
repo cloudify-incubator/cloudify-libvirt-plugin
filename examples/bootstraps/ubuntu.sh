@@ -1,6 +1,10 @@
 sudo apt-get update
 sudo apt-get install -yq qemu-kvm qemu python-libvirt libvirt-dev qemu-system-arm genisoimage
-sudo usermod -a -G libvirtd `whoami`
+# use UI
+sudo apt-get install -yq virt-manager libvirt-clients
+# add rights to use libvirt
+sudo usermod -a -G libvirt `whoami`
+sudo usermod -a -G kvm `whoami`
 # cloudify part
 sudo apt-get install -yq python-virtualenv python-dev git python-netifaces
 # env create
