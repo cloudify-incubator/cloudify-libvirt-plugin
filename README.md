@@ -179,6 +179,9 @@ Notes for use:
 
 You should to install [libvirt-devel](examples/bootstraps/centos.sh#L2) before create wagon.
 
+## Examples
+For official blueprint examples using this Cloudify plugin, please see [Cloudify Community Blueprints Examples](https://github.com/cloudify-community/blueprint-examples/).
+
 ## TODO:
 * Add more examples with different vm struct and archictures: mips, powerpc
 * Implement storage volume/pool
