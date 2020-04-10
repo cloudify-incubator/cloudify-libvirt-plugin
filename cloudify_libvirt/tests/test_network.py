@@ -553,6 +553,20 @@ class TestNetworkTasks(LibVirtCommonTest):
             _ctx.instance.runtime_properties['resource_id'], "network_name"
         )
 
+        # rerun on created
+        connect.networkLookupByName = mock.Mock(
+            side_effect=network_tasks.libvirt.libvirtError("e"))
+        with mock.patch(
+            "cloudify_libvirt.network_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                'Failed to find the network.'
+            ):
+                network_tasks.create(ctx=_ctx,
+                                     template_resource="template_resource")
+
 
 if __name__ == '__main__':
     unittest.main()

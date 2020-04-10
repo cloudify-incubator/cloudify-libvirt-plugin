@@ -252,6 +252,11 @@ def delete(**kwargs):
                 'Failed to find the pool: {}'.format(repr(e))
             )
 
+        if pool.delete() < 0:
+            raise cfy_exc.RecoverableError(
+                'Can not delete pool.'
+            )
+
         if pool.undefine() < 0:
             raise cfy_exc.NonRecoverableError(
                 'Can not undefine pool.'

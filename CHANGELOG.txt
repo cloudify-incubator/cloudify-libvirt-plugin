@@ -1,11 +1,14 @@
 releases:
 
-  v0.1: Implement minimal functionality for create network and virtual machine
-        based on embeded template.
+  v0.1:
+   * Implement minimal functionality for create network and virtual machine
+     based on embeded template.
 
-  v0.2: Add arm support and autogenerate mac addresses in examples
+  v0.2:
+   * Add arm support and autogenerate mac addresses in examples
 
-  v0.3: Fix network validation and use virtio devices in embeded templates
+  v0.3:
+   * Fix network validation and use virtio devices in embeded templates
 
   v0.4:
    * Add cluster example with external ip support
@@ -15,25 +18,28 @@ releases:
   v0.4.1: Add support for disk/network backup/snapshots
 
   v0.5.0:
-    * Support for reuse external network
-    * Support for kvm virtualization in embeded examples
+   * Support for reuse external network
+   * Support for kvm virtualization in embeded examples
 
   v0.6.0:
-    * Support for dump full vm snapshot to fs on backup
-    * Update start action for fill in `network` in vm runtime properties
-    * Cluster Example: Automatically add libvirt host to trusted
-    * Support for reuse external vm
-    * move use_external_resource to top of instance properties
-    * add `update` action for sync vm size to values from runtime properties.
-    * rename `memory_size` to `memory_maxsize`
+   * Support for dump full vm snapshot to fs on backup
+   * Update start action for fill in `network` in vm runtime properties
+   * Cluster Example: Automatically add libvirt host to trusted
+   * Support for reuse external vm
+   * move use_external_resource to top of instance properties
+   * add `update` action for sync vm size to values from runtime properties.
+   * rename `memory_size` to `memory_maxsize`
 
   v0.7.0:
-    * Support storage pool creation.
-    * Rename `params.resource_id` to `params.name`.
-    * Support creation snapshot on external resources.
+   * Support storage pool creation.
+   * Rename `params.resource_id` to `params.name`.
+   * Support creation snapshot on external resources.
 
   v0.8.0:
-    * Support storage volume creation.
+   * Support storage volume creation.
 
   v0.8.1:
-    * Fix volume wipe code.
+   * Fix volume wipe code.
+
+  v0.9.0:
+   * Support download image contwent from external resource

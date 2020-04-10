@@ -134,6 +134,19 @@ class TestDomainTasks(LibVirtCommonTest):
         self.assertEqual(
             _ctx.instance.runtime_properties['resource_id'], "domain_name"
         )
+        # check rerun after create
+        with mock.patch(
+            "cloudify_libvirt.domain_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            connect.lookupByName = mock.Mock(
+                side_effect=domain_tasks.libvirt.libvirtError("e"))
+            with self.assertRaisesRegexp(
+                NonRecoverableError,
+                'Failed to find the domain:'
+            ):
+                domain_tasks.configure(ctx=_ctx,
+                                       template_resource="template_resource")
         # with params from inputs
         _ctx.instance.runtime_properties['resource_id'] = None
         _ctx.instance.runtime_properties['params'] = {}

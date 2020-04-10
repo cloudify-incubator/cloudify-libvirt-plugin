@@ -13,11 +13,12 @@
 # limitations under the License.
 import os
 import uuid
-from jinja2 import Template
 from pkg_resources import resource_filename
 
 from cloudify import ctx
 from cloudify import exceptions as cfy_exc
+
+from cloudify_common_sdk import filters
 
 
 def get_libvirt_params(**kwargs):
@@ -66,11 +67,10 @@ def gen_xml_template(kwargs, template_params, default_template):
         with open(template_resource) as object_desc:
             template_content = object_desc.read()
 
-    template_engine = Template(template_content)
     params = {"ctx": ctx}
     if template_params:
         params.update(template_params)
-    xmlconfig = template_engine.render(params)
+    xmlconfig = filters.render_template(template_content, params)
     ctx.logger.debug(repr(xmlconfig))
     return xmlconfig
 

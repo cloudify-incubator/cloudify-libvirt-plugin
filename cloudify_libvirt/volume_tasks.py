@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import requests
 import libvirt
 import time
 
@@ -19,6 +20,8 @@ from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
 import cloudify_libvirt.common as common
+
+STEP_DOWNLOAD = 1024 * 1024 * 16
 
 
 @operation
@@ -56,6 +59,23 @@ def create(**kwargs):
             ctx.instance.runtime_properties['use_external_resource'] = True
             return
 
+        if (
+            template_params.get('url')
+        ):
+            res = requests.head(template_params.get('url'))
+            res.raise_for_status()
+            allocation = int(res.headers.get('Content-Length', 0))
+            if allocation <= 0 or res.headers.get('Accept-Ranges') != 'bytes':
+                raise cfy_exc.NonRecoverableError(
+                    'Failed to download volume.'
+                )
+            capacity = allocation / (1024 * 1024)
+            if allocation % (1024 * 1024):
+                # we need one more MiB
+                capacity += 1
+            template_params['allocation'] = capacity
+            template_params['capacity'] = capacity
+
         xmlconfig = common.gen_xml_template(kwargs, template_params, 'volume')
 
         # create a persistent virtual volume
@@ -72,6 +92,57 @@ def create(**kwargs):
         ctx.instance.runtime_properties['use_external_resource'] = False
     finally:
         conn.close()
+
+
+def _stream_wipe(ctx, conn, volume, allocation):
+    allocation *= 1024  # KB
+    stream = conn.newStream(0)
+    volume.upload(stream, 0, allocation * 1024, 0)
+    zero_buff = "\0" * 1024
+    for i in xrange(allocation):
+        stream.send(zero_buff)
+    stream.finish()
+
+
+def _stream_download(ctx, conn, volume, url):
+    res = requests.head(url, allow_redirects=True)
+    res.raise_for_status()
+    allocation = int(res.headers.get('Content-Length', 0))
+    if allocation <= 0 or res.headers.get('Accept-Ranges') != 'bytes':
+        raise cfy_exc.NonRecoverableError(
+            'Failed to download volume.'
+        )
+    ctx.logger.info("Download: {allocation}"
+                    .format(allocation=allocation))
+
+    stream = conn.newStream(0)
+    volume.upload(stream, 0, allocation, 0)
+    start_range = 0
+    while start_range < allocation:
+        stop_range = start_range + STEP_DOWNLOAD
+        if stop_range > (allocation - 1):
+            stop_range = allocation - 1
+        ctx.logger.info(
+            "Range: {start}..{stop}/{allocation}: {place}%"
+            .format(
+                start=start_range,
+                stop=stop_range,
+                allocation=allocation,
+                place=(100 * stop_range)/allocation))
+        res = requests.get(
+            url,
+            headers={
+                "Range": "bytes={start}-{stop}".format(
+                    start=start_range,
+                    stop=stop_range)},
+            allow_redirects=True,
+            stream=True)
+        res.raise_for_status()
+        for chunk in res.iter_content(chunk_size=None):
+            # mark as downloaded
+            start_range += len(chunk)
+            stream.send(chunk)
+    stream.finish()
 
 
 @operation
@@ -109,14 +180,16 @@ def start(**kwargs):
             template_params.get('zero_wipe') and
             template_params.get('allocation')
         ):
-            allocation = int(template_params.get('allocation', 0))
-            allocation *= 1024  # KB
-            stream = conn.newStream(0)
-            volume.upload(stream, 0, allocation * 1024, 0)
-            zero_buff = "\0" * 1024
-            for i in xrange(allocation):
-                stream.send(zero_buff)
-            stream.finish()
+            _stream_wipe(
+                ctx=ctx, conn=conn, volume=volume,
+                allocation=int(template_params.get('allocation', 0))
+            )
+
+        if (template_params.get('url')):
+            _stream_download(
+                ctx=ctx, conn=conn, volume=volume,
+                url=template_params.get('url')
+            )
 
     finally:
         conn.close()

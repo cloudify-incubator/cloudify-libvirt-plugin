@@ -20,23 +20,6 @@ import cloudify_libvirt.iso9660_tasks as iso9660_tasks
 
 class TestIso9660Task(LibVirtCommonTest):
 
-    def test_joliet_name(self):
-        self.assertEqual("/abc", iso9660_tasks._joliet_name("abc"))
-        self.assertEqual("/" + "*" * 64, iso9660_tasks._joliet_name("*" * 128))
-        self.assertEqual("/" + "*" * 64,
-                         iso9660_tasks._joliet_name("/" + "*" * 128))
-
-    def test_iso_name(self):
-        self.assertEqual("/ABC.;1", iso9660_tasks._iso_name("abc"))
-        self.assertEqual("/12345678.;1",
-                         iso9660_tasks._iso_name("1234567890.abcdef"))
-        self.assertEqual("/" + "_" * 8 + ".;1",
-                         iso9660_tasks._iso_name("*" * 128))
-        self.assertEqual("/" + "_" * 8 + ".;1",
-                         iso9660_tasks._iso_name("/" + "*" * 128))
-        self.assertEqual("/12345678.123;1",
-                         iso9660_tasks._iso_name("12345678.123"))
-
     def test_create(self):
         # check correct handle exception with empty connection
         self._check_correct_connect(

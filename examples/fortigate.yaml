@@ -1,0 +1,199 @@
+# https://docs.fortinet.com/document/fortigate/6.0.0/fortigate-vm-on-kvm/767662/cloud-init
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.6/types.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-utilities-plugin/1.15.3/plugin.yaml
+  - https://raw.githubusercontent.com/cloudify-incubator/cloudify-libvirt-plugin/0.8.1/plugin.yaml
+
+inputs:
+
+  fortigate_image:
+    type: string
+    description: >
+      fortigate boot image.
+
+  user_data:
+    type: string
+    description: >
+      user data
+    default: |
+      config system global
+        set alias "FGVM001234567890"
+        set hostname "FGVM001234567890"
+        set timezone 04
+      end
+      config system interface
+          edit port1
+          set mode dhcp
+          append allowaccess ssh
+        end
+        edit "ssl.root"
+          set vdom "root"
+          set type tunnel
+          set alias "SSL VPN interface"
+          set snmp-index 4
+        next
+      end
+
+  meta_data:
+    type: string
+    description: >
+      meta data
+    default: |
+      {"uid": "fortinet","name":"fortinet"}
+
+relationships:
+
+  vm_connected_to_storage:
+    derived_from: cloudify.relationships.contained_in
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        preconfigure:
+          implementation: scripts/vm_preconfigure.py
+          executor: central_deployment_agent
+          inputs: {}
+
+node_templates:
+
+  common_pool:
+    type: cloudify.libvirt.pool
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              capacity: 80
+
+  boot_volume:
+    type: cloudify.libvirt.volume
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              pool: { get_attribute: [common_pool, resource_id]}
+              capacity: 12800
+              allocation: 12800
+              url: { get_input: fortigate_image }
+    relationships:
+    - target: common_pool
+      type: cloudify.relationships.depends_on
+
+  cloudinit_volume:
+    type: cloudify.libvirt.volume
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              pool: { get_attribute: [common_pool, resource_id]}
+              capacity: 1
+              allocation: 1
+    relationships:
+    - target: common_pool
+      type: cloudify.relationships.depends_on
+
+  cloud_init_image:
+    type: cloudify.libvirt.ISO9660
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              pool: { get_attribute: [common_pool, resource_id]}
+              volume: { get_attribute: [cloudinit_volume, resource_id]}
+              vol_ident: config-2
+              files:
+                "openstack/latest/network_data.json": "{}"
+                "openstack/latest/user_data": { get_input: user_data }
+                "openstack/latest/meta_data.json": { get_input: meta_data }
+                "openstack/2015-10-15/network_data.json": "{}"
+                "openstack/2015-10-15/user_data": { get_input: user_data }
+                "openstack/2015-10-15/meta_data.json": { get_input: meta_data }
+                "user_data": { get_input: user_data }
+                "userdata.txt": { get_input: user_data }
+    relationships:
+    - target: cloudinit_volume
+      type: cloudify.relationships.depends_on
+
+  common_network:
+    type: cloudify.libvirt.network
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              dev: virbr1
+              forwards:
+                - mode: nat
+              ips:
+                - address: 192.168.142.1
+                  netmask: 255.255.255.0
+                  dhcp:
+                    start: 192.168.142.2
+                    end: 192.168.142.254
+
+  fortigate_vm:
+    type: cloudify.libvirt.domain
+    properties:
+      agent_config:
+        install_method: none
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              domain_type: qemu
+              vcpu: 1
+              memory_size: 524288
+              disks:
+                - bus: scsi
+                  dev: sda
+                  file: { get_attribute: [boot_volume, params, path] }
+                  type: qcow2
+                - bus: scsi
+                  dev: sdb
+                  file: { get_attribute: [cloudinit_volume, params, path] }
+                  type: raw
+              networks:
+                - network: { get_attribute: [common_network, resource_id] }
+                  dev: vnet0
+                  mac: 52:54:00:c0:67:81
+                  type: virtio
+    relationships:
+      - target: common_network
+        type: cloudify.libvirt.relationships.connected_to
+      - target: cloud_init_image
+        type: cloudify.relationships.depends_on
+      - target: boot_volume
+        type: cloudify.relationships.depends_on
+
+  set_password:
+    type: cloudify.nodes.WebServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: terminal.cloudify_terminal.tasks.run
+          inputs:
+            terminal_auth:
+              user: admin
+              password: ""
+              ip: { get_attribute: [fortigate_vm, ip] }
+              store_logs: true
+              responses: # list of responses
+              - question: "New Password:"
+                answer: "123456"
+                newline: true
+              - question: "Confirm Password:"
+                answer: "123456"
+                newline: true
+            calls:
+            - action: show system interface
+              responses: # list of responses
+              - question: "--More--"
+                answer: ""
+                newline: true
+    relationships:
+      - target: fortigate_vm
+        type: cloudify.relationships.depends_on
