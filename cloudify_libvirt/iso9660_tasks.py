@@ -13,38 +13,14 @@
 # limitations under the License.
 
 import libvirt
-import pycdlib
 import os
-import re
-from io import BytesIO
 
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
+import cloudify_common_sdk.iso9660 as iso9660
+
 import cloudify_libvirt.common as common
-
-
-def _joliet_name(name):
-    if name[0] == "/":
-        name = name[1:]
-    return "/{}".format(name[:64])
-
-
-def _name_cleanup(name):
-    return re.sub('[^A-Z0-9_]{1}', r'_', name.upper())
-
-
-def _iso_name(name):
-    if name[0] == "/":
-        name = name[1:]
-
-    name_splited = name.split('.')
-    if len(name_splited[-1]) <= 3 and len(name_splited) > 1:
-        return "/{}.{};1".format(
-            _name_cleanup("_".join(name_splited[:-1])[:8]),
-            _name_cleanup(name_splited[-1]))
-    else:
-        return "/{}.;1".format(_name_cleanup(name[:8]))
 
 
 @operation
@@ -68,22 +44,16 @@ def create(**kwargs):
                 'Failed to find the volume: {}'.format(repr(e))
             )
 
-        iso = pycdlib.PyCdlib()
-        iso.new(vol_ident='cidata', joliet=3, rock_ridge='1.09')
+        outiso = iso9660.create_iso(
+            vol_ident=template_params.get('vol_ident', 'cidata'),
+            sys_ident=template_params.get('sys_ident', ""),
+            get_resource=ctx.get_resource,
+            files=template_params.get('files', {}),
+            files_raw=template_params.get('files_raw', {}))
 
-        fstree = template_params.get('files', {})
-        for name in fstree:
-            file_bufer = BytesIO()
-            file_bufer.write(fstree[name].encode())
-            iso.add_fp(file_bufer, len(fstree[name]),
-                       _iso_name(name), rr_name=name,
-                       joliet_path=_joliet_name(name))
-
-        outiso = BytesIO()
-        iso.write_fp(outiso)
         outiso.seek(0, os.SEEK_END)
         iso_size = outiso.tell()
-        iso.close()
+        outiso.seek(0, os.SEEK_SET)
 
         ctx.logger.info("ISO size: {}".format(repr(iso_size)))
 

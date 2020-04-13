@@ -351,7 +351,58 @@ class TestVolumeTasks(LibVirtCommonTest):
             _ctx.instance.runtime_properties['resource_id'], "volume_name"
         )
 
+        # failed check size of download
+        _ctx.instance.runtime_properties['resource_id'] = None
+        _ctx.instance.runtime_properties['params'] = {}
+        _ctx.node.properties['params'] = {}
+        with mock.patch(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            # empty
+            head_response = mock.Mock()
+            head_response.headers = {'Content-Length': 0}
+            with mock.patch(
+                "cloudify_libvirt.volume_tasks.requests.head",
+                mock.Mock(return_value=head_response)
+            ):
+                with self.assertRaisesRegexp(
+                    NonRecoverableError,
+                    "Failed to download volume."
+                ):
+                    volume_tasks.create(
+                        ctx=_ctx,
+                        template_resource="template_resource",
+                        params={
+                            'pool': 'empty',
+                            'url': "https://fake.org/centos.iso"})
+
+        # sucessful check size of download
+        _ctx.instance.runtime_properties['resource_id'] = None
+        _ctx.instance.runtime_properties['params'] = {}
+        _ctx.node.properties['params'] = {}
+        with mock.patch(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            head_response = mock.Mock()
+            head_response.headers = {'Content-Length': 512,
+                                     'Accept-Ranges': 'bytes'}
+            with mock.patch(
+                "cloudify_libvirt.volume_tasks.requests.head",
+                mock.Mock(return_value=head_response)
+            ):
+                volume_tasks.create(
+                    ctx=_ctx,
+                    template_resource="template_resource",
+                    params={
+                        'pool': 'empty',
+                        'url': "https://fake.org/centos.iso"})
+
         # failed on create
+        _ctx.instance.runtime_properties['resource_id'] = None
+        _ctx.instance.runtime_properties['params'] = {}
+        _ctx.node.properties['params'] = {}
         pool.createXML = mock.Mock(return_value=None)
         with mock.patch(
             "cloudify_libvirt.volume_tasks.libvirt.open",
@@ -443,6 +494,60 @@ class TestVolumeTasks(LibVirtCommonTest):
                                     'zero_wipe': True,
                                     'allocation': 1
                                 })
+
+    def test_start_download(self):
+        # download
+        _ctx = self._create_ctx()
+        _ctx.instance.runtime_properties['resource_id'] = 'volume'
+        _ctx.instance.runtime_properties['params'] = {'pool': 'pool_name'}
+
+        volume = mock.Mock()
+        volume.name = mock.Mock(return_value="volume")
+        volume.upload = mock.Mock()
+        pool = mock.Mock()
+        pool.name = mock.Mock(return_value="pool")
+        pool.storageVolLookupByName = mock.Mock(return_value=volume)
+
+        connect = self._create_fake_connection()
+
+        connect.storagePoolLookupByName = mock.Mock(return_value=pool)
+        with mock.patch(
+            "cloudify_libvirt.volume_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            # empty
+            head_response = mock.Mock()
+            head_response.headers = {'Content-Length': 0}
+            with mock.patch(
+                "cloudify_libvirt.volume_tasks.requests.head",
+                mock.Mock(return_value=head_response)
+            ):
+                with self.assertRaisesRegexp(
+                    NonRecoverableError,
+                    "Failed to download volume."
+                ):
+                    volume_tasks.start(
+                        ctx=_ctx,
+                        params={
+                            'url': "https://fake.org/centos.iso"})
+
+            # 512 for download
+            head_response = mock.Mock()
+            head_response.headers = {'Content-Length': 512,
+                                     'Accept-Ranges': 'bytes'}
+            head_response.iter_content = mock.Mock(return_value=["\0" * 256])
+            with mock.patch(
+                "cloudify_libvirt.volume_tasks.requests.head",
+                mock.Mock(return_value=head_response)
+            ):
+                with mock.patch(
+                    "cloudify_libvirt.volume_tasks.requests.get",
+                    mock.Mock(return_value=head_response)
+                ):
+                    volume_tasks.start(
+                        ctx=_ctx,
+                        params={
+                            'url': "https://fake.org/centos.iso"})
 
     def test_stop(self):
         # check correct handle exception with empty connection

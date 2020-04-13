@@ -579,7 +579,22 @@ class TestPoolTasks(LibVirtCommonTest):
                 "Can not undefine pool."
             ):
                 pool_tasks.delete(ctx=_ctx)
+
+        # remove with delete issues
+        pool.delete = mock.Mock(return_value=-1)
+        pool.undefine = mock.Mock(return_value=0)
+        with mock.patch(
+            "cloudify_libvirt.pool_tasks.libvirt.open",
+            mock.Mock(return_value=connect)
+        ):
+            with self.assertRaisesRegexp(
+                RecoverableError,
+                "Can not delete pool."
+            ):
+                pool_tasks.delete(ctx=_ctx)
+
         # remove witout issues
+        pool.delete = mock.Mock(return_value=0)
         pool.undefine = mock.Mock(return_value=0)
         with mock.patch(
             "cloudify_libvirt.pool_tasks.libvirt.open",

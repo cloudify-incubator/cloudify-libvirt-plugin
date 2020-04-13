@@ -1,0 +1,330 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/5.0.0/types.yaml
+  - plugin:cloudify-utilities-plugin
+  - plugin:cloudify-fabric-plugin
+  - plugin:cloudify-libvirt-plugin
+
+inputs:
+
+  fortigate_image:
+    type: string
+    description: >
+      fortigate boot image.
+
+  user_data:
+    type: string
+    description: >
+      user data
+    default: |
+      config system global
+        set alias "FGVM001234567890"
+        set hostname "FGVM001234567890"
+        set timezone 04
+      end
+      config system interface
+          edit port1
+          set mode dhcp
+          append allowaccess ssh
+        end
+        edit "ssl.root"
+          set vdom "root"
+          set type tunnel
+          set alias "SSL VPN interface"
+          set snmp-index 4
+        next
+      end
+
+  meta_data:
+    type: string
+    description: >
+      meta data
+    default: |
+      {"uid": "fortinet","name":"fortinet"}
+
+  # cluster(kvm) settings
+  cluster_user:
+    type: string
+    description: >
+      Cluster user name.
+    default: { get_secret: libvirt_cluster_user }
+
+  cluster_key:
+    type: string
+    description: >
+      SSH key for cluster user.
+    default: { get_secret: libvirt_cluster_key }
+
+  cluster_host:
+    type: string
+    description: >
+      LibVirt computer ip address.
+    default: { get_secret: libvirt_cluster_host }
+
+  libvirt_common_network:
+    type: string
+    description: >
+      Manager common network
+    default: { get_secret: libvirt_common_network }
+
+  external_ip:
+    type: string
+    description: >
+      List external ip's separated by comma.
+    default: { get_secret: libvirt_cluster_external_ip }
+
+  external_dev:
+    type: string
+    description: >
+      Device with external access (same device as used for cluster_host ip)
+    default: { get_secret: libvirt_cluster_external_dev }
+
+dsl_definitions:
+
+  libvirt_auth: &libvirt_auth
+    concat:
+     - "qemu+ssh://"
+     - { get_input: cluster_user }
+     - "@"
+     - { get_input: cluster_host }
+     - "/system?sshauth=privkey&keyfile="
+     - { get_input: cluster_key }
+
+relationships:
+
+  vm_connected_to_storage:
+    derived_from: cloudify.relationships.contained_in
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        preconfigure:
+          implementation: scripts/vm_preconfigure.py
+          executor: central_deployment_agent
+          inputs: {}
+
+node_templates:
+
+  manager_network:
+    type: cloudify.libvirt.network
+    properties:
+      libvirt_auth: *libvirt_auth
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              name: manager_network
+              dev: virbr9
+              forwards:
+                - mode: nat
+              ips:
+                - address: 192.168.149.1
+                  netmask: 255.255.255.0
+                  dhcp:
+                    start: 192.168.149.2
+                    end: 192.168.149.254
+
+  public_network:
+    type: cloudify.libvirt.network
+    properties:
+      libvirt_auth: *libvirt_auth
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              name: public_network
+              dev: virbr8
+              ips:
+                - address: 10.10.10.1
+                  netmask: 255.255.255.0
+                  dhcp:
+                    start: 10.10.10.2
+                    end: 10.10.10.254
+
+  private_network:
+    type: cloudify.libvirt.network
+    properties:
+      libvirt_auth: *libvirt_auth
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              name: private_network
+              dev: virbr7
+              ips:
+                - address: 10.100.100.1
+                  netmask: 255.255.255.0
+                  dhcp:
+                    start: 10.100.100.2
+                    end: 10.100.100.254
+
+  common_pool:
+    type: cloudify.libvirt.pool
+    properties:
+      libvirt_auth: *libvirt_auth
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              capacity: 80
+
+  boot_volume:
+    type: cloudify.libvirt.volume
+    properties:
+      libvirt_auth: *libvirt_auth
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              pool: { get_attribute: [common_pool, resource_id]}
+              capacity: 12800
+              allocation: 12800
+              url: { get_input: fortigate_image }
+    relationships:
+    - target: common_pool
+      type: cloudify.relationships.depends_on
+
+  cloudinit_volume:
+    type: cloudify.libvirt.volume
+    properties:
+      libvirt_auth: *libvirt_auth
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              pool: { get_attribute: [common_pool, resource_id]}
+              capacity: 1
+              allocation: 1
+    relationships:
+    - target: common_pool
+      type: cloudify.relationships.depends_on
+
+  cloud_init_image:
+    type: cloudify.libvirt.ISO9660
+    properties:
+      libvirt_auth: *libvirt_auth
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              pool: { get_attribute: [common_pool, resource_id]}
+              volume: { get_attribute: [cloudinit_volume, resource_id]}
+              vol_ident: config-2
+              files:
+                "openstack/latest/network_data.json": "{}"
+                "openstack/latest/user_data": { get_input: user_data }
+                "openstack/latest/meta_data.json": { get_input: meta_data }
+                "openstack/2015-10-15/network_data.json": "{}"
+                "openstack/2015-10-15/user_data": { get_input: user_data }
+                "openstack/2015-10-15/meta_data.json": { get_input: meta_data }
+                "user_data": { get_input: user_data }
+                "userdata.txt": { get_input: user_data }
+    relationships:
+    - target: cloudinit_volume
+      type: cloudify.relationships.depends_on
+
+  base_vm:
+    type: cloudify.libvirt.domain
+    properties:
+      libvirt_auth: *libvirt_auth
+      agent_config:
+        install_method: none
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            params:
+              vcpu: 1
+              memory_size: 524288 # 1Gb in Kb
+              domain_type: kvm
+              disks:
+                - bus: scsi
+                  dev: sda
+                  file: { get_attribute: [boot_volume, params, path] }
+                  type: qcow2
+                - bus: scsi
+                  dev: sdb
+                  file: { get_attribute: [cloudinit_volume, params, path] }
+                  type: raw
+              networks:
+                - network: { get_attribute: [manager_network, resource_id] }
+                  dev: vnet0
+                  mac: 52:54:00:c0:67:81
+                  type: virtio
+                - network: { get_attribute: [public_network, resource_id] }
+                  dev: vnet0
+                  mac: 52:54:00:c0:67:82
+                - network: { get_attribute: [private_network, resource_id] }
+                  dev: vnet0
+                  mac: 52:54:00:c0:67:83
+        configure:
+          inputs:
+            template_resource: templates/domain-x86-kvm.xml
+    relationships:
+      - target: manager_network
+        type: cloudify.libvirt.relationships.connected_to
+      - target: public_network
+        type: cloudify.relationships.connected_to
+      - target: private_network
+        type: cloudify.relationships.connected_to
+      - target: cloud_init_image
+        type: cloudify.relationships.depends_on
+      - target: boot_volume
+        type: cloudify.relationships.depends_on
+
+  floating_ip:
+    type: cloudify.nodes.VirtualIP
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            fabric_env: &fab_env
+              user: { get_input: cluster_user }
+              key_filename: { get_input: cluster_key }
+              host_string: { get_input: cluster_host }
+            EXTERNAL_INTERFACE: { get_input: external_dev }
+            EXTERNAL_IP: { get_input: external_ip }
+            INTERNAL_IP: { get_attribute: [base_vm, ip] }
+            script_path: cluster/floating_ip.py
+        delete:
+          implementation: fabric.fabric_plugin.tasks.run_script
+          inputs:
+            fabric_env: *fab_env
+            script_path: cluster/floating_ip_delete.py
+    relationships:
+    - target: base_vm
+      type: cloudify.relationships.connected_to
+
+  fortinet_vm:
+    type: cloudify.nodes.ApplicationServer
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        start:
+          implementation: terminal.cloudify_terminal.tasks.run
+          inputs:
+            terminal_auth: &terminal_auth
+              user: admin
+              password: ""
+              ip: { get_attribute: [floating_ip, external_ip] }
+              port: 22
+              store_logs: true
+              promt_check:
+              - '#'
+            calls:
+            - action: show system interface
+              responses: # list of responses
+              - question: "--More--"
+                answer: ""
+                newline: true
+    relationships:
+    - target: base_vm
+      type: cloudify.relationships.depends_on
+    - target: floating_ip
+      type: cloudify.relationships.depends_on

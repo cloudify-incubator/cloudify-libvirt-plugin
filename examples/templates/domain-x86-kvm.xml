@@ -1,0 +1,71 @@
+<domain xmlns:qemu="http://libvirt.org/schemas/domain/qemu/1.0" xmlns="" type="{{ domain_type }}">
+  <resource>
+    <partition>/machine</partition>
+  </resource>
+  <name>{{ name }}</name>
+  <uuid>{{ instance_uuid }}</uuid>
+  <currentMemory unit="KiB">{{ memory_size }}</currentMemory>
+  <on_poweroff>destroy</on_poweroff>
+  <devices>
+    <console type="pty" tty="/dev/pts/1">
+      <alias name="serial0"/>
+      <target type="serial" port="0"/>
+      <source path="/dev/pts/1"/>
+    </console>
+    <memballoon model="virtio">
+      <alias name="balloon0"/>
+      <address function="0x0" type="pci" domain="0x0000" slot="0x04" bus="0x00"/>
+    </memballoon>
+    <controller type="pci" index="0" model="pci-root">
+      <alias name="pci.0"/>
+    </controller>
+    <controller type="scsi" index="0" model="virtio-scsi">
+      <alias name="scsi0"/>
+      <address type="pci" domain="0x0000" bus="0x00" slot="0x05" function="0x0"/>
+    </controller>
+    <emulator>/usr/bin/qemu-system-x86_64</emulator>
+    {% for network in networks %}
+      <interface type="network">
+        <target dev="{{ network.dev }}"/>
+        <source network="{{ network.network }}"/>
+        <mac address="{{ network.mac }}"/>
+        {% if network.type %}
+            <model type="{{ network.type }}" />
+        {% endif %}
+      </interface>
+    {% endfor %}
+    <input type="mouse" bus="ps2"/>
+    <input type="keyboard" bus="ps2"/>
+    <serial type="pty">
+      <alias name="serial0"/>
+      <target port="0"/>
+      <source path="/dev/pts/1"/>
+    </serial>
+    {% for disk in disks %}
+      <disk device="disk" type="file">
+        <target dev="{{ disk.dev }}" bus="{{ disk.bus }}"/>
+        <source file="{{ disk.file }}"/>
+        <driver type="{{ disk.type }}"/>
+      </disk>
+    {% endfor %}
+  </devices>
+  <on_crash>restart</on_crash>
+  <on_reboot>restart</on_reboot>
+  <vcpu placement="static">{% if vcpu is defined %}{{ vcpu }}{% else %}1{% endif %}</vcpu>
+  <features>
+    <pae/>
+    <acpi/>
+    <apic/>
+  </features>
+  <memory unit="KiB">{{ memory_maxsize }}</memory>
+  <os>
+    <type machine="pc" arch="x86_64">hvm</type>
+    <boot dev="hd"/>
+  </os>
+  <cpu mode="host-model"/>
+  <clock offset="utc">
+    <timer name="rtc" tickpolicy="catchup"/>
+    <timer name="pit" tickpolicy="delay"/>
+    <timer name="hpet" present="no"/>
+  </clock>
+</domain>
