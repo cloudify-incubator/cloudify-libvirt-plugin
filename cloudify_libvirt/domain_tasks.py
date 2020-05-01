@@ -270,7 +270,7 @@ def start(**kwargs):
                 'Failed to find the domain: {}'.format(repr(e))
             )
 
-        for i in xrange(10):
+        for i in range(10):
             state, _ = dom.state()
             ctx.logger.info("Tring to start vm {}/10".format(i))
             if wait_for_ip:
@@ -333,7 +333,7 @@ def stop(**kwargs):
         ctx.instance.runtime_properties['ip'] = None
 
         state, _ = dom.state()
-        for i in xrange(10):
+        for i in range(10):
             if state != libvirt.VIR_DOMAIN_RUNNING:
                 ctx.logger.info("Looks as not run.")
                 return
@@ -375,7 +375,7 @@ def resume(**kwargs):
             )
 
         state, _ = dom.state()
-        for i in xrange(10):
+        for i in range(10):
             if state == libvirt.VIR_DOMAIN_RUNNING:
                 ctx.logger.info("Looks as running.")
                 return
@@ -417,7 +417,7 @@ def suspend(**kwargs):
             )
 
         state, _ = dom.state()
-        for i in xrange(10):
+        for i in range(10):
             if state != libvirt.VIR_DOMAIN_RUNNING:
                 ctx.logger.info("Looks as not run.")
                 return
@@ -437,7 +437,7 @@ def _cleanup_snapshots(ctx, dom):
     snapshots = dom.listAllSnapshots()
     snapshots_count = len(snapshots)
 
-    for _ in xrange(snapshots_count):
+    for _ in range(snapshots_count):
         for snapshot in snapshots:
             # we can delete only snapshot without child
             if not snapshot.numChildren():
@@ -795,7 +795,7 @@ def perfomance(**kwargs):
         # and after sleep for 5 seconds.
         ctx.logger.debug("Used: {} seconds.".format(before_usage))
         time.sleep(5)
-        statistics['cpu'] = 100 * (_current_use(dom) - before_usage) / 5
+        statistics['cpu'] = 100 * (_current_use(dom) - before_usage) // 5
 
         memory = dom.memoryStats()
         statistics['memory'] = memory.get('actual', 0) / 1024.0

@@ -13,6 +13,7 @@
 # limitations under the License.
 import mock
 import unittest
+import six
 
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
@@ -288,12 +289,22 @@ class TestNetworkTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "<network/>"
-                with mock.patch(
-                    '__builtin__.open', fake_file
-                ):
-                    network_tasks.snapshot_apply(
-                        ctx=_ctx, snapshot_name="backup!",
-                        snapshot_incremental=False)
+                if six.PY3:
+                    # python 3
+                    with mock.patch(
+                        'builtins.open', fake_file
+                    ):
+                        network_tasks.snapshot_apply(
+                            ctx=_ctx, snapshot_name="backup!",
+                            snapshot_incremental=False)
+                else:
+                    # python 2
+                    with mock.patch(
+                        '__builtin__.open', fake_file
+                    ):
+                        network_tasks.snapshot_apply(
+                            ctx=_ctx, snapshot_name="backup!",
+                            snapshot_incremental=False)
                 fake_file.assert_called_with('./backup!/resource.xml', 'r')
 
     def test_snapshot_create(self):
@@ -343,30 +354,58 @@ class TestNetworkTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "!!!!"
-                with mock.patch(
-                    '__builtin__.open', fake_file
-                ):
-                    # with error, already exists
+                if six.PY3:
+                    # python 3
                     with mock.patch(
-                        "os.path.isfile",
-                        mock.Mock(return_value=True)
+                        'builtins.open', fake_file
                     ):
-                        with self.assertRaisesRegexp(
-                            NonRecoverableError,
-                            "Backup node_name-backup already exists."
+                        # with error, already exists
+                        with mock.patch(
+                            "os.path.isfile",
+                            mock.Mock(return_value=True)
+                        ):
+                            with self.assertRaisesRegexp(
+                                NonRecoverableError,
+                                "Backup node_name-backup already exists."
+                            ):
+                                network_tasks.snapshot_create(
+                                    ctx=_ctx, snapshot_name="backup",
+                                    snapshot_incremental=False)
+                        # without error
+                        with mock.patch(
+                            "os.path.isfile",
+                            mock.Mock(return_value=False)
                         ):
                             network_tasks.snapshot_create(
                                 ctx=_ctx, snapshot_name="backup",
                                 snapshot_incremental=False)
-                    # without error
+                        fake_file().write.assert_called_with("<network/>")
+                else:
+                    # python 2
                     with mock.patch(
-                        "os.path.isfile",
-                        mock.Mock(return_value=False)
+                        '__builtin__.open', fake_file
                     ):
-                        network_tasks.snapshot_create(
-                            ctx=_ctx, snapshot_name="backup",
-                            snapshot_incremental=False)
-                    fake_file().write.assert_called_with("<network/>")
+                        # with error, already exists
+                        with mock.patch(
+                            "os.path.isfile",
+                            mock.Mock(return_value=True)
+                        ):
+                            with self.assertRaisesRegexp(
+                                NonRecoverableError,
+                                "Backup node_name-backup already exists."
+                            ):
+                                network_tasks.snapshot_create(
+                                    ctx=_ctx, snapshot_name="backup",
+                                    snapshot_incremental=False)
+                        # without error
+                        with mock.patch(
+                            "os.path.isfile",
+                            mock.Mock(return_value=False)
+                        ):
+                            network_tasks.snapshot_create(
+                                ctx=_ctx, snapshot_name="backup",
+                                snapshot_incremental=False)
+                        fake_file().write.assert_called_with("<network/>")
 
     def test_snapshot_delete(self):
         self._test_no_resource_id(network_tasks.snapshot_delete,
@@ -433,19 +472,29 @@ class TestNetworkTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "!!!!"
+                remove_mock = mock.Mock()
                 with mock.patch(
-                    '__builtin__.open', fake_file
+                    "os.remove",
+                    remove_mock
                 ):
-                    remove_mock = mock.Mock()
-                    with mock.patch(
-                        "os.remove",
-                        remove_mock
-                    ):
-                        network_tasks.snapshot_delete(
-                            ctx=_ctx, snapshot_name="backup!",
-                            snapshot_incremental=False)
-                    remove_mock.assert_called_with('./backup!/resource.xml')
-                fake_file.assert_called_with('./backup!/resource.xml', 'r')
+                    if six.PY3:
+                        # python 3
+                        with mock.patch(
+                            'builtins.open', fake_file
+                        ):
+                            network_tasks.snapshot_delete(
+                                ctx=_ctx, snapshot_name="backup!",
+                                snapshot_incremental=False)
+                    else:
+                        # python 2
+                        with mock.patch(
+                            '__builtin__.open', fake_file
+                        ):
+                            network_tasks.snapshot_delete(
+                                ctx=_ctx, snapshot_name="backup!",
+                                snapshot_incremental=False)
+                    fake_file.assert_called_with('./backup!/resource.xml', 'r')
+                remove_mock.assert_called_with('./backup!/resource.xml')
 
     def test_delete(self):
         self._test_no_resource_id(network_tasks.delete)

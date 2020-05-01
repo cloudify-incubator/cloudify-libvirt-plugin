@@ -147,7 +147,7 @@ def start(**kwargs):
             )
 
         # pool create
-        for i in xrange(10):
+        for i in range(10):
             if pool.isActive():
                 ctx.logger.info("Looks as active.")
                 break
@@ -196,7 +196,7 @@ def stop(**kwargs):
                 'Failed to find the pool: {}'.format(repr(e))
             )
 
-        for i in xrange(10):
+        for i in range(10):
             if not pool.isActive():
                 ctx.logger.info("Looks as not active.")
                 break

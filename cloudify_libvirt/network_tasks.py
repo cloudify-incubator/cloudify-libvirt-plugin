@@ -219,7 +219,7 @@ def link(**kwargs):
             )
 
         MAX_RETRY = 10
-        for i in xrange(MAX_RETRY):
+        for i in range(MAX_RETRY):
             ctx.logger.info("{}: Tring to get vm ip: {}/{}"
                             .format(vm_id, i, MAX_RETRY))
             for lease in network.DHCPLeases():

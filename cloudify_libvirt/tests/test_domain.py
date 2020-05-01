@@ -14,6 +14,7 @@
 import mock
 import unittest
 import libvirt
+import six
 
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
@@ -598,32 +599,64 @@ class TestDomainTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 if not raw_case:
                     fake_file().read.return_value = "!!!!"
-                with mock.patch(
-                    '__builtin__.open', fake_file
-                ):
-                    # with error, already exists
+                if six.PY3:
+                    # python 3
                     with mock.patch(
-                        "os.path.isfile",
-                        mock.Mock(return_value=True)
+                        'builtins.open', fake_file
                     ):
+                        # with error, already exists
                         with self.assertRaisesRegexp(
                             NonRecoverableError,
                             "Backup node_name-snapshot_name already exists."
+                        ):
+                            with mock.patch(
+                                "os.path.isfile",
+                                mock.Mock(return_value=True)
+                            ):
+                                domain_tasks.snapshot_create(
+                                    ctx=_ctx,
+                                    template_resource="template_resource",
+                                    snapshot_name='snapshot_name',
+                                    snapshot_incremental=False)
+                        # without error
+                        with mock.patch(
+                            "os.path.isfile",
+                            mock.Mock(return_value=False)
                         ):
                             domain_tasks.snapshot_create(
                                 ctx=_ctx,
                                 template_resource="template_resource",
                                 snapshot_name='snapshot_name',
                                 snapshot_incremental=False)
-                    # without error
+                else:
+                    # python 2
                     with mock.patch(
-                        "os.path.isfile",
-                        mock.Mock(return_value=False)
+                        '__builtin__.open', fake_file
                     ):
-                        domain_tasks.snapshot_create(
-                            ctx=_ctx, template_resource="template_resource",
-                            snapshot_name='snapshot_name',
-                            snapshot_incremental=False)
+                        # with error, already exists
+                        with self.assertRaisesRegexp(
+                            NonRecoverableError,
+                            "Backup node_name-snapshot_name already exists."
+                        ):
+                            with mock.patch(
+                                "os.path.isfile",
+                                mock.Mock(return_value=True)
+                            ):
+                                domain_tasks.snapshot_create(
+                                    ctx=_ctx,
+                                    template_resource="template_resource",
+                                    snapshot_name='snapshot_name',
+                                    snapshot_incremental=False)
+                        # without error
+                        with mock.patch(
+                            "os.path.isfile",
+                            mock.Mock(return_value=False)
+                        ):
+                            domain_tasks.snapshot_create(
+                                ctx=_ctx,
+                                template_resource="template_resource",
+                                snapshot_name='snapshot_name',
+                                snapshot_incremental=False)
                 if raw_case:
                     fake_file.assert_not_called()
                     domain.save.assert_called_with(
@@ -720,22 +753,43 @@ class TestDomainTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 if not raw_case:
                     fake_file().read.return_value = "old"
-                with mock.patch(
-                    '__builtin__.open', fake_file
-                ):
-                    # have same backup
-                    domain.snapshotNum = mock.Mock(return_value=0)
-                    domain.state = mock.Mock(
-                        return_value=(libvirt.VIR_DOMAIN_SHUTOFF, ""))
-                    domain.XMLDesc = mock.Mock(return_value="old")
-                    domain_tasks.snapshot_apply(ctx=_ctx,
-                                                snapshot_name='snapshot_name',
-                                                snapshot_incremental=False)
-                    # have different backup
-                    domain.XMLDesc = mock.Mock(return_value="new")
-                    domain_tasks.snapshot_apply(ctx=_ctx,
-                                                snapshot_name='snapshot_name',
-                                                snapshot_incremental=False)
+                if six.PY3:
+                    # python 3
+                    with mock.patch(
+                        'builtins.open', fake_file
+                    ):
+                        # have same backup
+                        domain.snapshotNum = mock.Mock(return_value=0)
+                        domain.state = mock.Mock(
+                            return_value=(libvirt.VIR_DOMAIN_SHUTOFF, ""))
+                        domain.XMLDesc = mock.Mock(return_value="old")
+                        domain.undefineFlags = mock.Mock(return_value=0)
+                        domain_tasks.snapshot_apply(
+                            ctx=_ctx, snapshot_name='snapshot_name',
+                            snapshot_incremental=False)
+                        # have different backup
+                        domain.XMLDesc = mock.Mock(return_value="new")
+                        domain_tasks.snapshot_apply(
+                            ctx=_ctx, snapshot_name='snapshot_name',
+                            snapshot_incremental=False)
+                else:
+                    # python 2
+                    with mock.patch(
+                        '__builtin__.open', fake_file
+                    ):
+                        # have same backup
+                        domain.snapshotNum = mock.Mock(return_value=0)
+                        domain.state = mock.Mock(
+                            return_value=(libvirt.VIR_DOMAIN_SHUTOFF, ""))
+                        domain.XMLDesc = mock.Mock(return_value="old")
+                        domain_tasks.snapshot_apply(
+                            ctx=_ctx, snapshot_name='snapshot_name',
+                            snapshot_incremental=False)
+                        # have different backup
+                        domain.XMLDesc = mock.Mock(return_value="new")
+                        domain_tasks.snapshot_apply(
+                            ctx=_ctx, snapshot_name='snapshot_name',
+                            snapshot_incremental=False)
                 if raw_case:
                     fake_file.assert_not_called()
                     connect.restore.assert_called_with(
@@ -815,24 +869,46 @@ class TestDomainTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 if not raw_case:
                     fake_file().read.return_value = "!!!!"
-                with mock.patch(
-                    '__builtin__.open', fake_file
-                ):
-                    remove_mock = mock.Mock()
+                if six.PY3:
+                    # python 3
                     with mock.patch(
-                        "os.remove",
-                        remove_mock
+                        'builtins.open', fake_file
                     ):
-                        domain_tasks.snapshot_delete(
-                            ctx=_ctx, snapshot_name='snapshot_name',
-                            snapshot_incremental=False)
-                    if raw_case:
-                        remove_mock.assert_called_with(
-                            './snapshot_name/resource_raw')
-                        fake_file.assert_not_called()
-                    else:
-                        remove_mock.assert_called_with(
-                            './snapshot_name/resource.xml')
+                        remove_mock = mock.Mock()
+                        with mock.patch(
+                            "os.remove",
+                            remove_mock
+                        ):
+                            domain_tasks.snapshot_delete(
+                                ctx=_ctx, snapshot_name='snapshot_name',
+                                snapshot_incremental=False)
+                        if raw_case:
+                            remove_mock.assert_called_with(
+                                './snapshot_name/resource_raw')
+                            fake_file.assert_not_called()
+                        else:
+                            remove_mock.assert_called_with(
+                                './snapshot_name/resource.xml')
+                else:
+                    # python 2
+                    with mock.patch(
+                        '__builtin__.open', fake_file
+                    ):
+                        remove_mock = mock.Mock()
+                        with mock.patch(
+                            "os.remove",
+                            remove_mock
+                        ):
+                            domain_tasks.snapshot_delete(
+                                ctx=_ctx, snapshot_name='snapshot_name',
+                                snapshot_incremental=False)
+                        if raw_case:
+                            remove_mock.assert_called_with(
+                                './snapshot_name/resource_raw')
+                            fake_file.assert_not_called()
+                        else:
+                            remove_mock.assert_called_with(
+                                './snapshot_name/resource.xml')
 
     def test_snapshot_delete(self):
         self._test_common_backups(domain_tasks.snapshot_delete,

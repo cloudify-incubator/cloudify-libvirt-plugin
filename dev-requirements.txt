@@ -1,2 +1,1 @@
-cloudify-plugins-common==3.4.2
-cloudify-rest-client==4.0
+cloudify-common==5.0.5.1
