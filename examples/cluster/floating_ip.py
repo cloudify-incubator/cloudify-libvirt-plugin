@@ -23,7 +23,7 @@ from cloudify import ctx
 
 def execute_command(command, extra_args=None):
 
-    ctx.logger.debug('command: {0}.'.format(repr(command)))
+    ctx.logger.debug(f'command: {repr(command)}.')
 
     subprocess_args = {
         'args': command,
@@ -33,15 +33,15 @@ def execute_command(command, extra_args=None):
     if extra_args is not None and isinstance(extra_args, dict):
         subprocess_args.update(extra_args)
 
-    ctx.logger.debug('subprocess_args {0}.'.format(subprocess_args))
+    ctx.logger.debug(f'subprocess_args {subprocess_args}.')
 
     process = subprocess.Popen(**subprocess_args)
     output, error = process.communicate()
 
-    ctx.logger.debug('command: {0} '.format(repr(command)))
-    ctx.logger.debug('output: {0} '.format(output))
-    ctx.logger.debug('error: {0} '.format(error))
-    ctx.logger.debug('process.returncode: {0} '.format(process.returncode))
+    ctx.logger.debug(f'command: {repr(command)} ')
+    ctx.logger.debug(f'output: {output} ')
+    ctx.logger.debug(f'error: {error} ')
+    ctx.logger.debug(f'process.returncode: {process.returncode} ')
 
     if process.returncode:
         ctx.logger.error('Running `{0}` returns {1} error: {2}.'
@@ -62,18 +62,18 @@ if __name__ == '__main__':
     for inet_type in addreses:
         for addres_info in addreses[inet_type]:
             used_ips.append(addres_info['addr'])
-    ctx.logger.debug('Already used: {}'.format(used_ips))
+    ctx.logger.debug(f'Already used: {used_ips}')
 
     external_ips = external_ip_slist.strip().split(',')
 
     for check_ip in external_ips:
-        ctx.logger.debug('Check for use: {}'.format(check_ip))
+        ctx.logger.debug(f'Check for use: {check_ip}')
         if check_ip in used_ips:
             continue
         external_ip = check_ip
         break
 
-    ctx.logger.info('Will be used: {}'.format(external_ip))
+    ctx.logger.info(f'Will be used: {external_ip}')
 
     # add ip alias
     execute_command(["sudo", "/sbin/ip", "address", "add",

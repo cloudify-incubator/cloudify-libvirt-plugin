@@ -40,7 +40,7 @@ def create(**kwargs):
             pool = conn.storagePoolLookupByName(template_params["pool"])
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the pool: {}'.format(repr(e))
+                f'Failed to find the pool: {repr(e)}'
             )
         if ctx.instance.runtime_properties.get("use_external_resource"):
             # lookup the default volume by name
@@ -49,7 +49,7 @@ def create(**kwargs):
                 volume = pool.storageVolLookupByName(resource_id)
             except libvirt.libvirtError as e:
                 raise cfy_exc.NonRecoverableError(
-                    'Failed to find the volume: {}'.format(repr(e))
+                    f'Failed to find the volume: {repr(e)}'
                 )
 
             # save settings
@@ -99,7 +99,7 @@ def _stream_wipe(ctx, conn, volume, allocation):
     stream = conn.newStream(0)
     volume.upload(stream, 0, allocation * 1024, 0)
     zero_buff = "\0" * 1024
-    for i in range(allocation):
+    for _ in range(allocation):
         stream.send(zero_buff)
     stream.finish()
 
@@ -112,8 +112,7 @@ def _stream_download(ctx, conn, volume, url):
         raise cfy_exc.NonRecoverableError(
             'Failed to download volume.'
         )
-    ctx.logger.info("Download: {allocation}"
-                    .format(allocation=allocation))
+    ctx.logger.info(f"Download: {allocation}")
 
     stream = conn.newStream(0)
     volume.upload(stream, 0, allocation, 0)
@@ -128,13 +127,15 @@ def _stream_download(ctx, conn, volume, url):
                 start=start_range,
                 stop=stop_range,
                 allocation=allocation,
-                place=(100 * stop_range) // allocation))
+                place=(100 * stop_range) // allocation)
+        )
         res = requests.get(
             url,
             headers={
                 "Range": "bytes={start}-{stop}".format(
                     start=start_range,
-                    stop=stop_range)},
+                    stop=stop_range)
+            },
             allow_redirects=True,
             stream=True)
         res.raise_for_status()
@@ -173,7 +174,7 @@ def start(**kwargs):
             volume = pool.storageVolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the volume: {}'.format(repr(e))
+                f'Failed to find the volume: {repr(e)}'
             )
 
         if (
@@ -224,16 +225,16 @@ def stop(**kwargs):
             volume = pool.storageVolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the volume: {}'.format(repr(e))
+                f'Failed to find the volume: {repr(e)}'
             )
 
         for i in range(10):
-            ctx.logger.info("Tring to wipe volume {}/10".format(i))
+            ctx.logger.info(f"Trying to wipe volume {i}/10")
             if volume.wipe(0) == 0:
                 break
             time.sleep(30)
     except libvirt.libvirtError as e:
-        ctx.logger.info('Failed to wipe the volume: {}'.format(repr(e)))
+        ctx.logger.info(f'Failed to wipe the volume: {repr(e)}')
     finally:
         conn.close()
 
@@ -241,7 +242,7 @@ def stop(**kwargs):
 @operation
 def delete(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
-    ctx.logger.info("Delete: {}".format(repr(resource_id)))
+    ctx.logger.info(f"Delete: {repr(resource_id)}")
 
     if not resource_id:
         # not raise exception on 'uninstall' workflow
@@ -266,7 +267,7 @@ def delete(**kwargs):
             volume = pool.storageVolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the volume: {}'.format(repr(e))
+                f'Failed to find the volume: {repr(e)}'
             )
 
         if volume.delete(0) < 0:
@@ -284,7 +285,7 @@ def delete(**kwargs):
 @operation
 def snapshot_create(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
-    ctx.logger.info("Snapshot create: {}".format(repr(resource_id)))
+    ctx.logger.info(f"Snapshot create: {repr(resource_id)}")
 
     if not resource_id:
         # not uninstall workflow, raise exception
@@ -304,7 +305,7 @@ def snapshot_create(**kwargs):
             volume = pool.storageVolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the volume: {}'.format(repr(e))
+                f'Failed to find the volume: {repr(e)}'
             )
 
         common.xml_snapshot_create(kwargs, resource_id, volume.XMLDesc())
@@ -315,7 +316,7 @@ def snapshot_create(**kwargs):
 @operation
 def snapshot_apply(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
-    ctx.logger.info("Snapshot restore for: {}".format(repr(resource_id)))
+    ctx.logger.info(f"Snapshot restore for: {repr(resource_id)}")
 
     if not resource_id:
         # not uninstall workflow, raise exception
@@ -335,7 +336,7 @@ def snapshot_apply(**kwargs):
             volume = pool.storageVolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the volume: {}'.format(repr(e))
+                f'Failed to find the volume: {repr(e)}'
             )
 
         common.xml_snapshot_apply(kwargs, resource_id, volume.XMLDesc())
@@ -346,7 +347,7 @@ def snapshot_apply(**kwargs):
 @operation
 def snapshot_delete(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
-    ctx.logger.info("Snapshot delete for: {}".format(repr(resource_id)))
+    ctx.logger.info(f"Snapshot delete for: {repr(resource_id)}")
 
     if not resource_id:
         # not uninstall workflow, raise exception

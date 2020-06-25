@@ -41,7 +41,7 @@ def create(**kwargs):
             volume = pool.storageVolLookupByName(template_params["volume"])
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the volume: {}'.format(repr(e))
+                f'Failed to find the volume: {repr(e)}'
             )
 
         outiso = iso9660.create_iso(
@@ -55,7 +55,7 @@ def create(**kwargs):
         iso_size = outiso.tell()
         outiso.seek(0, os.SEEK_SET)
 
-        ctx.logger.info("ISO size: {}".format(repr(iso_size)))
+        ctx.logger.info(f"ISO size: {repr(iso_size)}")
 
         stream = conn.newStream(0)
         volume.upload(stream, 0, iso_size, 0)

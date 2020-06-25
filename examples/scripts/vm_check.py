@@ -14,14 +14,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import platform
+
 import subprocess
 from cloudify import ctx
+try:
+    import distro
+except ImportError:
+    import os
+    p = os.popen("pip install --user distro")
+    output = p.read()
+    import distro
 
 
 def execute_command(command, extra_args=None):
 
-    ctx.logger.debug('command: {0}.'.format(repr(command)))
+    ctx.logger.debug(f'command: {repr(command)}.')
 
     subprocess_args = {
         'args': command,
@@ -31,20 +38,22 @@ def execute_command(command, extra_args=None):
     if extra_args is not None and isinstance(extra_args, dict):
         subprocess_args.update(extra_args)
 
-    ctx.logger.debug('subprocess_args {0}.'.format(subprocess_args))
+    ctx.logger.debug(f'subprocess_args {subprocess_args}.')
 
     process = subprocess.Popen(**subprocess_args)
     output, error = process.communicate()
 
-    ctx.logger.debug('command: {0} '.format(repr(command)))
-    ctx.logger.debug('output: {0} '.format(output))
-    ctx.logger.debug('error: {0} '.format(error))
-    ctx.logger.debug('process.returncode: {0} '.format(process.returncode))
+    ctx.logger.debug(f'command: {repr(command)} ')
+    ctx.logger.debug(f'output: {output} ')
+    ctx.logger.debug(f'error: {error} ')
+    ctx.logger.debug(f'process.returncode: {process.returncode} ')
 
     if process.returncode:
         ctx.logger.error('Running `{0}` returns {1} error: {2}.'
-                         .format(repr(command), process.returncode,
-                                 repr(error)))
+                         .format(repr(command),
+                                 process.returncode,
+                                 repr(error))
+                        )
         return False
 
     return output
@@ -57,9 +66,8 @@ if __name__ == '__main__':
     linux_distro = ctx.node.properties.get('linux_distro')
 
     if not linux_distro:
-        distro, _, _ = \
-            platform.linux_distribution(full_distribution_name=False)
-        linux_distro = distro.lower()
+        linux_distro_raw = distro.linux_distribution(full_distribution_name=False)[0]
+        linux_distro = linux_distro_raw.lower()
 
     if ('centos' in linux_distro) or ('redhat' in linux_distro):
         execute_command(["sudo", "yum", "install", "util-linux", "-y"])

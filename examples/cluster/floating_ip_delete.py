@@ -21,7 +21,7 @@ from cloudify import ctx
 
 def execute_command(command, extra_args=None):
 
-    ctx.logger.debug('command: {0}.'.format(repr(command)))
+    ctx.logger.debug(f'command: {repr(command)}.')
 
     subprocess_args = {
         'args': command,
@@ -31,15 +31,15 @@ def execute_command(command, extra_args=None):
     if extra_args is not None and isinstance(extra_args, dict):
         subprocess_args.update(extra_args)
 
-    ctx.logger.debug('subprocess_args {0}.'.format(subprocess_args))
+    ctx.logger.debug(f'subprocess_args {subprocess_args}.')
 
     process = subprocess.Popen(**subprocess_args)
     output, error = process.communicate()
 
-    ctx.logger.debug('command: {0} '.format(repr(command)))
-    ctx.logger.debug('output: {0} '.format(output))
-    ctx.logger.debug('error: {0} '.format(error))
-    ctx.logger.debug('process.returncode: {0} '.format(process.returncode))
+    ctx.logger.debug(f'command: {repr(command)} ')
+    ctx.logger.debug(f'output: {output} ')
+    ctx.logger.debug(f'error: {error} ')
+    ctx.logger.debug(f'process.returncode: {process.returncode} ')
 
     if process.returncode:
         ctx.logger.error('Running `{0}` returns {1} error: {2}.'

@@ -25,7 +25,8 @@ def _update_template_params(template_params):
     # set all params to default values
     if not template_params.get("path"):
         template_params["path"] = (
-            "/var/lib/libvirt/images/{}".format(template_params["name"]))
+            f"/var/lib/libvirt/images/{template_params['name']}"
+        )
 
 
 @operation
@@ -48,7 +49,7 @@ def create(**kwargs):
                 pool = conn.storagePoolLookupByName(resource_id)
             except libvirt.libvirtError as e:
                 raise cfy_exc.NonRecoverableError(
-                    'Failed to find the pool: {}'.format(repr(e))
+                    f'Failed to find the pool: {repr(e)}'
                 )
 
             # save settings
@@ -99,15 +100,16 @@ def configure(**kwargs):
         try:
             pool = conn.storagePoolLookupByName(resource_id)
         except libvirt.libvirtError as e:
-            raise cfy_exc.NonRecoverableError(
-                'Failed to find the pool: {}'.format(repr(e))
-            )
+            raise cfy_exc.NonRecoverableError(f"Failed to find the pool: {repr(e)}")
 
         state, capacity, allocation, available = pool.info()
         ctx.logger.info(
             "State: {}, Capacity: {}, Allocation: {}, Available: {}"
-            .format(repr(state), repr(capacity),
-                    repr(allocation), repr(available)))
+            .format(repr(state),
+                    repr(capacity),
+                    repr(allocation),
+                    repr(available))
+            )
         if state == libvirt.VIR_STORAGE_POOL_INACTIVE:
             if pool.build(0) < 0:
                 raise cfy_exc.RecoverableError(
@@ -143,7 +145,7 @@ def start(**kwargs):
             pool = conn.storagePoolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the pool: {}'.format(repr(e))
+                f'Failed to find the pool: {repr(e)}'
             )
 
         # pool create
@@ -152,7 +154,7 @@ def start(**kwargs):
                 ctx.logger.info("Looks as active.")
                 break
 
-            ctx.logger.info("Tring to start pool {}/10".format(i))
+            ctx.logger.info(f"Trying to start pool {i}/10")
             if pool.create() < 0:
                 raise cfy_exc.RecoverableError(
                     'Can not start pool.'
@@ -193,7 +195,7 @@ def stop(**kwargs):
             pool = conn.storagePoolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the pool: {}'.format(repr(e))
+                f'Failed to find the pool: {repr(e)}'
             )
 
         for i in range(10):
@@ -201,7 +203,7 @@ def stop(**kwargs):
                 ctx.logger.info("Looks as not active.")
                 break
 
-            ctx.logger.info("Tring to stop pool {}/10".format(i))
+            ctx.logger.info(f"Trying to stop pool {i}/10")
             if pool.destroy() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not destroy pool.'
@@ -211,8 +213,11 @@ def stop(**kwargs):
         state, capacity, allocation, available = pool.info()
         ctx.logger.info(
             "State: {}, Capacity: {}, Allocation: {}, Available: {}"
-            .format(repr(state), repr(capacity),
-                    repr(allocation), repr(available)))
+            .format(repr(state),
+                    repr(capacity),
+                    repr(allocation),
+                    repr(available))
+            )
         if state != libvirt.VIR_STORAGE_POOL_INACTIVE:
             if pool.delete() < 0:
                 raise cfy_exc.RecoverableError(
@@ -225,7 +230,7 @@ def stop(**kwargs):
 @operation
 def delete(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
-    ctx.logger.info("Delete: {}".format(repr(resource_id)))
+    ctx.logger.info(f"Delete: {repr(resource_id)}")
 
     if not resource_id:
         # not raise exception on 'uninstall' workflow
@@ -249,7 +254,7 @@ def delete(**kwargs):
             pool = conn.storagePoolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the pool: {}'.format(repr(e))
+                f'Failed to find the pool: {repr(e)}'
             )
 
         if pool.delete() < 0:
@@ -271,7 +276,7 @@ def delete(**kwargs):
 @operation
 def snapshot_create(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
-    ctx.logger.info("Snapshot create: {}".format(repr(resource_id)))
+    ctx.logger.info(f"Snapshot create: {repr(resource_id)}")
 
     if not resource_id:
         # not uninstall workflow, raise exception
@@ -290,7 +295,7 @@ def snapshot_create(**kwargs):
             pool = conn.storagePoolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the pool: {}'.format(repr(e))
+                f'Failed to find the pool: {repr(e)}'
             )
 
         common.xml_snapshot_create(kwargs, resource_id, pool.XMLDesc())
@@ -301,7 +306,7 @@ def snapshot_create(**kwargs):
 @operation
 def snapshot_apply(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
-    ctx.logger.info("Snapshot restore for: {}".format(repr(resource_id)))
+    ctx.logger.info(f"Snapshot restore for: {repr(resource_id)}")
 
     if not resource_id:
         # not uninstall workflow, raise exception
@@ -320,7 +325,7 @@ def snapshot_apply(**kwargs):
             pool = conn.storagePoolLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                'Failed to find the pool: {}'.format(repr(e))
+                f'Failed to find the pool: {repr(e)}'
             )
 
         common.xml_snapshot_apply(kwargs, resource_id, pool.XMLDesc())
@@ -331,7 +336,7 @@ def snapshot_apply(**kwargs):
 @operation
 def snapshot_delete(**kwargs):
     resource_id = ctx.instance.runtime_properties.get('resource_id')
-    ctx.logger.info("Snapshot delete for: {}".format(repr(resource_id)))
+    ctx.logger.info(f"Snapshot delete for: {repr(resource_id)}")
 
     if not resource_id:
         # not uninstall workflow, raise exception

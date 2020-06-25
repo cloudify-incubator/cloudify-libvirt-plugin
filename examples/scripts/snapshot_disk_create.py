@@ -24,7 +24,7 @@ from cloudify.state import ctx_parameters as inputs
 
 def execute_command(command, extra_args=None):
 
-    ctx.logger.debug('command: {0}.'.format(repr(command)))
+    ctx.logger.debug(f'command: {repr(command)}.')
 
     subprocess_args = {
         'args': command,
@@ -34,15 +34,15 @@ def execute_command(command, extra_args=None):
     if extra_args is not None and isinstance(extra_args, dict):
         subprocess_args.update(extra_args)
 
-    ctx.logger.debug('subprocess_args {0}.'.format(subprocess_args))
+    ctx.logger.debug(f'subprocess_args {subprocess_args}.')
 
     process = subprocess.Popen(**subprocess_args)
     output, error = process.communicate()
 
-    ctx.logger.debug('command: {0} '.format(repr(command)))
-    ctx.logger.debug('output: {0} '.format(output))
-    ctx.logger.debug('error: {0} '.format(error))
-    ctx.logger.debug('process.returncode: {0} '.format(process.returncode))
+    ctx.logger.debug(f'command: {repr(command)} ')
+    ctx.logger.debug(f'output: {output} ')
+    ctx.logger.debug(f'error: {error} ')
+    ctx.logger.debug(f'process.returncode: {process.returncode} ')
 
     if process.returncode:
         ctx.logger.error('Running `{0}` returns {1} error: {2}.'
@@ -70,9 +70,9 @@ if __name__ == '__main__':
             execute_command([
                 "qemu-img", "convert", "-f", "raw", "-O", "qcow2",
                 ctx.instance.runtime_properties["vm_cloudinit"],
-                "{}/vm_cloudinit-backup.qcow2".format(backup_dir)])
+                f"{backup_dir}/vm_cloudinit-backup.qcow2"])
         if ctx.instance.runtime_properties.get("vm_image"):
             execute_command([
                 "qemu-img", "convert", "-f", "raw", "-O", "qcow2",
                 ctx.instance.runtime_properties["vm_image"],
-                "{}/vm_image-backup.qcow2".format(backup_dir)])
+                f"{backup_dir}/vm_image-backup.qcow2"])
