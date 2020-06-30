@@ -228,7 +228,9 @@ def link(**kwargs):
                 for vm_network in vm_params.get("networks", []):
                     if vm_network.get('mac') == lease.get('mac'):
                         source_properties['ip'] = lease.get('ipaddr')
-                        ctx.logger.info(f"{vm_id}:Found: {lease.get('ipaddr')}")
+                        ctx.logger.info(
+                            f"{vm_id}:Found: {lease.get('ipaddr')}"
+                        )
                         return
             # we have never get ip before 60 sec, so wait 60 as minimum
             time.sleep(60)
@@ -244,6 +246,8 @@ def link(**kwargs):
 def unlink(**kwargs):
     vm_id = ctx.source.instance.runtime_properties.get('resource_id')
     resource_id = ctx.target.instance.runtime_properties.get('resource_id')
-    ctx.logger.info(f'Unlink network: {repr(resource_id)} to VM: {repr(vm_id)}.')
+    ctx.logger.info(
+        f'Unlink network: {repr(resource_id)} to VM: {repr(vm_id)}.'
+    )
 
     ctx.target.instance.runtime_properties['ip'] = None

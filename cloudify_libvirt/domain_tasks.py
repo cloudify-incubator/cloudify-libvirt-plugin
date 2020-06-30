@@ -106,7 +106,9 @@ def _update_network_list(dom, lease_only=True):
 
     # get known by libvirt interfaces
     virt_networks = dom.interfaceAddresses(request_type)
-    ctx.logger.info(f"Libvirt knows about such networks: {repr(virt_networks)}")
+    ctx.logger.info(
+        f"Libvirt knows about such networks: {repr(virt_networks)}"
+    )
 
     # networks from instance
     if 'params' not in ctx.instance.runtime_properties:
@@ -208,7 +210,9 @@ def update(**kwargs):
 
         # change memory values
         if template_params.get('memory_size'):
-            ctx.logger.info(f"Set memory to {repr(template_params['memory_size'])}")
+            ctx.logger.info(
+                f"Set memory to {repr(template_params['memory_size'])}"
+            )
             if dom.setMemory(template_params['memory_size']) < 0:
                 raise cfy_exc.NonRecoverableError(
                     "Can not change memory amount."
@@ -222,7 +226,9 @@ def update(**kwargs):
 
         # change vcpu values
         if template_params.get('vcpu'):
-            ctx.logger.info(f"Set cpu count to {repr(template_params['vcpu'])}")
+            ctx.logger.info(
+                f"Set cpu count to {repr(template_params['vcpu'])}"
+            )
             if dom.setVcpus(template_params['vcpu']) < 0:
                 raise cfy_exc.NonRecoverableError(
                     "Can not change cpu count."
@@ -523,7 +529,9 @@ def _backup_create(conn, dom, resource_id, snapshot_name, full_dump, kwargs):
         # all snapshots will be removed
         if common.check_binary_place(common.get_backupdir(kwargs),
                                      resource_id):
-            raise cfy_exc.NonRecoverableError(f"Backup {snapshot_name} already exists.")
+            raise cfy_exc.NonRecoverableError(
+                f"Backup {snapshot_name} already exists."
+            )
         # create place for store
         common.create_binary_place(common.get_backupdir(kwargs))
         # save backup to directory (domain will be removed)
@@ -536,7 +544,9 @@ def _backup_create(conn, dom, resource_id, snapshot_name, full_dump, kwargs):
         # non-destructive export for domain
         if common.read_node_state(common.get_backupdir(kwargs),
                                   resource_id):
-            raise cfy_exc.NonRecoverableError(f"Backup {snapshot_name} already exists.")
+            raise cfy_exc.NonRecoverableError(
+                f"Backup {snapshot_name} already exists."
+            )
         common.save_node_state(common.get_backupdir(kwargs), resource_id,
                                dom.XMLDesc())
 
@@ -699,7 +709,9 @@ def _backup_apply(conn, dom, resource_id, snapshot_name, full_dump, kwargs):
                                 repr(dom_backup.strip()),
                                 repr(dom.XMLDesc().strip())))
         else:
-            ctx.logger.info(f"Already used such configuration: {snapshot_name}")
+            ctx.logger.info(
+                f"Already used such configuration: {snapshot_name}"
+            )
 
 
 @operation

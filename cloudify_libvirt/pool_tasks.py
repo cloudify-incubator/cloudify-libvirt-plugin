@@ -100,7 +100,9 @@ def configure(**kwargs):
         try:
             pool = conn.storagePoolLookupByName(resource_id)
         except libvirt.libvirtError as e:
-            raise cfy_exc.NonRecoverableError(f"Failed to find the pool: {repr(e)}")
+            raise cfy_exc.NonRecoverableError(
+                f"Failed to find the pool: {repr(e)}"
+            )
 
         state, capacity, allocation, available = pool.info()
         ctx.logger.info(

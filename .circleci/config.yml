@@ -67,6 +67,9 @@ jobs:
           command: pip install --user tox
       - run: /home/circleci/.local/bin/tox -e flake8
       - run: /home/circleci/.local/bin/tox -e py36
+      - run: 
+            name: Python nose tests
+            command: /home/circleci/.local/bin/tox -e nosetests
 
 
   wagon:
