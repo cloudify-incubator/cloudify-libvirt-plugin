@@ -22,7 +22,6 @@ PY2 = sys.version_info[0] == 2
 if PY2:
     text_type = unicode
     builtins_open_string = '__builtin__.open'
-
 else:
     text_type = str
     builtins_open_string = 'builtins.open'

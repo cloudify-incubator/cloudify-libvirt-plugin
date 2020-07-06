@@ -19,7 +19,7 @@ from cloudify import ctx
 from cloudify import exceptions as cfy_exc
 
 from cloudify_common_sdk import filters
-from .._compat import text_type
+from ._compat import text_type
 
 
 def get_libvirt_params(**kwargs):
