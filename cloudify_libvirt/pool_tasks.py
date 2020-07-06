@@ -109,8 +109,7 @@ def configure(**kwargs):
             .format(repr(state),
                     repr(capacity),
                     repr(allocation),
-                    repr(available)
-            )
+                    repr(available))
         )
         if state == libvirt.VIR_STORAGE_POOL_INACTIVE:
             if pool.build(0) < 0:
@@ -218,8 +217,7 @@ def stop(**kwargs):
             .format(repr(state),
                     repr(capacity),
                     repr(allocation),
-                    repr(available)
-            )
+                    repr(available))
         )
         if state != libvirt.VIR_STORAGE_POOL_INACTIVE:
             if pool.delete() < 0:
