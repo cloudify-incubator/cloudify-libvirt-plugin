@@ -13,7 +13,6 @@
 # limitations under the License.
 import mock
 import unittest
-import six
 
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
@@ -21,6 +20,8 @@ from cloudify.exceptions import NonRecoverableError
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.volume_tasks as volume_tasks
+
+from .._compat import builtins_open_string
 
 
 class TestVolumeTasks(LibVirtCommonTest):
@@ -151,22 +152,12 @@ class TestVolumeTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "<volume/>"
-                if six.PY3:
-                    # python 3
-                    with mock.patch(
-                        'builtins.open', fake_file
-                    ):
-                        volume_tasks.snapshot_apply(
-                            ctx=_ctx, snapshot_name="backup!",
-                            snapshot_incremental=False)
-                else:
-                    # python 2
-                    with mock.patch(
-                        '__builtin__.open', fake_file
-                    ):
-                        volume_tasks.snapshot_apply(
-                            ctx=_ctx, snapshot_name="backup!",
-                            snapshot_incremental=False)
+                with mock.patch(
+                    builtins_open_string, fake_file
+                ):
+                    volume_tasks.snapshot_apply(
+                        ctx=_ctx, snapshot_name="backup!",
+                        snapshot_incremental=False)
                 fake_file.assert_called_with('./backup!/resource.xml', 'r')
 
     def test_snapshot_create(self):
@@ -217,58 +208,30 @@ class TestVolumeTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "!!!!"
-                if six.PY3:
-                    # python 3
+                with mock.patch(
+                        builtins_open_string, fake_file
+                ):
+                    # with error, already exists
                     with mock.patch(
-                            'builtins.open', fake_file
+                        "os.path.isfile",
+                        mock.Mock(return_value=True)
                     ):
-                        # with error, already exists
-                        with mock.patch(
-                            "os.path.isfile",
-                            mock.Mock(return_value=True)
-                        ):
-                            with self.assertRaisesRegexp(
-                                NonRecoverableError,
-                                "Backup node_name-backup already exists."
-                            ):
-                                volume_tasks.snapshot_create(
-                                    ctx=_ctx, snapshot_name="backup",
-                                    snapshot_incremental=False)
-                        # without error
-                        with mock.patch(
-                            "os.path.isfile",
-                            mock.Mock(return_value=False)
+                        with self.assertRaisesRegexp(
+                            NonRecoverableError,
+                            "Backup node_name-backup already exists."
                         ):
                             volume_tasks.snapshot_create(
                                 ctx=_ctx, snapshot_name="backup",
                                 snapshot_incremental=False)
-                        fake_file().write.assert_called_with("<volume/>")
-                else:
-                    # python 2
+                    # without error
                     with mock.patch(
-                        '__builtin__.open', fake_file
+                        "os.path.isfile",
+                        mock.Mock(return_value=False)
                     ):
-                        # with error, already exists
-                        with mock.patch(
-                            "os.path.isfile",
-                            mock.Mock(return_value=True)
-                        ):
-                            with self.assertRaisesRegexp(
-                                NonRecoverableError,
-                                "Backup node_name-backup already exists."
-                            ):
-                                volume_tasks.snapshot_create(
-                                    ctx=_ctx, snapshot_name="backup",
-                                    snapshot_incremental=False)
-                        # without error
-                        with mock.patch(
-                            "os.path.isfile",
-                            mock.Mock(return_value=False)
-                        ):
-                            volume_tasks.snapshot_create(
-                                ctx=_ctx, snapshot_name="backup",
-                                snapshot_incremental=False)
-                        fake_file().write.assert_called_with("<volume/>")
+                        volume_tasks.snapshot_create(
+                            ctx=_ctx, snapshot_name="backup",
+                            snapshot_incremental=False)
+                    fake_file().write.assert_called_with("<volume/>")
 
     def test_snapshot_delete(self):
         self._test_no_resource_id(volume_tasks.snapshot_delete,
@@ -340,22 +303,12 @@ class TestVolumeTasks(LibVirtCommonTest):
                     "os.remove",
                     remove_mock
                 ):
-                    if six.PY3:
-                        # python 3
-                        with mock.patch(
-                            'builtins.open', fake_file
-                        ):
-                            volume_tasks.snapshot_delete(
-                                ctx=_ctx, snapshot_name="backup!",
-                                snapshot_incremental=False)
-                    else:
-                        # python 2
-                        with mock.patch(
-                            '__builtin__.open', fake_file
-                        ):
-                            volume_tasks.snapshot_delete(
-                                ctx=_ctx, snapshot_name="backup!",
-                                snapshot_incremental=False)
+                    with mock.patch(
+                        builtins_open_string, fake_file
+                    ):
+                        volume_tasks.snapshot_delete(
+                            ctx=_ctx, snapshot_name="backup!",
+                            snapshot_incremental=False)
                     fake_file.assert_called_with('./backup!/resource.xml', 'r')
                 remove_mock.assert_called_with('./backup!/resource.xml')
 

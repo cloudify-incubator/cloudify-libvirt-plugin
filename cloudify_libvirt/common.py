@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from builtins import str
 import os
 import uuid
 from pkg_resources import resource_filename
@@ -20,6 +19,7 @@ from cloudify import ctx
 from cloudify import exceptions as cfy_exc
 
 from cloudify_common_sdk import filters
+from .._compat import text_type
 
 
 def get_libvirt_params(**kwargs):
@@ -41,7 +41,7 @@ def get_libvirt_params(**kwargs):
     if not template_params.get("name"):
         template_params["name"] = ctx.instance.id
     if not template_params.get("instance_uuid"):
-        template_params["instance_uuid"] = str(uuid.uuid4())
+        template_params["instance_uuid"] = text_type(uuid.uuid4())
 
     # update 'resource_id', 'use_external_resource' from kwargs
     for field in ['resource_id', 'use_external_resource']:
@@ -61,8 +61,8 @@ def gen_xml_template(kwargs, template_params, default_template):
 
     if not (template_resource or template_content):
         resource_dir = resource_filename(__name__, 'templates')
-        template_resource = f'{resource_dir}/{default_template}.xml'
-        ctx.logger.info(f"Will be used internal: {template_resource}")
+        template_resource = '{}/{}.xml'.format(resource_dir, default_template)
+        ctx.logger.info("Will be used internal: %s" % template_resource)
 
     if not template_content:
         with open(template_resource) as object_desc:
@@ -81,7 +81,7 @@ def get_backupname(kwargs):
         raise cfy_exc.NonRecoverableError(
             'Backup name must be provided.'
         )
-    return f"{ctx.instance.id}-{kwargs['snapshot_name']}"
+    return "{}-{}".format(ctx.instance.id, kwargs["snapshot_name"])
 
 
 def get_backupdir(kwargs):
@@ -95,28 +95,28 @@ def save_node_state(backup_dir, object_name, content):
     # save object state as string
     if not os.path.isdir(backup_dir):
         os.makedirs(backup_dir)
-    with open(f"{backup_dir}/{object_name}.xml", 'w') as file:
+    with open("{}/{}.xml".format(backup_dir, object_name), 'w') as file:
         file.write(content)
 
 
 def read_node_state(backup_dir, object_name):
     # read object state as string
-    if not os.path.isfile(f"{backup_dir}/{object_name}.xml"):
+    if not os.path.isfile("{}/{}.xml".format(backup_dir, object_name)):
         return None
-    with open(f"{backup_dir}/{object_name}.xml", 'r') as file:
+    with open("{}/{}.xml".format(backup_dir, object_name), 'r') as file:
         return file.read()
 
 
 def delete_node_state(backup_dir, object_name):
     # read object state as string
-    if not os.path.isfile(f"{backup_dir}/{object_name}.xml"):
+    if not os.path.isfile("{}/{}.xml".format(backup_dir, object_name)):
         return
-    os.remove(f"{backup_dir}/{object_name}.xml")
+    os.remove("{}/{}.xml".format(backup_dir, object_name))
 
 
 def get_binary_place(backup_dir, object_name):
     # return path to binary/directory place
-    return f"{backup_dir}/{object_name}_raw"
+    return "{}/{}_raw".format(backup_dir, object_name)
 
 
 def check_binary_place(backup_dir, object_name):
@@ -143,19 +143,21 @@ def xml_snapshot_create(kwargs, resource_id, current_xmldump):
         backups = ctx.instance.runtime_properties.get("backups", {})
         if snapshot_name in backups:
             raise cfy_exc.NonRecoverableError(
-                f"Snapshot {snapshot_name} already exists."
-                )
+                "Snapshot {snapshot_name} already exists."
+                .format(snapshot_name=snapshot_name,))
         backups[snapshot_name] = current_xmldump
         ctx.instance.runtime_properties["backups"] = backups
-        ctx.logger.info(f"Snapshot {snapshot_name} is created.")
+        ctx.logger.info("Snapshot {snapshot_name} is created."
+                        .format(snapshot_name=snapshot_name,))
     else:
         if read_node_state(get_backupdir(kwargs), resource_id):
             raise cfy_exc.NonRecoverableError(
-                f"Backup {snapshot_name} already exists."
-                )
+                "Backup {snapshot_name} already exists."
+                .format(snapshot_name=snapshot_name,))
         save_node_state(get_backupdir(kwargs), resource_id, current_xmldump)
-    ctx.logger.info(f"Backup {snapshot_name} is created.")
-    ctx.logger.debug(f"Current config {repr(current_xmldump)}")
+    ctx.logger.info("Backup {snapshot_name} is created."
+                    .format(snapshot_name=snapshot_name,))
+    ctx.logger.debug("Current config {}".format(repr(current_xmldump)))
 
 
 def xml_snapshot_apply(kwargs, resource_id, current_xmldump):
@@ -164,15 +166,15 @@ def xml_snapshot_apply(kwargs, resource_id, current_xmldump):
         backups = ctx.instance.runtime_properties.get("backups", {})
         if snapshot_name not in backups:
             raise cfy_exc.NonRecoverableError(
-                f"No snapshots found with name: {snapshot_name}."
-                )
+                "No snapshots found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
         xml_backup = backups[snapshot_name]
     else:
         xml_backup = read_node_state(get_backupdir(kwargs), resource_id)
         if not xml_backup:
             raise cfy_exc.NonRecoverableError(
-                f"No backups found with name: {snapshot_name}."
-                )
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
 
     if xml_backup.strip() != current_xmldump.strip():
         ctx.logger.info("We have different configs,\n{}\nvs\n{}\n"
@@ -180,7 +182,8 @@ def xml_snapshot_apply(kwargs, resource_id, current_xmldump):
                             repr(xml_backup.strip()),
                             repr(current_xmldump.strip())))
     else:
-        ctx.logger.info(f"Already used such configuration: {snapshot_name}")
+        ctx.logger.info("Already used such configuration: {}"
+                        .format(snapshot_name))
 
 
 def xml_snapshot_delete(kwargs, resource_id):
@@ -189,14 +192,14 @@ def xml_snapshot_delete(kwargs, resource_id):
         backups = ctx.instance.runtime_properties.get("backups", {})
         if snapshot_name not in backups:
             raise cfy_exc.NonRecoverableError(
-                f"No snapshots found with name: {snapshot_name}."
-                )
+                "No snapshots found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
         del backups[snapshot_name]
         ctx.instance.runtime_properties["backups"] = backups
     else:
         if not read_node_state(get_backupdir(kwargs), resource_id):
             raise cfy_exc.NonRecoverableError(
-                f"No backups found with name: {snapshot_name}."
-                )
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
         delete_node_state(get_backupdir(kwargs), resource_id)
-    ctx.logger.info(f"Backup deleted: {snapshot_name}")
+    ctx.logger.info("Backup deleted: {}".format(snapshot_name))

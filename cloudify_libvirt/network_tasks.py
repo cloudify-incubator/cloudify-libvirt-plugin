@@ -215,12 +215,13 @@ def link(**kwargs):
             network = conn.networkLookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                f'Failed to find the network: {repr(e)}'
+                'Failed to find the network: {}'.format(repr(e))
             )
 
         MAX_RETRY = 10
         for i in range(MAX_RETRY):
-            ctx.logger.info(f"{vm_id}: Tring to get vm ip: {i}/{MAX_RETRY}")
+            ctx.logger.info("{}: Tring to get vm ip: {}/{}"
+                            .format(vm_id, i, MAX_RETRY))
             for lease in network.DHCPLeases():
                 source_properties = ctx.source.instance.runtime_properties
                 vm_params = source_properties.get(
@@ -228,9 +229,8 @@ def link(**kwargs):
                 for vm_network in vm_params.get("networks", []):
                     if vm_network.get('mac') == lease.get('mac'):
                         source_properties['ip'] = lease.get('ipaddr')
-                        ctx.logger.info(
-                            f"{vm_id}:Found: {lease.get('ipaddr')}"
-                        )
+                        ctx.logger.info("{}:Found: {}"
+                                        .format(vm_id, lease.get('ipaddr')))
                         return
             # we have never get ip before 60 sec, so wait 60 as minimum
             time.sleep(60)
@@ -246,8 +246,7 @@ def link(**kwargs):
 def unlink(**kwargs):
     vm_id = ctx.source.instance.runtime_properties.get('resource_id')
     resource_id = ctx.target.instance.runtime_properties.get('resource_id')
-    ctx.logger.info(
-        f'Unlink network: {repr(resource_id)} to VM: {repr(vm_id)}.'
-    )
+    ctx.logger.info('Unlink network: {} to VM: {}.'
+                    .format(repr(resource_id), repr(vm_id)))
 
     ctx.target.instance.runtime_properties['ip'] = None

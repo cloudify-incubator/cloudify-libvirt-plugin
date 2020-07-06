@@ -13,13 +13,14 @@
 # limitations under the License.
 import unittest
 import mock
-import six
 
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.common as common
+
+from .._compat import builtins_open_string
 
 
 class TestCommon(LibVirtCommonTest):
@@ -101,18 +102,8 @@ class TestCommon(LibVirtCommonTest):
                 makedirs
             ):
                 fake_file = mock.mock_open()
-                if six.PY3:
-                    # python 3
-                    with mock.patch(
-                        'builtins.open', fake_file
-                    ):
-                        common.save_node_state("a", "b", "c")
-                else:
-                    # python 2
-                    with mock.patch(
-                        '__builtin__.open', fake_file
-                    ):
-                        common.save_node_state("a", "b", "c")
+                with mock.patch(builtins_open_string, fake_file):
+                    common.save_node_state("a", "b", "c")
                 fake_file.assert_called_with('a/b.xml', 'w')
                 fake_file().write.assert_called_with("c")
             makedirs.assert_called_with("a")
@@ -151,18 +142,8 @@ class TestCommon(LibVirtCommonTest):
         ):
             fake_file = mock.mock_open()
             fake_file().read = mock.Mock(return_value=">>")
-            if six.PY3:
-                # python 3
-                with mock.patch(
-                    'builtins.open', fake_file
-                ):
-                    self.assertEqual(common.read_node_state("a", "b"), ">>")
-            else:
-                # python 2
-                with mock.patch(
-                    '__builtin__.open', fake_file
-                ):
-                    self.assertEqual(common.read_node_state("a", "b"), ">>")
+            with mock.patch(builtins_open_string, fake_file):
+                self.assertEqual(common.read_node_state("a", "b"), ">>")
             fake_file.assert_called_with('a/b.xml', 'r')
             fake_file().read.assert_called_with()
         isfile.assert_called_with('a/b.xml')

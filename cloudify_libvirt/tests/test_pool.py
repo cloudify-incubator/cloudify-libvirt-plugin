@@ -14,7 +14,6 @@
 import libvirt
 import mock
 import unittest
-import six
 
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
@@ -22,6 +21,8 @@ from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.pool_tasks as pool_tasks
+
+from .._compat import builtins_open_string
 
 
 class TestPoolTasks(LibVirtCommonTest):
@@ -144,22 +145,12 @@ class TestPoolTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "<pool/>"
-                if six.PY3:
-                    # python 3
-                    with mock.patch(
-                            'builtins.open', fake_file
-                    ):
-                        pool_tasks.snapshot_apply(
-                            ctx=_ctx, snapshot_name="backup!",
-                            snapshot_incremental=False)
-                else:
-                    # python 2
-                    with mock.patch(
-                        '__builtin__.open', fake_file
-                    ):
-                        pool_tasks.snapshot_apply(
-                            ctx=_ctx, snapshot_name="backup!",
-                            snapshot_incremental=False)
+                with mock.patch(
+                        builtins_open_string, fake_file
+                ):
+                    pool_tasks.snapshot_apply(
+                        ctx=_ctx, snapshot_name="backup!",
+                        snapshot_incremental=False)
                 fake_file.assert_called_with('./backup!/resource.xml', 'r')
 
     def test_snapshot_create(self):
@@ -209,58 +200,30 @@ class TestPoolTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "!!!!"
-                if six.PY3:
-                    # python 3
+                with mock.patch(
+                    builtins_open_string, fake_file
+                ):
+                    # with error, already exists
                     with mock.patch(
-                        'builtins.open', fake_file
+                        "os.path.isfile",
+                        mock.Mock(return_value=True)
                     ):
-                        # with error, already exists
-                        with mock.patch(
-                            "os.path.isfile",
-                            mock.Mock(return_value=True)
-                        ):
-                            with self.assertRaisesRegexp(
-                                NonRecoverableError,
-                                "Backup node_name-backup already exists."
-                            ):
-                                pool_tasks.snapshot_create(
-                                    ctx=_ctx, snapshot_name="backup",
-                                    snapshot_incremental=False)
-                        # without error
-                        with mock.patch(
-                            "os.path.isfile",
-                            mock.Mock(return_value=False)
+                        with self.assertRaisesRegexp(
+                            NonRecoverableError,
+                            "Backup node_name-backup already exists."
                         ):
                             pool_tasks.snapshot_create(
                                 ctx=_ctx, snapshot_name="backup",
                                 snapshot_incremental=False)
-                        fake_file().write.assert_called_with("<pool/>")
-                else:
-                    # python 2
+                    # without error
                     with mock.patch(
-                        '__builtin__.open', fake_file
+                        "os.path.isfile",
+                        mock.Mock(return_value=False)
                     ):
-                        # with error, already exists
-                        with mock.patch(
-                            "os.path.isfile",
-                            mock.Mock(return_value=True)
-                        ):
-                            with self.assertRaisesRegexp(
-                                NonRecoverableError,
-                                "Backup node_name-backup already exists."
-                            ):
-                                pool_tasks.snapshot_create(
-                                    ctx=_ctx, snapshot_name="backup",
-                                    snapshot_incremental=False)
-                        # without error
-                        with mock.patch(
-                            "os.path.isfile",
-                            mock.Mock(return_value=False)
-                        ):
-                            pool_tasks.snapshot_create(
-                                ctx=_ctx, snapshot_name="backup",
-                                snapshot_incremental=False)
-                        fake_file().write.assert_called_with("<pool/>")
+                        pool_tasks.snapshot_create(
+                            ctx=_ctx, snapshot_name="backup",
+                            snapshot_incremental=False)
+                    fake_file().write.assert_called_with("<pool/>")
 
     def test_snapshot_delete(self):
         self._test_no_resource_id(pool_tasks.snapshot_delete,
@@ -327,36 +290,19 @@ class TestPoolTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "!!!!"
-                if six.PY3:
-                    # python 3
+                with mock.patch(
+                    builtins_open_string, fake_file
+                ):
+                    remove_mock = mock.Mock()
                     with mock.patch(
-                        'builtins.open', fake_file
+                        "os.remove",
+                        remove_mock
                     ):
-                        remove_mock = mock.Mock()
-                        with mock.patch(
-                            "os.remove",
-                            remove_mock
-                        ):
-                            pool_tasks.snapshot_delete(
-                                ctx=_ctx, snapshot_name="backup!",
-                                snapshot_incremental=False)
-                        remove_mock.assert_called_with(
-                            './backup!/resource.xml')
-                else:
-                    # python 2
-                    with mock.patch(
-                        '__builtin__.open', fake_file
-                    ):
-                        remove_mock = mock.Mock()
-                        with mock.patch(
-                            "os.remove",
-                            remove_mock
-                        ):
-                            pool_tasks.snapshot_delete(
-                                ctx=_ctx, snapshot_name="backup!",
-                                snapshot_incremental=False)
-                        remove_mock.assert_called_with(
-                            './backup!/resource.xml')
+                        pool_tasks.snapshot_delete(
+                            ctx=_ctx, snapshot_name="backup!",
+                            snapshot_incremental=False)
+                    remove_mock.assert_called_with(
+                        './backup!/resource.xml')
                 fake_file.assert_called_with('./backup!/resource.xml', 'r')
 
     def test_create(self):

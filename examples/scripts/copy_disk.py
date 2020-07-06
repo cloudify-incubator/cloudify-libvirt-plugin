@@ -27,7 +27,7 @@ ID_HASH_CONST = 6
 
 def execute_command(command, extra_args=None):
 
-    ctx.logger.debug(f'command: {repr(command)}.')
+    ctx.logger.debug('command: {0}.'.format(repr(command)))
 
     subprocess_args = {
         'args': command,
@@ -37,15 +37,15 @@ def execute_command(command, extra_args=None):
     if extra_args is not None and isinstance(extra_args, dict):
         subprocess_args.update(extra_args)
 
-    ctx.logger.debug(f'subprocess_args {subprocess_args}.')
+    ctx.logger.debug('subprocess_args {0}.'.format(subprocess_args))
 
     process = subprocess.Popen(**subprocess_args)
     output, error = process.communicate()
 
-    ctx.logger.debug(f'command: {repr(command)} ')
-    ctx.logger.debug(f'output: {output} ')
-    ctx.logger.debug(f'error: {error} ')
-    ctx.logger.debug(f'process.returncode: {process.returncode} ')
+    ctx.logger.debug('command: {0} '.format(repr(command)))
+    ctx.logger.debug('output: {0} '.format(output))
+    ctx.logger.debug('error: {0} '.format(error))
+    ctx.logger.debug('process.returncode: {0} '.format(process.returncode))
 
     if process.returncode:
         ctx.logger.error('Running `{0}` returns {1} error: {2}.'
@@ -80,16 +80,16 @@ def _gen_hostname(name):
 
 if __name__ == '__main__':
     base_disk = ctx.instance.runtime_properties['disk_image']
-    ctx.logger.info(f"Base image: {repr(base_disk)}")
+    ctx.logger.info("Base image: {}".format(repr(base_disk)))
     cloud_init = ctx.instance.runtime_properties['cloud_init']
-    ctx.logger.debug(f"Cloud init: {repr(cloud_init)}")
+    ctx.logger.debug("Cloud init: {}".format(repr(cloud_init)))
     cwd = ctx.instance.runtime_properties.get('storage_path', os.getcwd())
-    ctx.logger.info(f"Current dir: {repr(cwd)}")
+    ctx.logger.info("Current dir: {}".format(repr(cwd)))
 
-    copy_disk = f"{cwd}/{ctx.instance.id}.qcow2"
+    copy_disk = "{}/{}.qcow2".format(cwd, ctx.instance.id)
     if not execute_command([
         "qemu-img", "create", "-f", "qcow2", "-o",
-        f"backing_file={base_disk}", copy_disk
+        "backing_file={}".format(base_disk), copy_disk
     ]):
         raise exceptions.RecoverableError('Failed create disk.')
     if ctx.instance.runtime_properties.get('disk_size'):
@@ -101,34 +101,36 @@ if __name__ == '__main__':
 
     ctx.instance.runtime_properties["vm_image"] = copy_disk
 
-    seed_disk = f"{cwd}/{ctx.instance.id}_seed"
+    seed_disk = "{}/{}_seed".format(cwd, ctx.instance.id)
     os.mkdir(seed_disk)
-    with open(f"{seed_disk}/meta-data", 'w') as meta_file:
-        meta_file.write(f"instance-id: {ctx.instance.id}\n")
-        meta_file.write(f"local-hostname: {_gen_hostname(ctx.instance.id)}\n")
+    with open("{}/meta-data".format(seed_disk), 'w') as meta_file:
+        meta_file.write("instance-id: {}\n".format(ctx.instance.id))
+        meta_file.write("local-hostname: {}\n"
+                        .format(_gen_hostname(ctx.instance.id)))
 
-    ctx.logger.debug(f"cloud init:\n===\n{cloud_init}\n===\n")
-    with open(f"{seed_disk}/user-data", 'w') as user_data:
+    ctx.logger.debug("cloud init:\n===\n{}\n===\n".format(cloud_init))
+    with open("{}/user-data".format(seed_disk), 'w') as user_data:
         user_data.write(cloud_init)
 
     if not execute_command([
-        "genisoimage", "-output", f"{seed_disk}.iso",
+        "genisoimage", "-output", "{}.iso".format(seed_disk),
         "-volid", "cidata",  "-joliet", "-rock",
-        f"{seed_disk}/user-data",
-        f"{seed_disk}/meta-data"
+        "{}/user-data".format(seed_disk),
+        "{}/meta-data".format(seed_disk)
     ]):
         raise exceptions.RecoverableError('Failed create iso.')
 
-    os.remove(f"{seed_disk}/user-data")
-    os.remove(f"{seed_disk}/meta-data")
+    os.remove("{}/user-data".format(seed_disk))
+    os.remove("{}/meta-data".format(seed_disk))
     os.rmdir(seed_disk)
 
     if not execute_command([
         "qemu-img", "convert", "-f", "raw", "-O", "qcow2",
-        f"{seed_disk}.iso", f"{seed_disk}.qcow2"
+        "{}.iso".format(seed_disk), "{}.qcow2".format(seed_disk)
     ]):
         raise exceptions.RecoverableError('Failed convert qcow image')
 
-    os.remove(f"{seed_disk}.iso")
+    os.remove("{}.iso".format(seed_disk))
 
-    ctx.instance.runtime_properties["vm_cloudinit"] = f"{seed_disk}.qcow2"
+    ctx.instance.runtime_properties[
+        "vm_cloudinit"] = "{}.qcow2".format(seed_disk)

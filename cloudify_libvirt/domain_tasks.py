@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from builtins import str
-
 import libvirt
 import time
 
@@ -65,7 +63,7 @@ def configure(**kwargs):
                 dom = conn.lookupByName(resource_id)
             except libvirt.libvirtError as e:
                 raise cfy_exc.NonRecoverableError(
-                    f'Failed to find the domain: {repr(e)}'
+                    'Failed to find the domain: {}'.format(repr(e))
                 )
 
             # save settings
@@ -81,7 +79,7 @@ def configure(**kwargs):
                 dom = conn.lookupByName(resource_id)
             except libvirt.libvirtError as e:
                 raise cfy_exc.NonRecoverableError(
-                    f'Failed to find the domain: {repr(e)}'
+                    'Failed to find the domain: {}'.format(repr(e))
                 )
         else:
             xmlconfig = common.gen_xml_template(
@@ -106,9 +104,8 @@ def _update_network_list(dom, lease_only=True):
 
     # get known by libvirt interfaces
     virt_networks = dom.interfaceAddresses(request_type)
-    ctx.logger.info(
-        f"Libvirt knows about such networks: {repr(virt_networks)}"
-    )
+    ctx.logger.info("Libvirt knows about such networks: {}"
+                    .format(repr(virt_networks)))
 
     # networks from instance
     if 'params' not in ctx.instance.runtime_properties:
@@ -172,7 +169,7 @@ def reboot(**kwargs):
             dom = conn.lookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                f'Failed to find the domain: {repr(e)}'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         if dom.reboot() < 0:
@@ -205,14 +202,13 @@ def update(**kwargs):
             dom = conn.lookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                f'Failed to find the domain: {repr(e)}'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         # change memory values
         if template_params.get('memory_size'):
-            ctx.logger.info(
-                f"Set memory to {repr(template_params['memory_size'])}"
-            )
+            ctx.logger.info("Set memory to {}"
+                            .format(repr(template_params['memory_size'])))
             if dom.setMemory(template_params['memory_size']) < 0:
                 raise cfy_exc.NonRecoverableError(
                     "Can not change memory amount."
@@ -226,9 +222,8 @@ def update(**kwargs):
 
         # change vcpu values
         if template_params.get('vcpu'):
-            ctx.logger.info(
-                f"Set cpu count to {repr(template_params['vcpu'])}"
-            )
+            ctx.logger.info("Set cpu count to {}"
+                            .format(repr(template_params['vcpu'])))
             if dom.setVcpus(template_params['vcpu']) < 0:
                 raise cfy_exc.NonRecoverableError(
                     "Can not change cpu count."
@@ -272,12 +267,12 @@ def start(**kwargs):
             dom = conn.lookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                f'Failed to find the domain: {repr(e)}'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         for i in range(10):
             state, _ = dom.state()
-            ctx.logger.info(f"Trying to start vm {i}/10")
+            ctx.logger.info("Trying to start vm {}/10".format(i))
             if wait_for_ip:
                 ctx.logger.info("Waiting for ip.")
             if state == libvirt.VIR_DOMAIN_RUNNING:
@@ -331,7 +326,7 @@ def stop(**kwargs):
             dom = conn.lookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                f'Failed to find the domain: {repr(e)}'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         # reset ip on stop
@@ -343,7 +338,7 @@ def stop(**kwargs):
                 ctx.logger.info("Looks as not run.")
                 return
 
-            ctx.logger.info(f"Trying to stop vm {i}/10")
+            ctx.logger.info("Trying to stop vm {}/10".format(i))
             if dom.shutdown() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not shutdown guest domain.'
@@ -376,7 +371,7 @@ def resume(**kwargs):
             dom = conn.lookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                f'Failed to find the domain: {repr(e)}'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         state, _ = dom.state()
@@ -385,7 +380,7 @@ def resume(**kwargs):
                 ctx.logger.info("Looks as running.")
                 return
 
-            ctx.logger.info(f"Trying to resume vm {i}/10")
+            ctx.logger.info("Trying to resume vm {}/10".format(i))
             if dom.resume() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not suspend guest domain.'
@@ -418,7 +413,7 @@ def suspend(**kwargs):
             dom = conn.lookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                f'Failed to find the domain: {repr(e)}'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         state, _ = dom.state()
@@ -427,7 +422,7 @@ def suspend(**kwargs):
                 ctx.logger.info("Looks as not run.")
                 return
 
-            ctx.logger.info(f"Trying to suspend vm {i}/10")
+            ctx.logger.info("Trying to suspend vm {}/10".format(i))
             if dom.suspend() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not suspend guest domain.'
@@ -446,7 +441,8 @@ def _cleanup_snapshots(ctx, dom):
         for snapshot in snapshots:
             # we can delete only snapshot without child
             if not snapshot.numChildren():
-                ctx.logger.info(f"Remove {snapshot.getName()} snapshot.")
+                ctx.logger.info("Remove {} snapshot."
+                                .format(snapshot.getName()))
                 snapshot.delete()
         snapshots = dom.listAllSnapshots()
 
@@ -455,14 +451,15 @@ def _cleanup_snapshots(ctx, dom):
             snap.getName() for snap in snapshots
         ]
         raise cfy_exc.RecoverableError(
-            f"Still have several snapshots: {repr(subsnapshots)}."
-            )
+            "Still have several snapshots: {subsnapshots}."
+            .format(subsnapshots=repr(subsnapshots)))
 
 
 def _delete_force(dom):
     """remove domain internaly without cleanup for properties"""
     if dom.snapshotNum():
-        ctx.logger.info(f"Domain has {dom.snapshotNum()} snapshots.")
+        ctx.logger.info("Domain has {} snapshots."
+                        .format(dom.snapshotNum()))
         _cleanup_snapshots(ctx, dom)
 
     state, _ = dom.state()
@@ -479,7 +476,7 @@ def _delete_force(dom):
                 'Can not undefine guest domain with NVRAM.'
             )
     except AttributeError as e:
-        ctx.logger.info(f"Non critical error: {str(e)}")
+        ctx.logger.info("Non critical error: {}".format(str(e)))
         if dom.undefine() < 0:
             raise cfy_exc.RecoverableError(
                 'Can not undefine guest domain.'
@@ -513,7 +510,7 @@ def delete(**kwargs):
             dom = conn.lookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                f'Failed to find the domain: {repr(e)}'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         _delete_force(dom)
@@ -530,8 +527,8 @@ def _backup_create(conn, dom, resource_id, snapshot_name, full_dump, kwargs):
         if common.check_binary_place(common.get_backupdir(kwargs),
                                      resource_id):
             raise cfy_exc.NonRecoverableError(
-                f"Backup {snapshot_name} already exists."
-            )
+                "Backup {snapshot_name} already exists."
+                .format(snapshot_name=snapshot_name,))
         # create place for store
         common.create_binary_place(common.get_backupdir(kwargs))
         # save backup to directory (domain will be removed)
@@ -545,8 +542,8 @@ def _backup_create(conn, dom, resource_id, snapshot_name, full_dump, kwargs):
         if common.read_node_state(common.get_backupdir(kwargs),
                                   resource_id):
             raise cfy_exc.NonRecoverableError(
-                f"Backup {snapshot_name} already exists."
-            )
+                "Backup {snapshot_name} already exists."
+                .format(snapshot_name=snapshot_name,))
         common.save_node_state(common.get_backupdir(kwargs), resource_id,
                                dom.XMLDesc())
 
@@ -575,7 +572,7 @@ def snapshot_create(**kwargs):
             dom = conn.lookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                f'Failed to find the domain: {repr(e)}'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         if kwargs.get("snapshot_incremental"):
@@ -593,18 +590,19 @@ def snapshot_create(**kwargs):
                 # will raise exception if unexist
                 snapshot = dom.snapshotLookupByName(snapshot_name)
                 raise cfy_exc.NonRecoverableError(
-                    f"Snapshot {snapshot.getName()} already exists."
-                )
+                    "Snapshot {snapshot_name} already exists."
+                    .format(snapshot_name=snapshot.getName(),))
             except libvirt.libvirtError:
                 pass
             snapshot = dom.snapshotCreateXML(xmlconfig)
-            ctx.logger.info(f"Snapshot name: {snapshot.getName()}")
+            ctx.logger.info("Snapshot name: {}".format(snapshot.getName()))
         else:
             _backup_create(
                 conn, dom, resource_id, snapshot_name,
                 template_params.get('full_dump', False),
                 kwargs)
-            ctx.logger.info(f"Backup {snapshot_name} is created.")
+            ctx.logger.info("Backup {snapshot_name} is created."
+                            .format(snapshot_name=snapshot_name,))
     finally:
         conn.close()
 
@@ -616,8 +614,8 @@ def _backup_delete(dom, resource_id, snapshot_name, full_dump, kwargs):
         if not common.check_binary_place(common.get_backupdir(kwargs),
                                          resource_id):
             raise cfy_exc.NonRecoverableError(
-                f"No backups found with name: {snapshot_name}."
-                )
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
         common.delete_binary_place(common.get_backupdir(kwargs),
                                    resource_id)
     else:
@@ -625,8 +623,8 @@ def _backup_delete(dom, resource_id, snapshot_name, full_dump, kwargs):
         if not common.read_node_state(common.get_backupdir(kwargs),
                                       resource_id):
             raise cfy_exc.NonRecoverableError(
-                f"No backups found with name: {snapshot_name}."
-                )
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
         common.delete_node_state(common.get_backupdir(kwargs), resource_id)
 
 
@@ -653,7 +651,7 @@ def snapshot_delete(**kwargs):
             dom = conn.lookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                f'Failed to find the domain: {repr(e)}'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         if kwargs.get("snapshot_incremental"):
@@ -673,7 +671,7 @@ def snapshot_delete(**kwargs):
             _backup_delete(
                 dom, resource_id, snapshot_name,
                 template_params.get('full_dump', False), kwargs)
-        ctx.logger.info(f"Backup deleted: {snapshot_name}")
+        ctx.logger.info("Backup deleted: {}".format(snapshot_name))
     finally:
         conn.close()
 
@@ -686,8 +684,8 @@ def _backup_apply(conn, dom, resource_id, snapshot_name, full_dump, kwargs):
         if not common.check_binary_place(common.get_backupdir(kwargs),
                                          resource_id):
             raise cfy_exc.NonRecoverableError(
-                f"No backups found with name: {snapshot_name}."
-                )
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
 
         # old domain will be removed
         _delete_force(dom)
@@ -700,8 +698,8 @@ def _backup_apply(conn, dom, resource_id, snapshot_name, full_dump, kwargs):
                                             resource_id)
         if not dom_backup:
             raise cfy_exc.NonRecoverableError(
-                f"No backups found with name: {snapshot_name}."
-                )
+                "No backups found with name: {snapshot_name}."
+                .format(snapshot_name=snapshot_name,))
 
         if dom_backup.strip() != dom.XMLDesc().strip():
             ctx.logger.info("We have different configs,\n{}\nvs\n{}\n"
@@ -709,9 +707,8 @@ def _backup_apply(conn, dom, resource_id, snapshot_name, full_dump, kwargs):
                                 repr(dom_backup.strip()),
                                 repr(dom.XMLDesc().strip())))
         else:
-            ctx.logger.info(
-                f"Already used such configuration: {snapshot_name}"
-            )
+            ctx.logger.info("Already used such configuration: {}"
+                            .format(snapshot_name))
 
 
 @operation
@@ -737,19 +734,19 @@ def snapshot_apply(**kwargs):
             dom = conn.lookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                f'Failed to find the domain: {repr(e)}'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         if kwargs.get("snapshot_incremental"):
             # raised exception if libvirt has not found any
             snapshot = dom.snapshotLookupByName(snapshot_name)
             dom.revertToSnapshot(snapshot)
-            ctx.logger.info(f"Reverted to: {snapshot.getName()}")
+            ctx.logger.info("Reverted to: {}".format(snapshot.getName()))
         else:
             _backup_apply(
                 conn, dom, resource_id, snapshot_name,
                 template_params.get('full_dump', False), kwargs)
-            ctx.logger.info(f"Restored to: {snapshot_name}")
+            ctx.logger.info("Restored to: {}".format(snapshot_name))
     finally:
         conn.close()
 
@@ -787,7 +784,7 @@ def perfomance(**kwargs):
             dom = conn.lookupByName(resource_id)
         except libvirt.libvirtError as e:
             raise cfy_exc.NonRecoverableError(
-                f'Failed to find the domain: {repr(e)}'
+                'Failed to find the domain: {}'.format(repr(e))
             )
 
         statistics = ctx.instance.runtime_properties.get('stat', {})
@@ -796,7 +793,7 @@ def perfomance(**kwargs):
 
         # usage generated by compare cpu_time before
         # and after sleep for 5 seconds.
-        ctx.logger.debug(f"Used: {before_usage} seconds.")
+        ctx.logger.debug("Used: {} seconds.".format(before_usage))
         time.sleep(5)
         statistics['cpu'] = 100 * (_current_use(dom) - before_usage) // 5
 
@@ -804,6 +801,6 @@ def perfomance(**kwargs):
         statistics['memory'] = memory.get('actual', 0) / 1024.0
         ctx.instance.runtime_properties['stat'] = statistics
 
-        ctx.logger.info(f"Statistics: {repr(statistics)}")
+        ctx.logger.info("Statistics: {}".format(repr(statistics)))
     finally:
         conn.close()
