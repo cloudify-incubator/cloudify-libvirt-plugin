@@ -14,11 +14,11 @@
 import mock
 import unittest
 
-from .._compat import builtins_open_string
-
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError
+
+from cloudify_common_sdk._compat import PY2
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.volume_tasks as volume_tasks
@@ -152,8 +152,9 @@ class TestVolumeTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "<volume/>"
+                builtins_open = '__builtin__.open' if PY2 else 'builtins.open'
                 with mock.patch(
-                    builtins_open_string, fake_file
+                    builtins_open, fake_file
                 ):
                     volume_tasks.snapshot_apply(
                         ctx=_ctx, snapshot_name="backup!",
@@ -208,8 +209,9 @@ class TestVolumeTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "!!!!"
+                builtins_open = '__builtin__.open' if PY2 else 'builtins.open'
                 with mock.patch(
-                        builtins_open_string, fake_file
+                        builtins_open, fake_file
                 ):
                     # with error, already exists
                     with mock.patch(
@@ -303,8 +305,9 @@ class TestVolumeTasks(LibVirtCommonTest):
                     "os.remove",
                     remove_mock
                 ):
+                    _builtins = '__builtin__.open' if PY2 else 'builtins.open'
                     with mock.patch(
-                        builtins_open_string, fake_file
+                        _builtins, fake_file
                     ):
                         volume_tasks.snapshot_delete(
                             ctx=_ctx, snapshot_name="backup!",

@@ -15,11 +15,10 @@
 import libvirt
 import time
 
-from ._compat import text_type
-
 from cloudify import ctx
-from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
+from cloudify.decorators import operation
+from cloudify_common_sdk._compat import text_type
 import cloudify_libvirt.common as common
 
 

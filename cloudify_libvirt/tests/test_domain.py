@@ -15,12 +15,12 @@ import mock
 import unittest
 import libvirt
 
-from .._compat import PY2, builtins_open_string
-
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 from cloudify.manager import DirtyTrackingDict
+
+from cloudify_common_sdk._compat import PY2
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.domain_tasks as domain_tasks
@@ -600,8 +600,9 @@ class TestDomainTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 if not raw_case:
                     fake_file().read.return_value = "!!!!"
+                builtins_open = '__builtin__.open' if PY2 else 'builtins.open'
                 with mock.patch(
-                    builtins_open_string, fake_file
+                    builtins_open, fake_file
                 ):
                     # with error, already exists
                     with self.assertRaisesRegexp(
@@ -723,8 +724,9 @@ class TestDomainTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 if not raw_case:
                     fake_file().read.return_value = "old"
+                builtins_open = '__builtin__.open' if PY2 else 'builtins.open'
                 with mock.patch(
-                    builtins_open_string, fake_file
+                    builtins_open, fake_file
                 ):
                     # have same backup
                     domain.snapshotNum = mock.Mock(return_value=0)
@@ -820,8 +822,9 @@ class TestDomainTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 if not raw_case:
                     fake_file().read.return_value = "!!!!"
+                builtins_open = '__builtin__.open' if PY2 else 'builtins.open'
                 with mock.patch(
-                    builtins_open_string, fake_file
+                    builtins_open, fake_file
                 ):
                     remove_mock = mock.Mock()
                     with mock.patch(

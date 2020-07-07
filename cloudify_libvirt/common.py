@@ -15,11 +15,10 @@ import os
 import uuid
 from pkg_resources import resource_filename
 
-from ._compat import text_type
-
 from cloudify import ctx
 from cloudify import exceptions as cfy_exc
 from cloudify_common_sdk import filters
+from cloudify_common_sdk._compat import text_type
 
 
 def get_libvirt_params(**kwargs):
