@@ -20,7 +20,7 @@ PY2 = sys.version_info[0] == 2
 
 
 if PY2:
-    text_type = unicode  # noqa: F821
+    text_type = unicode  # noqa: F821,E0602
     builtins_open_string = '__builtin__.open'
 else:
     text_type = str

@@ -16,8 +16,6 @@ import requests
 import libvirt
 import time
 
-from builtins import range
-
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc

@@ -15,7 +15,6 @@
 import libvirt
 import time
 
-from builtins import range
 from ._compat import text_type
 
 from cloudify import ctx
