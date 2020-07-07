@@ -14,13 +14,13 @@
 import unittest
 import mock
 
+from .._compat import builtins_open_string
+
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.common as common
-
-from .._compat import builtins_open_string
 
 
 class TestCommon(LibVirtCommonTest):

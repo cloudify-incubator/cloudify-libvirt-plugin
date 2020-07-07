@@ -14,14 +14,14 @@
 import mock
 import unittest
 
+from .._compat import builtins_open_string
+
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.volume_tasks as volume_tasks
-
-from .._compat import builtins_open_string
 
 
 class TestVolumeTasks(LibVirtCommonTest):

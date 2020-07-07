@@ -15,6 +15,9 @@
 import libvirt
 import time
 
+from builtins import range
+from ._compat import text_type
+
 from cloudify import ctx
 from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
@@ -476,7 +479,7 @@ def _delete_force(dom):
                 'Can not undefine guest domain with NVRAM.'
             )
     except AttributeError as e:
-        ctx.logger.info("Non critical error: {}".format(str(e)))
+        ctx.logger.info("Non critical error: {}".format(text_type(e)))
         if dom.undefine() < 0:
             raise cfy_exc.RecoverableError(
                 'Can not undefine guest domain.'

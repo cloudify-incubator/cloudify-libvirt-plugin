@@ -15,14 +15,14 @@ import libvirt
 import mock
 import unittest
 
+from .._compat import builtins_open_string
+
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.pool_tasks as pool_tasks
-
-from .._compat import builtins_open_string
 
 
 class TestPoolTasks(LibVirtCommonTest):

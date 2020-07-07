@@ -15,6 +15,8 @@ import mock
 import unittest
 import libvirt
 
+from .._compat import PY2, builtins_open_string
+
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError, RecoverableError
@@ -22,8 +24,6 @@ from cloudify.manager import DirtyTrackingDict
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.domain_tasks as domain_tasks
-
-from .._compat import PY2, builtins_open_string
 
 
 class TestDomainTasks(LibVirtCommonTest):
