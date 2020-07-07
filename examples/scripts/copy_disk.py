@@ -114,7 +114,7 @@ if __name__ == '__main__':
 
     if not execute_command([
         "genisoimage", "-output", "{}.iso".format(seed_disk),
-        "-volid", "cidata",  "-joliet", "-rock",
+        "-volid", "cidata", "-joliet", "-rock",
         "{}/user-data".format(seed_disk),
         "{}/meta-data".format(seed_disk)
     ]):

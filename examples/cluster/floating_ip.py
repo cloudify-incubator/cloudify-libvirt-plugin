@@ -86,7 +86,7 @@ if __name__ == '__main__':
                      "-j", "DNAT", "--to-destination", internal_ip])
 
     execute_command(["sudo", "/sbin/iptables", "-I", "FORWARD",
-                     "-d",  internal_ip, "-j", "ACCEPT"])
+                     "-d", internal_ip, "-j", "ACCEPT"])
 
     ctx.instance.runtime_properties["internal_ip"] = internal_ip
     ctx.instance.runtime_properties["external_ip"] = external_ip

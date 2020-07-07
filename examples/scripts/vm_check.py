@@ -66,7 +66,8 @@ if __name__ == '__main__':
     linux_distro = ctx.node.properties.get('linux_distro')
 
     if not linux_distro:
-        linux_distro_raw = distro.linux_distribution(full_distribution_name=False)[0]
+        linux_distro_raw = \
+            distro.linux_distribution(full_distribution_name=False)[0]
         linux_distro = linux_distro_raw.lower()
 
     if ('centos' in linux_distro) or ('redhat' in linux_distro):
