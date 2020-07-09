@@ -18,7 +18,7 @@ from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
-from cloudify_common_sdk._compat import PY2, builtins_open
+from cloudify_common_sdk._compat import builtins_open
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.network_tasks as network_tasks
@@ -440,9 +440,8 @@ class TestNetworkTasks(LibVirtCommonTest):
                     "os.remove",
                     remove_mock
                 ):
-                    _builtins = '__builtin__.open' if PY2 else 'builtins.open'
                     with mock.patch(
-                        _builtins, fake_file
+                        builtins_open, fake_file
                     ):
                         network_tasks.snapshot_delete(
                             ctx=_ctx, snapshot_name="backup!",

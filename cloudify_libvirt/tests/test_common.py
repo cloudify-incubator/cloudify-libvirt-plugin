@@ -17,7 +17,7 @@ import mock
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 
-from cloudify_common_sdk._compat import PY2, builtins_open
+from cloudify_common_sdk._compat import builtins_open
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.common as common
