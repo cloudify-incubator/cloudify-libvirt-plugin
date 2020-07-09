@@ -97,44 +97,62 @@ jobs:
       - run: /home/circleci/.local/bin/tox -e nosetests
 
   wagon:
-    docker:
-      - image: amd64/centos:centos7.5.1804
+    machine:
+      image: ubuntu-1604:201903-01
     steps:
       - checkout
       - run:
-          name: Install dependencies
-          command: yum -y install python-devel gcc openssl git libxslt-devel libxml2-devel openldap-devel libffi-devel openssl-devel libvirt-devel libvirt-python
+          name: Create Workspace Build directory.
+          command: mkdir -p workspace/build
+      - run:
+          name: Build py27py36 Wagon
+          command: |
+              git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
+              docker build -t cloudify-centos-7-wagon-builder cloudify-wagon-build-containers/centos_7_py2py3
+              docker run -v ~/project/:/packaging cloudify-centos-7-wagon-builder
+      - run:
+          name: copy wagon to workspace
+          command: cp *.wgn workspace/build/
+      - persist_to_workspace:
+          root: workspace
+          paths:
+            - build/*
+
+  release:
+    docker:
+      - image: circleci/python:2.7
+    steps:
+      - checkout
+      - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule init
+            git submodule update --remote --recursive
       - run:
           name: Download pip
           command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
       - run:
           name: Install pip
-          command: python get-pip.py
-      - run:
-          name: Upgrade pip
-          command: pip install --upgrade pip==9.0.1
+          command: sudo python get-pip.py
       - run:
           name: Install virtualenv
-          command: pip install virtualenv==16.7.9
+          command: pip install --user virtualenv
       - run:
           name: Init virtualenv
           command: virtualenv env
       - run:
-          name: Install wagon
-          command: pip install wagon==0.3.2
+          name: install tox
+          command: pip install --user pygithub pyyaml==3.10
       - run:
-          name: many_linux
-          command: echo "manylinux1_compatible = False" > "env/bin/_manylinux.py"
+          name: upgrade setuptools
+          command: pip install --upgrade setuptools
       - run:
-          name: make workspace
-          command: mkdir -p workspace/build
-      - run:
-          name: Create wagon
-          command: source env/bin/activate && wagon create -s . -v -o workspace/build -f -a '--no-cache-dir -c constraints.txt'
-      - persist_to_workspace:
-          root: workspace
-          paths:
-            - build/*
+          name: install local project
+          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
+      - attach_workspace:
+          at: workspace
+      - run: python .circleci/package_release.py
+
 
 workflows:
   version: 2
@@ -147,3 +165,11 @@ workflows:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|dev)/
+      - release:
+          filters:
+            branches:
+              only: /master/
+          requires:
+            - unittests_py27
+            - unittests_py36
+            - wagon
