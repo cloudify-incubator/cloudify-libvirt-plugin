@@ -17,7 +17,7 @@ import mock
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 
-from cloudify_common_sdk._compat import PY2
+from cloudify_common_sdk._compat import PY2, builtins_open
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.common as common
@@ -102,7 +102,6 @@ class TestCommon(LibVirtCommonTest):
                 makedirs
             ):
                 fake_file = mock.mock_open()
-                builtins_open = '__builtin__.open' if PY2 else 'builtins.open'
                 with mock.patch(builtins_open, fake_file):
                     common.save_node_state("a", "b", "c")
                 fake_file.assert_called_with('a/b.xml', 'w')
@@ -143,7 +142,6 @@ class TestCommon(LibVirtCommonTest):
         ):
             fake_file = mock.mock_open()
             fake_file().read = mock.Mock(return_value=">>")
-            builtins_open = '__builtin__.open' if PY2 else 'builtins.open'
             with mock.patch(builtins_open, fake_file):
                 self.assertEqual(common.read_node_state("a", "b"), ">>")
             fake_file.assert_called_with('a/b.xml', 'r')

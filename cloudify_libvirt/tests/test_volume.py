@@ -18,7 +18,7 @@ from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError
 
-from cloudify_common_sdk._compat import PY2
+from cloudify_common_sdk._compat import PY2, builtins_open
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.volume_tasks as volume_tasks
@@ -152,7 +152,6 @@ class TestVolumeTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "<volume/>"
-                builtins_open = '__builtin__.open' if PY2 else 'builtins.open'
                 with mock.patch(
                     builtins_open, fake_file
                 ):
@@ -209,9 +208,8 @@ class TestVolumeTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "!!!!"
-                builtins_open = '__builtin__.open' if PY2 else 'builtins.open'
                 with mock.patch(
-                        builtins_open, fake_file
+                    builtins_open, fake_file
                 ):
                     # with error, already exists
                     with mock.patch(

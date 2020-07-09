@@ -20,7 +20,7 @@ from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 from cloudify.manager import DirtyTrackingDict
 
-from cloudify_common_sdk._compat import PY2
+from cloudify_common_sdk._compat import PY2, builtins_open
 
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.domain_tasks as domain_tasks
@@ -600,7 +600,6 @@ class TestDomainTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 if not raw_case:
                     fake_file().read.return_value = "!!!!"
-                builtins_open = '__builtin__.open' if PY2 else 'builtins.open'
                 with mock.patch(
                     builtins_open, fake_file
                 ):
@@ -724,7 +723,6 @@ class TestDomainTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 if not raw_case:
                     fake_file().read.return_value = "old"
-                builtins_open = '__builtin__.open' if PY2 else 'builtins.open'
                 with mock.patch(
                     builtins_open, fake_file
                 ):
@@ -822,7 +820,6 @@ class TestDomainTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 if not raw_case:
                     fake_file().read.return_value = "!!!!"
-                builtins_open = '__builtin__.open' if PY2 else 'builtins.open'
                 with mock.patch(
                     builtins_open, fake_file
                 ):
