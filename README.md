@@ -11,6 +11,7 @@ Release history: [CHANGELOG.txt](CHANGELOG.txt)
 
 * Python versions:
     * 2.7.x
+    * 3.6.x
 * Packages versions:
     * libvirt-python >= 3.7.0
     * libvirt >= 1.3.1

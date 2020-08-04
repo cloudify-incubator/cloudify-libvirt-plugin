@@ -19,6 +19,8 @@ from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
+from cloudify_common_sdk._compat import builtins_open
+
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.pool_tasks as pool_tasks
 
@@ -144,7 +146,7 @@ class TestPoolTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "<pool/>"
                 with mock.patch(
-                    '__builtin__.open', fake_file
+                    builtins_open, fake_file
                 ):
                     pool_tasks.snapshot_apply(
                         ctx=_ctx, snapshot_name="backup!",
@@ -199,7 +201,7 @@ class TestPoolTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "!!!!"
                 with mock.patch(
-                    '__builtin__.open', fake_file
+                    builtins_open, fake_file
                 ):
                     # with error, already exists
                     with mock.patch(
@@ -289,7 +291,7 @@ class TestPoolTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "!!!!"
                 with mock.patch(
-                    '__builtin__.open', fake_file
+                    builtins_open, fake_file
                 ):
                     remove_mock = mock.Mock()
                     with mock.patch(
@@ -299,7 +301,8 @@ class TestPoolTasks(LibVirtCommonTest):
                         pool_tasks.snapshot_delete(
                             ctx=_ctx, snapshot_name="backup!",
                             snapshot_incremental=False)
-                    remove_mock.assert_called_with('./backup!/resource.xml')
+                    remove_mock.assert_called_with(
+                        './backup!/resource.xml')
                 fake_file.assert_called_with('./backup!/resource.xml', 'r')
 
     def test_create(self):
@@ -566,6 +569,7 @@ class TestPoolTasks(LibVirtCommonTest):
 
         pool = mock.Mock()
         pool.undefine = mock.Mock(return_value=-1)
+        pool.delete = mock.Mock(return_value=0)
         pool.name = mock.Mock(return_value="resource")
 
         connect = self._create_fake_connection()

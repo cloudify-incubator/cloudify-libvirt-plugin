@@ -16,8 +16,9 @@ import libvirt
 import time
 
 from cloudify import ctx
-from cloudify.decorators import operation
 from cloudify import exceptions as cfy_exc
+from cloudify.decorators import operation
+from cloudify_common_sdk._compat import text_type
 import cloudify_libvirt.common as common
 
 
@@ -270,9 +271,9 @@ def start(**kwargs):
                 'Failed to find the domain: {}'.format(repr(e))
             )
 
-        for i in xrange(10):
+        for i in range(10):
             state, _ = dom.state()
-            ctx.logger.info("Tring to start vm {}/10".format(i))
+            ctx.logger.info("Trying to start vm {}/10".format(i))
             if wait_for_ip:
                 ctx.logger.info("Waiting for ip.")
             if state == libvirt.VIR_DOMAIN_RUNNING:
@@ -333,12 +334,12 @@ def stop(**kwargs):
         ctx.instance.runtime_properties['ip'] = None
 
         state, _ = dom.state()
-        for i in xrange(10):
+        for i in range(10):
             if state != libvirt.VIR_DOMAIN_RUNNING:
                 ctx.logger.info("Looks as not run.")
                 return
 
-            ctx.logger.info("Tring to stop vm {}/10".format(i))
+            ctx.logger.info("Trying to stop vm {}/10".format(i))
             if dom.shutdown() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not shutdown guest domain.'
@@ -375,12 +376,12 @@ def resume(**kwargs):
             )
 
         state, _ = dom.state()
-        for i in xrange(10):
+        for i in range(10):
             if state == libvirt.VIR_DOMAIN_RUNNING:
                 ctx.logger.info("Looks as running.")
                 return
 
-            ctx.logger.info("Tring to resume vm {}/10".format(i))
+            ctx.logger.info("Trying to resume vm {}/10".format(i))
             if dom.resume() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not suspend guest domain.'
@@ -417,12 +418,12 @@ def suspend(**kwargs):
             )
 
         state, _ = dom.state()
-        for i in xrange(10):
+        for i in range(10):
             if state != libvirt.VIR_DOMAIN_RUNNING:
                 ctx.logger.info("Looks as not run.")
                 return
 
-            ctx.logger.info("Tring to suspend vm {}/10".format(i))
+            ctx.logger.info("Trying to suspend vm {}/10".format(i))
             if dom.suspend() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not suspend guest domain.'
@@ -437,7 +438,7 @@ def _cleanup_snapshots(ctx, dom):
     snapshots = dom.listAllSnapshots()
     snapshots_count = len(snapshots)
 
-    for _ in xrange(snapshots_count):
+    for _ in range(snapshots_count):
         for snapshot in snapshots:
             # we can delete only snapshot without child
             if not snapshot.numChildren():
@@ -476,7 +477,7 @@ def _delete_force(dom):
                 'Can not undefine guest domain with NVRAM.'
             )
     except AttributeError as e:
-        ctx.logger.info("Non critical error: {}".format(str(e)))
+        ctx.logger.info("Non critical error: {}".format(text_type(e)))
         if dom.undefine() < 0:
             raise cfy_exc.RecoverableError(
                 'Can not undefine guest domain.'
@@ -795,7 +796,7 @@ def perfomance(**kwargs):
         # and after sleep for 5 seconds.
         ctx.logger.debug("Used: {} seconds.".format(before_usage))
         time.sleep(5)
-        statistics['cpu'] = 100 * (_current_use(dom) - before_usage) / 5
+        statistics['cpu'] = 100 * (_current_use(dom) - before_usage) // 5
 
         memory = dom.memoryStats()
         statistics['memory'] = memory.get('actual', 0) / 1024.0

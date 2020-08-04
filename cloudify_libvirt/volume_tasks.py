@@ -69,7 +69,7 @@ def create(**kwargs):
                 raise cfy_exc.NonRecoverableError(
                     'Failed to download volume.'
                 )
-            capacity = allocation / (1024 * 1024)
+            capacity = allocation // (1024 * 1024)
             if allocation % (1024 * 1024):
                 # we need one more MiB
                 capacity += 1
@@ -99,7 +99,7 @@ def _stream_wipe(ctx, conn, volume, allocation):
     stream = conn.newStream(0)
     volume.upload(stream, 0, allocation * 1024, 0)
     zero_buff = "\0" * 1024
-    for i in xrange(allocation):
+    for _ in range(allocation):
         stream.send(zero_buff)
     stream.finish()
 
@@ -128,13 +128,15 @@ def _stream_download(ctx, conn, volume, url):
                 start=start_range,
                 stop=stop_range,
                 allocation=allocation,
-                place=(100 * stop_range)/allocation))
+                place=(100 * stop_range) // allocation)
+        )
         res = requests.get(
             url,
             headers={
                 "Range": "bytes={start}-{stop}".format(
                     start=start_range,
-                    stop=stop_range)},
+                    stop=stop_range)
+            },
             allow_redirects=True,
             stream=True)
         res.raise_for_status()
@@ -227,7 +229,7 @@ def stop(**kwargs):
                 'Failed to find the volume: {}'.format(repr(e))
             )
 
-        for i in xrange(10):
+        for i in range(10):
             ctx.logger.info("Tring to wipe volume {}/10".format(i))
             if volume.wipe(0) == 0:
                 break

@@ -106,8 +106,11 @@ def configure(**kwargs):
         state, capacity, allocation, available = pool.info()
         ctx.logger.info(
             "State: {}, Capacity: {}, Allocation: {}, Available: {}"
-            .format(repr(state), repr(capacity),
-                    repr(allocation), repr(available)))
+            .format(repr(state),
+                    repr(capacity),
+                    repr(allocation),
+                    repr(available))
+        )
         if state == libvirt.VIR_STORAGE_POOL_INACTIVE:
             if pool.build(0) < 0:
                 raise cfy_exc.RecoverableError(
@@ -147,12 +150,12 @@ def start(**kwargs):
             )
 
         # pool create
-        for i in xrange(10):
+        for i in range(10):
             if pool.isActive():
                 ctx.logger.info("Looks as active.")
                 break
 
-            ctx.logger.info("Tring to start pool {}/10".format(i))
+            ctx.logger.info("Trying to start pool {}/10".format(i))
             if pool.create() < 0:
                 raise cfy_exc.RecoverableError(
                     'Can not start pool.'
@@ -196,12 +199,12 @@ def stop(**kwargs):
                 'Failed to find the pool: {}'.format(repr(e))
             )
 
-        for i in xrange(10):
+        for i in range(10):
             if not pool.isActive():
                 ctx.logger.info("Looks as not active.")
                 break
 
-            ctx.logger.info("Tring to stop pool {}/10".format(i))
+            ctx.logger.info("Trying to stop pool {}/10".format(i))
             if pool.destroy() < 0:
                 raise cfy_exc.NonRecoverableError(
                     'Can not destroy pool.'
@@ -211,8 +214,11 @@ def stop(**kwargs):
         state, capacity, allocation, available = pool.info()
         ctx.logger.info(
             "State: {}, Capacity: {}, Allocation: {}, Available: {}"
-            .format(repr(state), repr(capacity),
-                    repr(allocation), repr(available)))
+            .format(repr(state),
+                    repr(capacity),
+                    repr(allocation),
+                    repr(available))
+        )
         if state != libvirt.VIR_STORAGE_POOL_INACTIVE:
             if pool.delete() < 0:
                 raise cfy_exc.RecoverableError(

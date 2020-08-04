@@ -17,6 +17,8 @@ import mock
 from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 
+from cloudify_common_sdk._compat import builtins_open
+
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.common as common
 
@@ -100,9 +102,7 @@ class TestCommon(LibVirtCommonTest):
                 makedirs
             ):
                 fake_file = mock.mock_open()
-                with mock.patch(
-                    '__builtin__.open', fake_file
-                ):
+                with mock.patch(builtins_open, fake_file):
                     common.save_node_state("a", "b", "c")
                 fake_file.assert_called_with('a/b.xml', 'w')
                 fake_file().write.assert_called_with("c")
@@ -142,9 +142,7 @@ class TestCommon(LibVirtCommonTest):
         ):
             fake_file = mock.mock_open()
             fake_file().read = mock.Mock(return_value=">>")
-            with mock.patch(
-                '__builtin__.open', fake_file
-            ):
+            with mock.patch(builtins_open, fake_file):
                 self.assertEqual(common.read_node_state("a", "b"), ">>")
             fake_file.assert_called_with('a/b.xml', 'r')
             fake_file().read.assert_called_with()

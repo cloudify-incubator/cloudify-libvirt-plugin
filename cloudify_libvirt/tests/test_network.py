@@ -18,6 +18,8 @@ from cloudify.state import current_ctx
 from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 
+from cloudify_common_sdk._compat import builtins_open
+
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.network_tasks as network_tasks
 
@@ -289,7 +291,7 @@ class TestNetworkTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "<network/>"
                 with mock.patch(
-                    '__builtin__.open', fake_file
+                    builtins_open, fake_file
                 ):
                     network_tasks.snapshot_apply(
                         ctx=_ctx, snapshot_name="backup!",
@@ -344,7 +346,7 @@ class TestNetworkTasks(LibVirtCommonTest):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "!!!!"
                 with mock.patch(
-                    '__builtin__.open', fake_file
+                    builtins_open, fake_file
                 ):
                     # with error, already exists
                     with mock.patch(
@@ -433,19 +435,19 @@ class TestNetworkTasks(LibVirtCommonTest):
             ):
                 fake_file = mock.mock_open()
                 fake_file().read.return_value = "!!!!"
+                remove_mock = mock.Mock()
                 with mock.patch(
-                    '__builtin__.open', fake_file
+                    "os.remove",
+                    remove_mock
                 ):
-                    remove_mock = mock.Mock()
                     with mock.patch(
-                        "os.remove",
-                        remove_mock
+                        builtins_open, fake_file
                     ):
                         network_tasks.snapshot_delete(
                             ctx=_ctx, snapshot_name="backup!",
                             snapshot_incremental=False)
-                    remove_mock.assert_called_with('./backup!/resource.xml')
-                fake_file.assert_called_with('./backup!/resource.xml', 'r')
+                    fake_file.assert_called_with('./backup!/resource.xml', 'r')
+                remove_mock.assert_called_with('./backup!/resource.xml')
 
     def test_delete(self):
         self._test_no_resource_id(network_tasks.delete)

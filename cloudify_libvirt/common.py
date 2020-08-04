@@ -17,8 +17,8 @@ from pkg_resources import resource_filename
 
 from cloudify import ctx
 from cloudify import exceptions as cfy_exc
-
 from cloudify_common_sdk import filters
+from cloudify_common_sdk._compat import text_type
 
 
 def get_libvirt_params(**kwargs):
@@ -40,7 +40,7 @@ def get_libvirt_params(**kwargs):
     if not template_params.get("name"):
         template_params["name"] = ctx.instance.id
     if not template_params.get("instance_uuid"):
-        template_params["instance_uuid"] = str(uuid.uuid4())
+        template_params["instance_uuid"] = text_type(uuid.uuid4())
 
     # update 'resource_id', 'use_external_resource' from kwargs
     for field in ['resource_id', 'use_external_resource']:

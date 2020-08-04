@@ -6,4 +6,4 @@ nose-cov
 flake8
 pylint
 # for blueprints validate
-cloudify==4.5.5
+cloudify==5.0.5.1

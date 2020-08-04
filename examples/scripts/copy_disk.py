@@ -87,16 +87,16 @@ if __name__ == '__main__':
     ctx.logger.info("Current dir: {}".format(repr(cwd)))
 
     copy_disk = "{}/{}.qcow2".format(cwd, ctx.instance.id)
-    if execute_command([
+    if not execute_command([
         "qemu-img", "create", "-f", "qcow2", "-o",
         "backing_file={}".format(base_disk), copy_disk
-    ]) == False:
+    ]):
         raise exceptions.RecoverableError('Failed create disk.')
     if ctx.instance.runtime_properties.get('disk_size'):
-        if execute_command([
+        if not execute_command([
             "qemu-img", "resize", copy_disk,
             ctx.instance.runtime_properties.get('disk_size')
-        ]) == False:
+        ]):
             raise exceptions.RecoverableError('Failed resize disk.')
 
     ctx.instance.runtime_properties["vm_image"] = copy_disk
@@ -112,22 +112,22 @@ if __name__ == '__main__':
     with open("{}/user-data".format(seed_disk), 'w') as user_data:
         user_data.write(cloud_init)
 
-    if execute_command([
+    if not execute_command([
         "genisoimage", "-output", "{}.iso".format(seed_disk),
-        "-volid", "cidata",  "-joliet", "-rock",
+        "-volid", "cidata", "-joliet", "-rock",
         "{}/user-data".format(seed_disk),
         "{}/meta-data".format(seed_disk)
-    ]) == False:
+    ]):
         raise exceptions.RecoverableError('Failed create iso.')
 
     os.remove("{}/user-data".format(seed_disk))
     os.remove("{}/meta-data".format(seed_disk))
     os.rmdir(seed_disk)
 
-    if execute_command([
+    if not execute_command([
         "qemu-img", "convert", "-f", "raw", "-O", "qcow2",
         "{}.iso".format(seed_disk), "{}.qcow2".format(seed_disk)
-    ]) == False:
+    ]):
         raise exceptions.RecoverableError('Failed convert qcow image')
 
     os.remove("{}.iso".format(seed_disk))

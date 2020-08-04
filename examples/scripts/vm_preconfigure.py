@@ -40,8 +40,8 @@ if __name__ == "__main__":
             network['type'] = "virtio"
         if not network.get('mac'):
             octet_full = (time.time() * 1000) % (256 * 256 * 256)
-            octet_low = octet_full / 256
-            octet_hi = octet_low / 256
+            octet_low = octet_full // 256
+            octet_hi = octet_low // 256
             network['mac'] = "52:54:00:%02x:%02x:%02x" % (
                                 octet_low % 256,
                                 octet_hi % 256,

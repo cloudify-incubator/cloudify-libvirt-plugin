@@ -14,9 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import platform
+
 import subprocess
 from cloudify import ctx
+try:
+    import distro
+except ImportError:
+    import os
+    p = os.popen("pip install --user distro")
+    output = p.read()
+    import distro
 
 
 def execute_command(command, extra_args=None):
@@ -43,8 +50,10 @@ def execute_command(command, extra_args=None):
 
     if process.returncode:
         ctx.logger.error('Running `{0}` returns {1} error: {2}.'
-                         .format(repr(command), process.returncode,
-                                 repr(error)))
+                         .format(repr(command),
+                                 process.returncode,
+                                 repr(error))
+                        )
         return False
 
     return output
@@ -57,9 +66,9 @@ if __name__ == '__main__':
     linux_distro = ctx.node.properties.get('linux_distro')
 
     if not linux_distro:
-        distro, _, _ = \
-            platform.linux_distribution(full_distribution_name=False)
-        linux_distro = distro.lower()
+        linux_distro_raw = \
+            distro.linux_distribution(full_distribution_name=False)[0]
+        linux_distro = linux_distro_raw.lower()
 
     if ('centos' in linux_distro) or ('redhat' in linux_distro):
         execute_command(["sudo", "yum", "install", "util-linux", "-y"])

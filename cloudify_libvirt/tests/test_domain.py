@@ -20,6 +20,8 @@ from cloudify.mocks import MockCloudifyContext
 from cloudify.exceptions import NonRecoverableError, RecoverableError
 from cloudify.manager import DirtyTrackingDict
 
+from cloudify_common_sdk._compat import PY2, builtins_open
+
 from cloudify_libvirt.tests.test_common_base import LibVirtCommonTest
 import cloudify_libvirt.domain_tasks as domain_tasks
 
@@ -599,16 +601,16 @@ class TestDomainTasks(LibVirtCommonTest):
                 if not raw_case:
                     fake_file().read.return_value = "!!!!"
                 with mock.patch(
-                    '__builtin__.open', fake_file
+                    builtins_open, fake_file
                 ):
                     # with error, already exists
-                    with mock.patch(
-                        "os.path.isfile",
-                        mock.Mock(return_value=True)
+                    with self.assertRaisesRegexp(
+                        NonRecoverableError,
+                        "Backup node_name-snapshot_name already exists."
                     ):
-                        with self.assertRaisesRegexp(
-                            NonRecoverableError,
-                            "Backup node_name-snapshot_name already exists."
+                        with mock.patch(
+                            "os.path.isfile",
+                            mock.Mock(return_value=True)
                         ):
                             domain_tasks.snapshot_create(
                                 ctx=_ctx,
@@ -621,7 +623,8 @@ class TestDomainTasks(LibVirtCommonTest):
                         mock.Mock(return_value=False)
                     ):
                         domain_tasks.snapshot_create(
-                            ctx=_ctx, template_resource="template_resource",
+                            ctx=_ctx,
+                            template_resource="template_resource",
                             snapshot_name='snapshot_name',
                             snapshot_incremental=False)
                 if raw_case:
@@ -721,21 +724,23 @@ class TestDomainTasks(LibVirtCommonTest):
                 if not raw_case:
                     fake_file().read.return_value = "old"
                 with mock.patch(
-                    '__builtin__.open', fake_file
+                    builtins_open, fake_file
                 ):
                     # have same backup
                     domain.snapshotNum = mock.Mock(return_value=0)
                     domain.state = mock.Mock(
                         return_value=(libvirt.VIR_DOMAIN_SHUTOFF, ""))
                     domain.XMLDesc = mock.Mock(return_value="old")
-                    domain_tasks.snapshot_apply(ctx=_ctx,
-                                                snapshot_name='snapshot_name',
-                                                snapshot_incremental=False)
+                    if not PY2:
+                        domain.undefineFlags = mock.Mock(return_value=0)
+                    domain_tasks.snapshot_apply(
+                        ctx=_ctx, snapshot_name='snapshot_name',
+                        snapshot_incremental=False)
                     # have different backup
                     domain.XMLDesc = mock.Mock(return_value="new")
-                    domain_tasks.snapshot_apply(ctx=_ctx,
-                                                snapshot_name='snapshot_name',
-                                                snapshot_incremental=False)
+                    domain_tasks.snapshot_apply(
+                        ctx=_ctx, snapshot_name='snapshot_name',
+                        snapshot_incremental=False)
                 if raw_case:
                     fake_file.assert_not_called()
                     connect.restore.assert_called_with(
@@ -816,7 +821,7 @@ class TestDomainTasks(LibVirtCommonTest):
                 if not raw_case:
                     fake_file().read.return_value = "!!!!"
                 with mock.patch(
-                    '__builtin__.open', fake_file
+                    builtins_open, fake_file
                 ):
                     remove_mock = mock.Mock()
                     with mock.patch(
