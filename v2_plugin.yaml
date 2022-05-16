@@ -1,0 +1,439 @@
+plugins:
+  libvirt:
+    executor: central_deployment_agent
+    package_name: cloudify-libvirt-plugin
+    package_version: '0.9.1'
+    source: https://github.com/cloudify-incubator/cloudify-libvirt-plugin/archive/0.9.1.zip
+
+blueprint_labels:
+  obj-type: 
+    values: 
+      - libvirt
+
+labels:
+  obj-type: 
+    values: 
+      - libvirt
+
+data_types:
+
+  cloudify.datatypes.pool:
+    properties:
+      name:
+        required: false
+        default: ""
+        description: >
+          Pool name
+      path:
+        required: false
+        default: ""
+        description: >
+          Pool path
+      capacity:
+        required: false
+        type: integer
+        description: >
+          Storage size in GiB
+
+  cloudify.datatypes.volume:
+    properties:
+      name:
+        required: false
+        default: ""
+        description: >
+          Volume name
+      path:
+        required: false
+        default: ""
+        description: >
+          Volume path
+      pool:
+        required: false
+        type: string
+        description: >
+          Parent pool
+      capacity:
+        required: false
+        type: integer
+        description: >
+          Volume size in GiB
+      allocation:
+        required: false
+        default: 0
+        type: integer
+        description: >
+          Volume allocation size in MiB
+      url:
+        required: false
+        default: ""
+        type: string
+        description: >
+          Http(s) link to external disk image
+      zero_wipe:
+        required: false
+        default: false
+        type: boolean
+        description: >
+          Volume allocation zero wipe
+
+  cloudify.datatypes.iso9660:
+    properties:
+      volume:
+        required: false
+        default: ""
+        description: >
+          Volume name
+      pool:
+        required: false
+        type: string
+        description: >
+          Parent pool
+      files:
+        required: false
+        description: >
+          File list with content. (Key:value)
+
+  cloudify.datatypes.network:
+    properties:
+      name:
+        required: false
+        default: ""
+        description: >
+          Network name
+      dev:
+        required: false
+        default: ""
+        description: >
+          Device name
+      forwards:
+        required: false
+        default: []
+        description: >
+          Settings for network `forwards`.
+      ips:
+        required: false
+        default: []
+        description: >
+          Settings for network `ips`.
+
+  cloudify.datatypes.domain:
+    properties:
+      name:
+        required: false
+        default: ""
+        description: >
+          Domain name
+      vcpu:
+        required: false
+        type: integer
+        description: >
+          CPU count
+      memory_size:
+        required: false
+        type: integer
+        description: >
+          VM memory size in KiB
+      memory_maxsize:
+        required: false
+        type: integer
+        description: >
+          Recomended VM memory size in KiB for upgrade
+      nvram:
+        required: false
+        type: string
+        description: >
+          Path to nvram
+      disks:
+        required: false
+        description: >
+          List connected disks
+        default: []
+      networks:
+        required: false
+        description: >
+          List connected networks
+        default: []
+      full_dump:
+        default: false
+        description: >
+          Make full dump for backups with memory snapshot to dump file.
+          On create/restore backup will be removed all snapshots in domain.
+      wait_for_ip:
+        default: true
+        description: >
+          Wait until we have some private ip on interfaces
+      domain_type:
+        description: >
+          Type of virtualization
+        default: qemu
+
+node_types:
+
+  cloudify.libvirt.domain:
+    derived_from: cloudify.nodes.Compute
+    properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
+      backup_dir:
+        default: './'
+      libvirt_auth:
+        default: 'qemu:///system'
+      params:
+        type: cloudify.datatypes.domain
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.create
+          inputs: {}
+        configure:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.configure
+          inputs:
+            params:
+              default: {}
+            template_resource:
+              default: ''
+            template_content:
+              default: ''
+        start:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.start
+          inputs: {}
+        # reboot vm
+        reboot:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.reboot
+          inputs: {}
+        # update vm cpu/memory
+        update:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.update
+          inputs: {}
+        stop:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.stop
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.delete
+          inputs: {}
+      # suspend/resume
+      cloudify.interfaces.freeze:
+        suspend:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.suspend
+          inputs: {}
+        resume:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.resume
+          inputs: {}
+      # backups related section
+      cloudify.interfaces.snapshot:
+        create:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.snapshot_create
+          inputs: {}
+        apply:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.snapshot_apply
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.snapshot_delete
+          inputs: {}
+      # usage
+      cloudify.interfaces.statistics:
+        perfomance:
+          implementation: libvirt.cloudify_libvirt.domain_tasks.perfomance
+          inputs: {}
+
+  cloudify.libvirt.network:
+    derived_from: cloudify.nodes.Network
+    properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
+      backup_dir:
+        default: './'
+      libvirt_auth:
+        default: 'qemu:///system'
+      params:
+        type: cloudify.datatypes.network
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: libvirt.cloudify_libvirt.network_tasks.create
+          inputs:
+            params:
+              default: {}
+            template_resource:
+              default: ''
+            template_content:
+              default: ''
+        delete:
+          implementation: libvirt.cloudify_libvirt.network_tasks.delete
+          inputs: {}
+      # backups related section
+      cloudify.interfaces.snapshot:
+        create:
+          implementation: libvirt.cloudify_libvirt.network_tasks.snapshot_create
+          inputs: {}
+        apply:
+          implementation: libvirt.cloudify_libvirt.network_tasks.snapshot_apply
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.network_tasks.snapshot_delete
+          inputs: {}
+
+  cloudify.libvirt.pool:
+    derived_from: cloudify.nodes.Tier
+    properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
+      backup_dir:
+        default: './'
+      libvirt_auth:
+        default: 'qemu:///system'
+      params:
+        type: cloudify.datatypes.pool
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.create
+          inputs:
+            params:
+              default: {}
+            template_resource:
+              default: ''
+            template_content:
+              default: ''
+        configure:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.configure
+          inputs: {}
+        start:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.start
+          inputs: {}
+        stop:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.stop
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.delete
+          inputs: {}
+      # backups related section
+      cloudify.interfaces.snapshot:
+        create:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.snapshot_create
+          inputs: {}
+        apply:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.snapshot_apply
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.pool_tasks.snapshot_delete
+          inputs: {}
+
+  cloudify.libvirt.volume:
+    derived_from: cloudify.nodes.Tier
+    properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
+      backup_dir:
+        default: './'
+      libvirt_auth:
+        default: 'qemu:///system'
+      params:
+        type: cloudify.datatypes.volume
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.create
+          inputs:
+            params:
+              type: cloudify.datatypes.volume
+            template_resource:
+              default: ''
+            template_content:
+              default: ''
+        start:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.start
+          inputs: {}
+        stop:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.stop
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.delete
+          inputs: {}
+      # backups related section
+      cloudify.interfaces.snapshot:
+        create:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.snapshot_create
+          inputs: {}
+        apply:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.snapshot_apply
+          inputs: {}
+        delete:
+          implementation: libvirt.cloudify_libvirt.volume_tasks.snapshot_delete
+          inputs: {}
+
+  cloudify.libvirt.ISO9660:
+    derived_from: cloudify.nodes.Tier
+    properties:
+      use_external_resource:
+        required: false
+        default: false
+        description: >
+          Use external object. The default is `false`.
+      resource_id:
+        required: false
+        default: ""
+        description: >
+          Used to identify the object when `use_external_resource` is true.
+      backup_dir:
+        default: './'
+      libvirt_auth:
+        default: 'qemu:///system'
+      params:
+        type: cloudify.datatypes.iso9660
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: libvirt.cloudify_libvirt.iso9660_tasks.create
+          inputs:
+            params:
+              default: {}
+            template_resource:
+              default: ''
+            template_content:
+              default: ''
+
+relationships:
+
+  cloudify.libvirt.relationships.connected_to:
+    derived_from: cloudify.relationships.connected_to
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        establish:
+          implementation: libvirt.cloudify_libvirt.network_tasks.link
+          inputs: {}
+        unlink:
+          implementation: libvirt.cloudify_libvirt.network_tasks.unlink
+          inputs: {}
