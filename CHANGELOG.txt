@@ -47,6 +47,3 @@ releases:
   v0.9.1:
   * Apply futurize fixes for python3
   * Port source code to python3
-
- v0.9.1.1:
-  * Testing webhook for Marketplace scraping
