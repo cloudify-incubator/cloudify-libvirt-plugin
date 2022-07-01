@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import os
 import sys
 from setuptools import setup
@@ -34,6 +35,7 @@ def get_version(rel_file='plugin.yaml'):
             return line_no_quotes.strip('\n')
     raise RuntimeError('Unable to find version string.')
 
+
 setup(
     name='cloudify-libvirt-plugin',
     version=get_version(),
@@ -56,6 +58,6 @@ setup(
         # libvirt-6.0 requires python3
         'libvirt-python>=4.5.0,<6.0',
         # cdrom create code
-        "cloudify-utilities-plugins-sdk==0.0.27",
+        "cloudify-utilities-plugins-sdk>=0.0.27",
     ],
 )
