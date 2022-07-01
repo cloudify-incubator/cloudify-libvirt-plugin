@@ -1,4 +1,10 @@
-version: 2
+version: 2.1
+
+orbs:
+  node: cloudify/public-unittest-orb@1 #orb version
+  wagonorb: cloudify/wagon-bulder-orb@2.2.0 #orb version
+  releaseorb: cloudify/release-orb@1.4.0 #orb version
+  managerorb: cloudify/manager-orb@1
 
 checkout:
   post:
@@ -9,194 +15,70 @@ checkout:
         git checkout -qf FETCH_HEAD
       fi
 
-jobs:
+executors:
 
-  py3_compat:
+  py36:
+    environment:
+      PYENV_VERSION: 3.6.5
     docker:
-      - image: circleci/python:2.7
-    steps:
-      - checkout
-      - run:
-          name: install futurize
-          command: pip install future --user
-      - run:
-          name: find python3-incompatible code
-          command: |
-            FUTURIZE="futurize ."
-            while read line; do
-              [[ "$line" =~ ^#.* ]] && continue
-              FUTURIZE="${FUTURIZE} ${line}"
-            done<.circleci/py3fixers
-            echo "Running: $FUTURIZE"
-            $FUTURIZE>futurize_diffs
-      - run:
-          name: check that there is no python3-incompatible code
-          command: |
-            if [[ -s futurize_diffs ]]; then
-              echo "Python-3-incompatible code found"
-              cat futurize_diffs
-              exit 1
-            fi
-
-  unittests_py27:
-    docker:
-      - image: circleci/python:2.7.15-stretch
-    steps:
-      - checkout
-      - run:
-          name: update links
-          command: sudo apt-get update -y
-      - run:
-          name: install python/pip/libvirt packages
-          command: sudo apt-get install -yq python-libvirt libvirt-dev python-dev python-pip
-      - run:
-          name: Download pip
-          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-      - run:
-          name: Install pip
-          command: sudo python get-pip.py
-      - run:
-          name: Install virtualenv
-          command: pip install --user virtualenv
-      - run:
-          name: Init virtualenv
-          command: virtualenv env
-      - run:
-          name: install tox
-          command: pip install --user tox
-      - run: /home/circleci/.local/bin/tox -e flake8
-      - run: /home/circleci/.local/bin/tox -e nosetests
-
-  unittests_py36:
-    docker:
-      - image: circleci/python:3.6-stretch
-    steps:
-      - checkout
-      - run:
-          name: update links
-          command: sudo apt-get update -y
-      - run:
-          name: install python/pip/libvirt packages
-          command: sudo apt-get install -yq python-libvirt libvirt-dev python-dev python-pip
-      - run:
-          name: Download pip
-          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-      - run:
-          name: Install pip
-          command: sudo python get-pip.py
-      - run:
-          name: Install virtualenv
-          command: pip install --user virtualenv
-      - run:
-          name: Init virtualenv
-          command: virtualenv env
-      - run:
-          name: install tox
-          command: pip install --user tox
-      - run: /home/circleci/.local/bin/tox -e flake8
-      - run: /home/circleci/.local/bin/tox -e nosetests
-
-  wagon:
-    machine:
-      image: ubuntu-1604:201903-01
-    steps:
-      - checkout
-      - run:
-          name: Create Workspace Build directory.
-          command: mkdir -p workspace/build
-      - run:
-          name: Build py27py36 Wagon
-          command: |
-              git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
-              docker build -t cloudify-centos-7-wagon-builder cloudify-wagon-build-containers/centos_7_py2py3
-              docker run -v ~/project/:/packaging cloudify-centos-7-wagon-builder
-      - run:
-          name: copy wagon to workspace
-          command: cp *.wgn workspace/build/
-      - persist_to_workspace:
-          root: workspace
-          paths:
-            - build/*
-
-  rhel_wagon:
-    machine:
-      image: ubuntu-1604:201903-01
-    steps:
-      - checkout
-      - run:
-          name: Create Workspace Build directory.
-          command: mkdir -p workspace/build
-      - run:
-          name: Build RHEL py27py36 Wagon
-          command: |
-              git clone https://github.com/cloudify-cosmo/cloudify-wagon-build-containers.git
-              docker build -t cloudify-redhat-7-wagon-builder cloudify-wagon-build-containers/redhat_7_py2py3 --build-arg USERNAME="$USERNAME" --build-arg PASSWORD="$PASSWORD"
-              docker run -v ~/project/:/packaging cloudify-redhat-7-wagon-builder
-      - run:
-          name: copy wagon to workspace
-          command: cp *.wgn workspace/build/
-      - persist_to_workspace:
-          root: workspace
-          paths:
-            - build/*
-
-  release:
-    docker:
-      - image: circleci/python:2.7
-    steps:
-      - checkout
-      - run:
-          name: "Pull Submodules"
-          command: |
-            git submodule init
-            git submodule update --remote --recursive
-      - run:
-          name: Download pip
-          command: curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-      - run:
-          name: Install pip
-          command: sudo python get-pip.py
-      - run:
-          name: Install virtualenv
-          command: pip install --user virtualenv
-      - run:
-          name: Init virtualenv
-          command: virtualenv env
-      - run:
-          name: install tox
-          command: pip install --user pygithub pyyaml==3.10
-      - run:
-          name: upgrade setuptools
-          command: pip install --upgrade setuptools
-      - run:
-          name: install local project
-          command: pip install https://github.com/cloudify-incubator/cloudify-ecosystem-test/archive/latest.zip
-      - attach_workspace:
-          at: workspace
-      - run: python .circleci/package_release.py
-
+      - image: circleci/python:3.6
 
 workflows:
   version: 2
   tests:
     jobs:
-      - py3_compat
-      - unittests_py27
-      - unittests_py36
-      - wagon:
+      - node/check_py3_compat_job
+      - node/unittests_job
+      - node/validate_version_job
+      - node/validate_documentation_job
+      - wagonorb/wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
-      - rhel_wagon:
+              only: /([0-9\.]*\-build|master|main)/
+      - wagonorb/arch64_wagon:
           filters:
             branches:
-              only: /([0-9\.]*\-build|master|dev)/
-      - release:
+              only: /([0-9\.]*\-build|master|main)/
+      - wagonorb/rhel_wagon:
           filters:
             branches:
-              only: /master/
+              only: /([0-9\.]*\-build|master|main)/
+      - wagonorb/build_bundle:
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master|main)/
           requires:
-            - unittests_py27
-            - unittests_py36
-            - wagon
-            - rhel_wagon
+            - wagonorb/wagon
+            - wagonorb/arch64_wagon
+            - wagonorb/rhel_wagon
+      - releaseorb/release:
+          filters:
+            branches:
+              only: /master|main/
+          requires:
+            - wagonorb/wagon
+            - wagonorb/arch64_wagon
+            - wagonorb/rhel_wagon
+            - wagonorb/build_bundle
+            - node/validate_version_job
+            - node/validate_documentation_job
+      - releaseorb/merge_docs_job:
+          filters:
+            branches:
+              only: /master|main/
+          requires:
+            - releaseorb/release
+            - node/validate_documentation_job
+
+  nightly:
+    triggers:
+    - schedule:
+        cron: "0 1 * * 0,1,3,5"
+        filters:
+          branches:
+            only:
+              - master|main
+    jobs:
+      - node/check_py3_compat_job
+      - node/validate_version_job
+      - node/unittests_job
