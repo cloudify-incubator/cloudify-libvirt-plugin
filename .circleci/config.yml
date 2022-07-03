@@ -31,8 +31,12 @@ commands:
 
 jobs:
   custom_unittest:
-    executor: py36
+    environment:
+      PYENV_VERSION: 3.6.5
+    docker:
+      - image: circleci/python:3.6
     steps:
+      - checkout
       - install_libvirt_dev
       - node/unittests_job # Utilize commands in steps
 
