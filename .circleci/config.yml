@@ -23,12 +23,17 @@ executors:
     docker:
       - image: circleci/python:3.6
 
+commands:
+  install_libvirt_dev:
+    steps:
+      - run: sudo apt-get update
+      - run: sudo apt-get install libvirt-dev
+
 jobs:
   custom_unittest:
     executor: py36
     steps:
-      - run: sudo apt-get update
-      - run: sudo apt-get install libvirt-dev
+      - install_libvirt_dev
       - node/unittests_job # Utilize commands in steps
 
 workflows:
