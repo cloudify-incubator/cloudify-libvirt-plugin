@@ -23,6 +23,14 @@ executors:
     docker:
       - image: circleci/python:3.6
 
+jobs:
+  unittest:
+    executor: py36
+    steps:
+      - run: sudo apt-get update
+      - run: sudo apt-get install libvirt-dev
+      - node/unittests_job # Utilize commands in steps
+
 workflows:
   version: 2
   tests:
