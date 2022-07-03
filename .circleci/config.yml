@@ -38,7 +38,7 @@ jobs:
     steps:
       - checkout
       - install_libvirt_dev
-      - node/unittests_job # Utilize commands in steps
+      - node/unittests # Utilize commands in steps
 
 workflows:
   version: 2
