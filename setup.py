@@ -34,7 +34,7 @@ setup(
     install_requires=[
         'cloudify-common>=4.5.0',
         # libvirt-6.0 requires python3
-        'libvirt-python==7.10',
+        'libvirt-python==8.5.0',
         # cdrom create code
         "cloudify-utilities-plugins-sdk>=0.0.27",
     ],
