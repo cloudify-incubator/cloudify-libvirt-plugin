@@ -32,3 +32,4 @@
  - Port source code to python3
 0.9.1.1: Testing webhook for Marketplace scraping
 0.9.2: Rerelease for build system.
+0.9.3: Rerelease with rhel8.
