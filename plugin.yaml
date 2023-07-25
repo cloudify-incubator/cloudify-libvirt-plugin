@@ -357,7 +357,7 @@ node_types:
           implementation: libvirt.cloudify_libvirt.volume_tasks.create
           inputs:
             params:
-              type: cloudify.datatypes.volume
+              default: {}
             template_resource:
               default: ''
             template_content:
