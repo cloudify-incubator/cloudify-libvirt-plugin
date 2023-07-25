@@ -84,7 +84,7 @@ def gen_xml_template(kwargs, template_params, default_template):
                         'target_port': device.get('target_port')})
             elif device.get('type') == 'usb':
                 if 'vendor_id' in device and 'product_id' in device:
-                    serial_devices.append({
+                    usb_devices.append({
                         'vendor_id': device.get('vendor_id'),
                         'product_id': device.get('product_id')})
             elif device.get('type') == 'pci':
