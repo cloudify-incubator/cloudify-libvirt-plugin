@@ -48,6 +48,27 @@
         <driver type="{{ disk.type }}"/>
       </disk>
     {% endfor %}
+    {% for serial_device in serial_devices %}
+      <serial type='pty'>
+        <source path='{{ serial_device.source_path }}'/>
+        <target port='{{ serial_device.target_port }}'/>
+    </serial>
+    {% endfor %}
+    {% for usb_device in usb_devices %}
+      <hostdev mode='subsystem' type='usb' managed='yes'>
+          <source>
+              <vendor id='{{ usb_device.vendor_id }}'/>
+              <product id='{{ usb_device.product_id }}'/>
+          </source>
+      </hostdev>
+    {% endfor %}
+    {% for pci_device in pci_devices %}
+      <hostdev mode='subsystem' type='pci' managed='yes'>
+          <source>
+              <address domain='0x0000' bus='{{ pci_device.bus }}' slot='{{ pci_device.slot }}' function='{{ pci_device.function }}'/>
+          </source>
+      </hostdev>
+    {% endfor %}
   </devices>
   <on_crash>restart</on_crash>
   <on_reboot>restart</on_reboot>

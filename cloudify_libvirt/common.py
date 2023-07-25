@@ -70,6 +70,36 @@ def gen_xml_template(kwargs, template_params, default_template):
     params = {"ctx": ctx}
     if template_params:
         params.update(template_params)
+    # let's handle devices properly
+    passthrough_devices = params.pop('devices', None)
+    if passthrough_devices:
+        serial_devices = []
+        usb_devices = []
+        pci_devices = []
+        for device in passthrough_devices:
+            if device.get('type') == 'serial':
+                if 'source_path' in device and 'target_port' in device:
+                    serial_devices.append({
+                        'source_path': device.get('source_path'),
+                        'target_port': device.get('target_port')})
+            elif device.get('type') == 'usb':
+                if 'vendor_id' in device and 'product_id' in device:
+                    serial_devices.append({
+                        'vendor_id': device.get('vendor_id'),
+                        'product_id': device.get('product_id')})
+            elif device.get('type') == 'pci':
+                if 'bus' in device and 'slot' in device and \
+                        'function' in device:
+                    pci_devices.append({
+                        'bus': device.get('bus'),
+                        'slot': device.get('slot'),
+                        'function': device.get('function')})
+        if serial_devices:
+            params.update({'serial_devices': serial_devices})
+        if usb_devices:
+            params.update({'usb_devices': usb_devices})
+        if pci_devices:
+            params.update({'pci_devices': pci_devices})
     if not isinstance(template_content, str):
         template_content = template_content.decode("utf-8")
     xmlconfig = filters.render_template(template_content, params)
