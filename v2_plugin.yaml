@@ -2,16 +2,16 @@ plugins:
   libvirt:
     executor: central_deployment_agent
     package_name: cloudify-libvirt-plugin
-    package_version: '0.9.3'
+    package_version: '0.9.4'
 
 blueprint_labels:
-  obj-type: 
-    values: 
+  obj-type:
+    values:
       - libvirt
 
 labels:
-  obj-type: 
-    values: 
+  obj-type:
+    values:
       - libvirt
 
 data_types:
@@ -165,6 +165,21 @@ data_types:
         description: >
           Type of virtualization
         default: qemu
+      devices:
+        description: >
+          List of devices to passthrough to guest as a dict in this format:
+          for example:
+          - type: serial
+            source_path: /test
+            target_port: 8080
+          - type: usb
+            vendor_id: 0x1d6b
+            product_id: 0x0002
+          - type: pci
+            bus: 0x01
+            slot: 0x00
+            function: 0x1
+        default: []
 
 node_types:
 
@@ -367,7 +382,7 @@ node_types:
           implementation: libvirt.cloudify_libvirt.volume_tasks.create
           inputs:
             params:
-              type: cloudify.datatypes.volume
+              default: {}
             template_resource:
               default: ''
             template_content:
