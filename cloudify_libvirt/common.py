@@ -70,6 +70,8 @@ def gen_xml_template(kwargs, template_params, default_template):
     params = {"ctx": ctx}
     if template_params:
         params.update(template_params)
+    if not isinstance(template_content, str):
+        template_content = template_content.decode("utf-8")
     xmlconfig = filters.render_template(template_content, params)
     ctx.logger.debug(repr(xmlconfig))
     return xmlconfig
