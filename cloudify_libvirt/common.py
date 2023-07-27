@@ -50,6 +50,47 @@ def get_libvirt_params(**kwargs):
     return libvirt_auth, template_params
 
 
+def handle_device_type(d_type, device):
+    handled_device = {}
+    serial_values = ['source_path', 'target_port']
+    usb_values = ['vendor_id', 'product_id']
+    pci_values = ['bus', 'slot', 'function']
+    tpm_values = ['path']
+    valid_values = None
+    if d_type == 'serial':
+        valid_values = serial_values
+    elif d_type == 'usb':
+        valid_values = usb_values
+    elif d_type == 'pci':
+        valid_values = pci_values
+    elif d_type == 'tpm':
+        valid_values = tpm_values
+    if valid_values:
+        for k in device:
+            if k in valid_values:
+                handled_device[k] = device.get(k)
+    return handled_device
+
+
+def handle_devices(devices):
+    serial_devices = []
+    usb_devices = []
+    pci_devices = []
+    tpm_devices = []
+    for device in devices:
+        to_append = handle_device_type(device.get('type'), device)
+        if to_append:
+            if device.get('type') == 'serial':
+                serial_devices.append(to_append)
+            elif device.get('type') == 'usb':
+                usb_devices.append(to_append)
+            elif device.get('type') == 'pci':
+                pci_devices.append(to_append)
+            elif device.get('type') == 'tpm':
+                tpm_devices.append(to_append)
+    return serial_devices, usb_devices, pci_devices, tpm_devices
+
+
 def gen_xml_template(kwargs, template_params, default_template):
     # templates
     template_resource = kwargs.get('template_resource')
@@ -70,6 +111,21 @@ def gen_xml_template(kwargs, template_params, default_template):
     params = {"ctx": ctx}
     if template_params:
         params.update(template_params)
+    # let's handle devices properly
+    passthrough_devices = params.pop('devices', None)
+    if passthrough_devices:
+        serial_devices, usb_devices, pci_devices, tpm_devices = \
+            handle_devices(passthrough_devices)
+        if serial_devices:
+            params.update({'serial_devices': serial_devices})
+        if usb_devices:
+            params.update({'usb_devices': usb_devices})
+        if pci_devices:
+            params.update({'pci_devices': pci_devices})
+        if tpm_devices:
+            params.update({'tpm_devices': tpm_devices})
+    if not isinstance(template_content, str):
+        template_content = template_content.decode("utf-8")
     xmlconfig = filters.render_template(template_content, params)
     ctx.logger.debug(repr(xmlconfig))
     return xmlconfig

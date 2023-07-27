@@ -1,10 +1,10 @@
 version: 2.1
 
 orbs:
-  node: cloudify/public-unittest-orb@1 #orb version
-  wagonorb: cloudify/wagon-bulder-orb@2.4.0 #orb version
-  releaseorb: cloudify/release-orb@1.4.0 #orb version
-  managerorb: cloudify/manager-orb@1
+  node: cloudify/public-unittest-orb@volatile
+  wagonorb: cloudify/wagon-bulder-orb@volatile
+  releaseorb: cloudify/release-orb@volatile
+  managerorb: cloudify/manager-orb@volatile
 
 checkout:
   post:
@@ -60,14 +60,6 @@ workflows:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|main)/
-      - wagonorb/build_bundle:
-          filters:
-            branches:
-              only: /([0-9\.]*\-build|master|main)/
-          requires:
-            - wagonorb/wagon
-            - wagonorb/arch64_wagon
-            - wagonorb/rhel_wagon
       - releaseorb/release:
           filters:
             branches:
@@ -76,7 +68,6 @@ workflows:
             - wagonorb/wagon
             - wagonorb/arch64_wagon
             - wagonorb/rhel_wagon
-            - wagonorb/build_bundle
             - node/validate_version_job
             - node/validate_documentation_job
       - releaseorb/merge_docs_job:
