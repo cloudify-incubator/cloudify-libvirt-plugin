@@ -50,6 +50,47 @@ def get_libvirt_params(**kwargs):
     return libvirt_auth, template_params
 
 
+def handle_device_type(d_type, device):
+    handled_device = {}
+    serial_values = ['source_path', 'target_port']
+    usb_values = ['vendor_id', 'product_id']
+    pci_values = ['bus', 'slot', 'function']
+    tpm_values = ['path']
+    valid_values = None
+    if d_type == 'serial':
+        valid_values = serial_values
+    elif d_type == 'usb':
+        valid_values = usb_values
+    elif d_type == 'pci':
+        valid_values = pci_values
+    elif d_type == 'tpm':
+        valid_values = tpm_values
+    if valid_values:
+        for k in device:
+            if k in valid_values:
+                handled_device[k] = device.get(k)
+    return handled_device
+
+
+def handle_devices(devices):
+    serial_devices = []
+    usb_devices = []
+    pci_devices = []
+    tpm_devices = []
+    for device in devices:
+        to_append = handle_device_type(device.get('type'), device)
+        if to_append:
+            if device.get('type') == 'serial':
+                serial_devices.append(to_append)
+            elif device.get('type') == 'usb':
+                usb_devices.append(to_append)
+            elif device.get('type') == 'pci':
+                pci_devices.append(to_append)
+            elif device.get('type') == 'tpm':
+                tpm_devices.append(to_append)
+    return serial_devices, usb_devices, pci_devices, tpm_devices
+
+
 def gen_xml_template(kwargs, template_params, default_template):
     # templates
     template_resource = kwargs.get('template_resource')
@@ -73,32 +114,8 @@ def gen_xml_template(kwargs, template_params, default_template):
     # let's handle devices properly
     passthrough_devices = params.pop('devices', None)
     if passthrough_devices:
-        serial_devices = []
-        usb_devices = []
-        pci_devices = []
-        tpm_devices = []
-        for device in passthrough_devices:
-            if device.get('type') == 'serial':
-                if 'source_path' in device and 'target_port' in device:
-                    serial_devices.append({
-                        'source_path': device.get('source_path'),
-                        'target_port': device.get('target_port')})
-            elif device.get('type') == 'usb':
-                if 'vendor_id' in device and 'product_id' in device:
-                    usb_devices.append({
-                        'vendor_id': device.get('vendor_id'),
-                        'product_id': device.get('product_id')})
-            elif device.get('type') == 'pci':
-                if 'bus' in device and 'slot' in device and \
-                        'function' in device:
-                    pci_devices.append({
-                        'bus': device.get('bus'),
-                        'slot': device.get('slot'),
-                        'function': device.get('function')})
-            elif device.get('type') == 'tpm':
-                if 'path' in device:
-                    tpm_devices.append({
-                        'path': device.get('path')})
+        serial_devices, usb_devices, pci_devices, tpm_devices = \
+            handle_devices(passthrough_devices)
         if serial_devices:
             params.update({'serial_devices': serial_devices})
         if usb_devices:
