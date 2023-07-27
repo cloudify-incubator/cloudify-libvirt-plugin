@@ -160,8 +160,8 @@ data_types:
           List of devices to passthrough to guest as a dict in this format:
           for example:
           - type: serial
-            source_path: /test
-            target_port: 8080
+            source_path: /dev/ttyS1
+            target_port: 1
           - type: usb
             vendor_id: 0x1d6b
             product_id: 0x0002

@@ -12,11 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import re
+import pathlib
 from setuptools import setup
+
+
+def get_version():
+    current_dir = pathlib.Path(__file__).parent.resolve()
+
+    with open(os.path.join(current_dir, 'cloudify_libvirt/__version__.py'),
+              'r') as outfile:
+        var = outfile.read()
+        return re.search(r'\d+.\d+.\d+', var).group()
+
 
 setup(
     name='cloudify-libvirt-plugin',
-    version='0.9.4',
+    version=get_version(),
     description='support libvirt',
     author='Cloudify',
     author_email='hello@getcloudify.org',
