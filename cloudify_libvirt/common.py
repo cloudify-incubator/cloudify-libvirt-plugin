@@ -76,6 +76,7 @@ def gen_xml_template(kwargs, template_params, default_template):
         serial_devices = []
         usb_devices = []
         pci_devices = []
+        tpm_devices = []
         for device in passthrough_devices:
             if device.get('type') == 'serial':
                 if 'source_path' in device and 'target_port' in device:
@@ -94,12 +95,18 @@ def gen_xml_template(kwargs, template_params, default_template):
                         'bus': device.get('bus'),
                         'slot': device.get('slot'),
                         'function': device.get('function')})
+            elif device.get('type') == 'tpm':
+                if 'path' in device:
+                    tpm_devices.append({
+                        'path': device.get('path')})
         if serial_devices:
             params.update({'serial_devices': serial_devices})
         if usb_devices:
             params.update({'usb_devices': usb_devices})
         if pci_devices:
             params.update({'pci_devices': pci_devices})
+        if tpm_devices:
+            params.update({'tpm_devices': tpm_devices})
     if not isinstance(template_content, str):
         template_content = template_content.decode("utf-8")
     xmlconfig = filters.render_template(template_content, params)

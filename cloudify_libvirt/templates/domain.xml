@@ -69,6 +69,13 @@
           </source>
       </hostdev>
     {% endfor %}
+    {% for tpm_device in tpm_devices %}
+      <tpm model='tpm-tis'>
+        <backend type='passthrough'>
+          <device path='{{ tpm_device.path }}'/>
+        </backend>
+      </tpm>
+    {% endfor %}
   </devices>
   <on_crash>restart</on_crash>
   <on_reboot>restart</on_reboot>

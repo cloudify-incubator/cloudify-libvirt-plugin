@@ -169,6 +169,8 @@ data_types:
             bus: 0x01
             slot: 0x00
             function: 0x1
+          - type: tpm
+            path: /dev/tpm0
         default: []
 
 node_types:
