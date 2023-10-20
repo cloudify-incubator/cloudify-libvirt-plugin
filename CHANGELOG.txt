@@ -34,3 +34,4 @@
 0.9.2: Rerelease for build system.
 0.9.3: Rerelease with rhel8.
 0.9.4: Add Passthrough Devices support.
+0.9.5: manylinux and dsl 1.5

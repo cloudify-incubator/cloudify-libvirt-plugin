@@ -2,7 +2,7 @@ plugins:
   libvirt:
     executor: central_deployment_agent
     package_name: cloudify-libvirt-plugin
-    package_version: '0.9.4'
+    package_version: '0.9.5'
 
 blueprint_labels:
   obj-type:

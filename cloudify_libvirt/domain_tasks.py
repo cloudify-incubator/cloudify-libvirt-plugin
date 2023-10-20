@@ -805,3 +805,114 @@ def perfomance(**kwargs):
         ctx.logger.info("Statistics: {}".format(repr(statistics)))
     finally:
         conn.close()
+
+
+@operation
+def update_domain_flags(**kwargs):
+    ctx.logger.info("Update domain")
+
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+
+    if not resource_id:
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No servers for update")
+
+    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    try:
+        try:
+            dom = conn.lookupByName(resource_id)
+        except libvirt.libvirtError as e:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain: {}'.format(repr(e))
+            )
+
+        state, _ = dom.state()
+        if state == libvirt.VIR_DOMAIN_RUNNING:
+            ctx.logger.info("Looks as running. Stop before updating")
+            return
+        xmlconfig = common.gen_xml_template(kwargs, template_params, 'domain')
+        dom.updateDeviceFlags(xmlconfig)
+        ctx.logger.info('Domain {0} updated.'.format(resource_id))
+    finally:
+        conn.close()
+
+
+@operation
+def detach_device_flags(**kwargs):
+    ctx.logger.info("Update domain")
+
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+
+    if not resource_id:
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No servers for update")
+
+    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    try:
+        try:
+            dom = conn.lookupByName(resource_id)
+        except libvirt.libvirtError as e:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain: {}'.format(repr(e))
+            )
+
+        state, _ = dom.state()
+        if state == libvirt.VIR_DOMAIN_RUNNING:
+            ctx.logger.info("Looks as running. Stop before updating")
+            return
+        xmlconfig = common.gen_xml_template(kwargs, template_params, 'domain')
+        dom.detachDeviceFlags(xmlconfig)
+        ctx.logger.info('Domain {0} updated.'.format(resource_id))
+    finally:
+        conn.close()
+
+
+@operation
+def attach_device_flags(**kwargs):
+    ctx.logger.info("Update domain")
+
+    libvirt_auth, template_params = common.get_libvirt_params(**kwargs)
+    resource_id = ctx.instance.runtime_properties.get('resource_id')
+
+    if not resource_id:
+        # not uninstall workflow, raise exception
+        raise cfy_exc.NonRecoverableError("No servers for update")
+
+    libvirt_auth, _ = common.get_libvirt_params(**kwargs)
+    conn = libvirt.open(libvirt_auth)
+    if conn is None:
+        raise cfy_exc.NonRecoverableError(
+            'Failed to open connection to the hypervisor'
+        )
+
+    try:
+        try:
+            dom = conn.lookupByName(resource_id)
+        except libvirt.libvirtError as e:
+            raise cfy_exc.NonRecoverableError(
+                'Failed to find the domain: {}'.format(repr(e))
+            )
+
+        state, _ = dom.state()
+        if state == libvirt.VIR_DOMAIN_RUNNING:
+            ctx.logger.info("Looks as running. Stop before updating")
+            return
+        xmlconfig = common.gen_xml_template(kwargs, template_params, 'domain')
+        dom.attachDeviceFlags(xmlconfig)
+        ctx.logger.info('Domain {0} updated.'.format(resource_id))
+    finally:
+        conn.close()
