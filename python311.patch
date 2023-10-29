@@ -1,0 +1,17 @@
+diff --git a/setup.py b/setup.py
+index 5778b32..6af4539 100644
+--- a/setup.py
++++ b/setup.py
+@@ -45,10 +45,10 @@ setup(
+         ]
+     },
+     install_requires=[
+-        'cloudify-common>=4.5.0',
++        'cloudify-common>=7.0.0',
+         # libvirt-6.0 requires python3
+         'libvirt-python==8.5.0',
+         # cdrom create code
+-        "cloudify-utilities-plugins-sdk>=0.0.27",
++        "cloudify-utilities-plugins-sdk>=0.0.127",
+     ],
+ )
