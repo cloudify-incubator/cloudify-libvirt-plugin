@@ -52,6 +52,10 @@ workflows:
           filters:
             branches:
               only: /([0-9\.]*\-build|master|main)/
+      - wagonorb/wagon_311:
+          filters:
+            branches:
+              only: /([0-9\.]*\-build|master|main)/
       - wagonorb/arch64_wagon:
           filters:
             branches:
@@ -66,6 +70,7 @@ workflows:
               only: /master|main/
           requires:
             - wagonorb/wagon
+            - wagonorb/wagon_311
             - wagonorb/arch64_wagon
             - wagonorb/rhel_wagon
             - node/validate_version_job
