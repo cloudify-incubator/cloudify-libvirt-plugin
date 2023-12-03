@@ -14,8 +14,9 @@
 
 import os
 import re
+import sys
 import pathlib
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 def get_version():
@@ -27,6 +28,21 @@ def get_version():
         return re.search(r'\d+.\d+.\d+', var).group()
 
 
+install_requires = ['libvirt-python==8.5.0']
+if sys.version_info.major == 3 and sys.version_info.minor == 6:
+    packages = ['cloudify_libvirt']
+    install_requires += [
+        'cloudify-common>=4.5,<7.0.0',
+        'cloudify-utilities-plugins-sdk>=0.0.127',
+    ]
+else:
+    packages = find_packages()
+    install_requires += [
+        'fusion-common',
+        'cloudify-utilities-plugins-sdk',
+    ]
+
+
 setup(
     name='cloudify-libvirt-plugin',
     version=get_version(),
@@ -34,7 +50,7 @@ setup(
     author='Cloudify',
     author_email='hello@getcloudify.org',
     license='LICENSE',
-    packages=['cloudify_libvirt'],
+    packages=packages,
     package_data={
         'cloudify_libvirt': [
             'templates/domain.xml',
@@ -44,11 +60,5 @@ setup(
             'templates/volume.xml',
         ]
     },
-    install_requires=[
-        'cloudify-common>=4.5.0',
-        # libvirt-6.0 requires python3
-        'libvirt-python==8.5.0',
-        # cdrom create code
-        "cloudify-utilities-plugins-sdk>=0.0.27",
-    ],
+    install_requires=install_requires,
 )

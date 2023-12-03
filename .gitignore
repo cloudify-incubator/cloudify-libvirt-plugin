@@ -87,3 +87,7 @@ ENV/
 
 # Rope project settings
 .ropeproject
+fusion-agent
+fusion-common
+fusion-manager
+cloudify-utilities-plugins-sdk
