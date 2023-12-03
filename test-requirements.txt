@@ -5,6 +5,3 @@ tox
 nose-cov
 flake8
 pylint
-# for blueprints validate
-cloudify==5.0.5.1
-cloudify-utilities-plugins-sdk

@@ -1,0 +1,3 @@
+pyyaml>=6.0
+-e fusion-common
+-e cloudify-utilities-plugins-sdk
